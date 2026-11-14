@@ -59,6 +59,8 @@ Timeline of Collaboration
 │ 18. Chaos Engine Mechanics: Active Fault Injection & Self-Healing Testing   │
 │    ▼                                                                        │
 │ 19. Architecture Deepening: Maxim AI Stack (`maxim-py`) & Bifrost Gateway   │
+│    ▼                                                                        │
+│ 20. End-to-End Setup Guide: Bifrost Gateway & Maxim AI Platform SDK         │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -374,6 +376,19 @@ Timeline of Collaboration
 
 ---
 
+### Phase 20: End-to-End Setup Guide: Bifrost Gateway & Maxim AI Platform SDK
+
+#### User Prompt 28
+> *"How to set up Bifrost, like the Maxim AI platform SDK and stuff? What is the setup? Give me that entire process"*
+
+* **Intent & Operational Clarity:**
+  * The user requested the complete, step-by-step installation, configuration, and code integration process for both:
+    1. **Bifrost AI Gateway:** Running locally via `npx -y @maximhq/bifrost` or Docker, setting up model routing on `http://localhost:8080`, and using it as a drop-in OpenAI-compatible proxy (`base_url="http://localhost:8080/v1"`).
+    2. **Maxim AI Platform SDK (`maxim-py`):** Installing via `pip install maxim-py`, configuring `MAXIM_API_KEY` and `MAXIM_LOG_REPO_ID`, and opening hierarchical Traces & Spans (or wrapping OpenAI client with `MaximOpenAIClient`).
+  * Formalized the complete setup guide for developer onboarding.
+
+---
+
 ## Key Technical Decisions Made Through This Dialogue
 
 | Decision | Alternative Considered | Why This Choice Was Made |
@@ -396,3 +411,4 @@ Timeline of Collaboration
 | **Plan Isolation: Gitignoring `docs/`** | Committing internal plan files | Keeps local scratchpad implementation plans private while maintaining clean public repo documentation. |
 | **Chaos Testing: Intercepting Proxy** | Modifying agent internal code | An intercepting proxy injects runtime network/tool faults without altering the agent's core source code. |
 | **Bifrost & Maxim Separation** | Conflating gateway and evals | Clearly separates Bifrost (network model proxy, caching, failover) from Maxim SDK (distributed trace spans, eval telemetry). |
+| **Bifrost Local Deployment** | Complex cloud-only setup | Running via `npx -y @maximhq/bifrost` on `localhost:8080` provides instant, zero-friction local developer setup. |
