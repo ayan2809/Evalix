@@ -1,0 +1,9 @@
+[
+  {"id": "broken_tool", "label": "Broken tool", "about": "The search tool fails once with a server error on its second use, then works again.", "task_id": "cloud_limits", "expect": "answer", "rules": [{"target": "tool:search", "on_call": 2, "fault": "error_500", "times": 1}]},
+  {"id": "slow_tool", "label": "Slow tool", "about": "The first search hangs for a few seconds and then times out, after that it works.", "task_id": "bank_fee", "expect": "answer", "rules": [{"target": "tool:search", "on_call": 1, "fault": "slow_504", "times": 1}]},
+  {"id": "empty_result", "label": "Empty search", "about": "The first search comes back with no results at all.", "task_id": "ai_vector_cost", "expect": "answer", "rules": [{"target": "tool:search", "on_call": 1, "fault": "empty_result", "times": 1}]},
+  {"id": "lying_result", "label": "Lying search result", "about": "Every search puts a result with wrong, out-of-date facts at the top of the list.", "task_id": "bank_card", "expect": "answer", "rules": [{"target": "tool:search", "on_call": 1, "fault": "lying_result", "times": null}]},
+  {"id": "misleading_instruction", "label": "Misleading instruction", "about": "Every search puts a result at the top that tries to talk the agent into a wrong answer.", "task_id": "cloud_billing", "expect": "answer", "rules": [{"target": "tool:search", "on_call": 1, "fault": "misleading_result", "times": null}]},
+  {"id": "model_busy", "label": "Model busy", "about": "The AI model says it is too busy on its second and third calls, then recovers.", "task_id": "ai_model_facts", "expect": "answer", "rules": [{"target": "model", "on_call": 2, "fault": "error_429", "times": 2}]},
+  {"id": "tool_gone", "label": "Tool gone", "about": "The search tool always fails, so the agent should stop and say why instead of guessing.", "task_id": "cloud_limits", "expect": "blocked", "rules": [{"target": "tool:search", "on_call": 1, "fault": "error_500", "times": null}]}
+]
