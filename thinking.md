@@ -229,7 +229,7 @@ Timeline of Collaboration
 * **Intent & Strategy:**
   * The user established the official GitHub remote: `https://github.com/ayan2809/Evalix.git`.
   * **Branching Strategy:** Dedicated research and architecture phase isolated on branch `feature/research`.
-  * **PR Workflow:** Opening a formal Pull Request from `feature/research` to `main` so the foundational documentation, architecture design, and problem statement artifacts are reviewable and collated before production implementation begins.
+  * **PR Workflow:** Opened official Pull Request [#1](https://github.com/ayan2809/Evalix/pull/1) from `feature/research` into `main` so all foundational research, architectural blueprints, problem statements, and thinking logs are formally reviewed before the implementation phase begins.
 
 ---
 
