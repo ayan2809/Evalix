@@ -63,6 +63,12 @@ Timeline of Collaboration
 │ 20. End-to-End Setup Guide: Bifrost Gateway & Maxim AI Platform SDK         │
 │    ▼                                                                        │
 │ 21. Economic Analysis: Zero-Cost Demo Architecture & Free-Tier Limits       │
+│    ▼                                                                        │
+│ 22. Plan Gap Analysis: Auditing `docs/plan.md` Before Implementation        │
+│    ▼                                                                        │
+│ 23. Plan v2: Rewriting `docs/plan.md` to Close All 29 Gaps in Plain Language│
+│    ▼                                                                        │
+│ 24. Deconstructing the "Research" Category & Target Domains                 │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -406,6 +412,62 @@ Timeline of Collaboration
 
 ---
 
+### Phase 22: Plan Gap Analysis — Auditing `docs/plan.md` Before Implementation
+
+#### User Prompt 30
+> *"identify the gaps in this particular plan. But first go through the entire repository first to understand what we are trying to solve in this project, Evalix. After that go through the plan and identify the gaps in it*  
+> *Suggest and list the gaps, as there may be many. That way we can refine the plan and then start implementation. Do not start any implementation here, but just analyze it"*
+
+* **Intent & Methodological Discipline:**
+  * The user paused again before writing any code, asking for the plan to be audited against the whole repository (`ps2.pdf`, `goal.md`, `rules.md`, the evals guide) so it can be refined first.
+* **Main Gaps Found (analysis only, no implementation):**
+  1. **No shared task category:** `ps2.pdf` asks for one category with identical tasks for every agent; the plan mixes financial support and live research, and lists Tavily (a tool) as if it were a framework.
+  2. **Black-box observation is undefined:** the plan does not say how steps, tool calls, and tokens are captured from an agent the platform did not write, or how an external agent is registered.
+  3. **Chaos placement contradiction:** if Bifrost fails over transparently on an injected 429, the agent never sees the fault, so the run measures the gateway rather than the agent.
+  4. **Determinism vs. live web:** live Tavily results change between trials, and Bifrost caching would make repeat trials replay the first one.
+  5. **Scope vs. deadline:** no timeline, MVP cut line, datastore, or API contract; the mandatory pitch deck and README are not in the plan; no LLM or Maxim key is provisioned yet.
+  6. **Agent Studio has no tasks to run:** a freshly generated custom agent has no task suite or answer key to be benchmarked against.
+* **Outcome:** Gaps listed for the user to decide on; `docs/plan.md` left unchanged until those decisions are made.
+
+---
+
+### Phase 23: Plan v2 — Rewriting `docs/plan.md` to Close All Gaps
+
+#### User Prompt 31
+> *"update the plan to address all the gaps you have identified in the plan and use the simplest language possible to write the plan."*
+
+* **Intent:** Turn the gap list into a plan that can be built from directly, written so anyone can follow it.
+* **Decisions Recorded in Plan v2 (AI-recommended defaults, open to change by the user):**
+  1. **One category: research.** Customer support and the mock database are dropped.
+  2. **Same tasks, tools, and model for every agent.** Tavily becomes the shared search tool behind Evalix instead of being listed as an agent.
+  3. **Agents are separate programs reached over HTTP (`POST /run`).** Evalix owns the tool server and the model address, with the run id in the URL, so it sees and can break every tool and model call.
+  4. **Saved search results are replayed** so every trial sees the same web; live Tavily is a demo switch kept out of the scoreboard.
+  5. **Faults are scripted** ("fail the 2nd search call, once"), cover broken tools, a busy model, and misleading instructions, and each states whether the right outcome is an answer or an honest "blocked".
+  6. **Model faults sit in front of Bifrost** so the agent faces them; Bifrost failover is a separate gateway test not counted in agent scores; caching is off for benchmark runs.
+  7. **Grading is code-only:** matching answer fields, sources that were really returned, and no attempt to use the forbidden tool.
+  8. **Careful vs. Careless plain-Python agents** on the same model carry the demo story; LangChain and Google ADK show framework independence.
+  9. **Build order with a cut line:** everything PS 02 requires comes first; Agent Studio and Maxim export come last; the final three hours are reserved for README, deck, and video.
+* **Open Items:** a model API key is still needed, and the Bifrost, Google ADK, and `maxim-py` behaviours taken from earlier chats must be checked in the first hour.
+
+---
+
+### Phase 24: Deconstructing the "Research" Category & Target Domains
+
+#### User Prompt 32
+> *"The plan mentions that there is only one category: research. What do we mean by research? What kind of research are we doing, and what domains are we targeting using this research category?"*
+
+* **Intent & Domain Clarification:**
+  * The user asked for a concrete explanation of what "Research" means in the context of agent benchmarking and what real-world domains Evalix targets.
+  * Clarified why PS 02 specifies choosing **one category** (so all benchmarked agents face the exact same task suite under identical conditions).
+  * Defined "Research Agent" not as academic paper writing, but as an **Autonomous Information Discovery & Fact-Verification Agent** (similar to OpenAI Deep Research or Perplexity Pro).
+  * Detailed the three specific target domains:
+    1. **Corporate & Tech Due Diligence (Fintech / Executive Intel):** Uncovering funding, leadership changes, and product updates (Workflow A from `goal.md`).
+    2. **Real-Time Fact-Checking & Staleness Verification (AI App Safety):** Verifying time-sensitive pricing, API limits, and regulations against live ground truth (Workflow B from `goal.md`).
+    3. **Competitive Market Intelligence (B2B SaaS / Infra):** Comparing competing tools on features, free tiers, and pricing (Workflow C from `goal.md`).
+  * Emphasized how this domain allows **100% deterministic assertion** via key-value ground truth matching, citation URL verification, and scope adherence.
+
+---
+
 ## Key Technical Decisions Made Through This Dialogue
 
 | Decision | Alternative Considered | Why This Choice Was Made |
@@ -430,3 +492,4 @@ Timeline of Collaboration
 | **Bifrost & Maxim Separation** | Conflating gateway and evals | Clearly separates Bifrost (network model proxy, caching, failover) from Maxim SDK (distributed trace spans, eval telemetry). |
 | **Bifrost Local Deployment** | Complex cloud-only setup | Running via `npx -y @maximhq/bifrost` on `localhost:8080` provides instant, zero-friction local developer setup. |
 | **Zero-Cost Demo Strategy** | Paid cloud infrastructure | Leverages Maxim free tier (10k logs), Tavily coupon (8k credits), and Bifrost OSS to achieve $0 out-of-pocket spend. |
+| **Research Scope Definition** | Academic essay writing | Anchored research to factual information retrieval (market due diligence, pricing/API verification, SaaS comparisons). |
