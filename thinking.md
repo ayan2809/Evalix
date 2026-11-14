@@ -81,6 +81,8 @@ Timeline of Collaboration
 │ 29. Privacy Directive: Complete Employer Anonymization & Tech Reframing     │
 │    ▼                                                                        │
 │ 30. Category vs. Domain Synthesis: Autonomous Research Capability Archetype │
+│    ▼                                                                        │
+│ 31. Deep Integration of Two-Tier Hybrid Grading in Master Build Plan        │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -572,6 +574,24 @@ Timeline of Collaboration
     * **Decision 1 Refined:** Explicitly defined as *"One capability category: Autonomous Research & Fact Verification (applied across 3 technical domains)"*.
     * **Decision 8 Refined:** Explicitly updated from code-only to **Two-Tier Hybrid Grading** (Tier 1 deterministic code core for the scoreboard + Tier 2 LLM-as-a-Judge for qualitative trajectory audits).
     * **Section 6 Updated:** Documented both Tier 1 and Tier 2 grading criteria.
+
+---
+
+### Phase 31: Deep Integration of Two-Tier Hybrid Grading in Master Build Plan
+
+#### User Prompt 40
+> *"There is one decision: mentions are creating uses code, not an AI judge, but we recently decided to go with a hybrid approach. Can you update the plan according to that hybrid approach instead of just a deterministic grading thing?"*
+
+* **Intent & Plan Synchronization:**
+  * The user noted that while the high-level decision table had been adjusted, the rest of the plan (`docs/plan.md`) needed to be comprehensively updated to reflect the **Two-Tier Hybrid Grading Engine** everywhere.
+  * **Systematic Plan Updates in `docs/plan.md`:**
+    1. **Decision 8 (§2):** Formally codified as *"Two-Tier Hybrid Grading: Deterministic Code Core + LLM-as-a-Judge Audit"*.
+    2. **Grading Mechanics (§6):** Articulated Tier 1 (deterministic ground-truth matching, citation provenance, trap tools, limits) and Tier 2 (LLM Judge qualitative audits for trajectory efficiency, hallucination nuance, and failure diagnosis).
+    3. **Evaluation Metrics (§8):** Added Tier 2 metrics to the run-level scoreboard: AI Reasoning Score (1–5), AI Groundedness, AI Recovery Rating, and AI Diagnostic Critique.
+    4. **Database & API Schema (§11):** Updated `runs` SQLite table schema to persist `judge_score`, `judge_groundedness`, and `judge_critique`.
+    5. **UI Specifications (§12):** Enhanced Screen 4 (*Run details*) to prominently render the interactive **AI Judge Audit Card** alongside the step-by-step trace viewer.
+    6. **Build Schedule (§14):** Scheduled `grader.py` (Tier 1) and `judge.py` (Tier 2) into the Saturday evening backend milestone.
+    7. **File Tree (§17):** Added `judge.py` to `backend/app/`.
 
 ---
 
