@@ -89,6 +89,10 @@ Timeline of Collaboration
 │ 33. Plan v3: Clean, Implementation-Ready Rewrite of `docs/plan.md`          │
 │    ▼                                                                        │
 │ 34. Maxim AI Telemetry & Repository Credentials Saved to `.env`              │
+│    ▼                                                                         │
+│ 35. Build-Ready Plan: Setup Facts Checked Against Official Docs              │
+│    ▼                                                                         │
+│ 36. Submission Form Strategy, Demo Video Bounds & PR Merge Preparation       │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -647,6 +651,38 @@ Timeline of Collaboration
     * `MAXIM_WORKSPACE_ID="cmwgab6px02jm117rof1n8da4"`
   * Populated these directly into `/Volumes/Projects/Evalix/.env` alongside `MAXIM_API_KEY` and `TAVILY_API_KEY`.
   * Verified that `.env` remains strictly gitignored to guarantee zero secrets leak into the public GitHub repository.
+
+---
+
+### Phase 35: Making the Plan Build-Ready — Checking Setup Facts Against Official Docs
+
+#### User Prompt 45
+> *"make it build ready"*
+
+* **Intent:** Remove the remaining unknowns in `docs/plan.md` so building can start without guesswork.
+* **What Was Checked (read from official docs on Nov 14, 2026; not yet run end to end):**
+  1. **Models:** `gemini-2.0-flash` and `gemini-1.5-pro` are shut down. Agents will use `gemini-3.5-flash-lite` and the judge `gemini-3.8-flash`. Free-tier limits are only shown inside AI Studio.
+  2. **Bifrost:** start command, `config.json` for Gemini, the `gemini/<model>` name format, tool-calling support, per-request `fallbacks`, and a custom provider for the fake failing model. Caching is off unless a plugin and a per-request cache key are both added.
+  3. **Libraries:** current versions and the lines needed to point LangChain and Google ADK at the Evalix model address.
+  4. **Maxim:** how to start the SDK and log a trace with tool calls. How to attach model calls and scores was not found.
+* **Plan Update:** §13 of `docs/plan.md` now holds these facts, the exact `.env` and Bifrost setup, and a short list of six checks that still need a live run.
+* **Still Blocking:** `GEMINI_API_KEY` is not in `.env`. The live Bifrost check could not be run in this session.
+
+---
+
+### Phase 36: Submission Form Strategy, Demo Video Bounds & PR Merge Preparation
+
+#### User Prompt 46, 47 & 48
+> *"How long should the demo video be?"*  
+> *"Are you also integrating a Tavily problem statement into your project? (leave if NA)... Submitting two separate projects, one for Tavily and one for Bifrost?..."*  
+> *"commit and push the changes to this branch, will merge the PR"*
+
+* **Intent & Submission Alignment:**
+  * **Demo Video Constraints:** Defined the optimal duration as **2:00 to 2:30 minutes** (maximum 3:00) using the 4-act storytelling structure (Act 1: Problem Hook $\rightarrow$ Act 2: Chaos Injection $\rightarrow$ Act 3: Side-by-Side Compare $\rightarrow$ Act 4: Bifrost & Maxim telemetry outro).
+  * **Hackathon Form Guidance:**
+    * *Tavily Integration Question:* Selected **`Stale-Answer Detector`** to formally qualify Evalix for Tavily sponsor prizes.
+    * *Two Projects Question:* Selected **`NA (not applied)`** because Evalix is submitted as a single unified dual-track platform.
+  * **Git & PR Synchronization:** Prepared branch `feature/research` for full review and merger into `main` via PR [#1](https://github.com/ayan2809/Evalix/pull/1).
 
 ---
 
