@@ -79,6 +79,8 @@ Timeline of Collaboration
 │ 28. Resume-Driven Domain Personalization: Banking, Cloud & RAG Systems      │
 │    ▼                                                                        │
 │ 29. Privacy Directive: Complete Employer Anonymization & Tech Reframing     │
+│    ▼                                                                        │
+│ 30. Category vs. Domain Synthesis: Autonomous Research Capability Archetype │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -553,6 +555,23 @@ Timeline of Collaboration
     2. Systematically scrubbed all historical co-creation logs (`thinking.md`) to reframe engineering experience around the underlying technologies and domains: "Tier-1 Retail Banking & Financial Services (18M+ users, 2M+ req/day)", "High-scale RAG & Agentic Operating Memory", "Enterprise AI Evaluation Platforms", and "AWS Cloud Infrastructure".
     3. Neutralized benchmark tasks in `docs/plan.md` to reference published retail banking industry products rather than proprietary identifiers.
   * **Outcome:** 100% adherence to author privacy and employer neutrality while preserving deep technical and domain authenticity.
+
+---
+
+### Phase 30: Category vs. Domain Synthesis — Autonomous Research Capability Archetype
+
+#### User Prompt 39
+> *"Update the decisions made in this plan because we have edited that part and it is not just research, I believe. Or is it research-based? I don't know. Answer me about that first and then update anything"*
+
+* **Intent & Clarification:**
+  * The user asked for clarification on whether the platform is still fundamentally "research-based" after curating tasks across Retail Banking, Cloud Infra, and AI Vector Systems, and directed the assistant to update the decisions in `docs/plan.md`.
+  * **Clarified the Critical Distinction Between Agent Category vs. Subject Domain:**
+    * **Category (Functional Archetype):** Defines *what the agent does* operationally. In PS 02, the hackathon rules mandate picking **one category** (e.g., coding, research, or customer support) so all agents face identical tool contracts. Our agents are **100% Autonomous Research & Fact-Verification Agents**: they formulate queries, call `search` and `read_page`, synthesize evidence, extract structured JSON fields, and cite source URLs. They do not write code or chat back-and-forth as customer support bots.
+    * **Domain (Subject Matter):** Defines *what topics the agent investigates*. Instead of generic trivia, our research agents operate across three technical enterprise domains: Retail Banking Systems, Cloud & Distributed Systems, and AI & Vector Search Systems.
+  * **Updates Made to `docs/plan.md`:**
+    * **Decision 1 Refined:** Explicitly defined as *"One capability category: Autonomous Research & Fact Verification (applied across 3 technical domains)"*.
+    * **Decision 8 Refined:** Explicitly updated from code-only to **Two-Tier Hybrid Grading** (Tier 1 deterministic code core for the scoreboard + Tier 2 LLM-as-a-Judge for qualitative trajectory audits).
+    * **Section 6 Updated:** Documented both Tier 1 and Tier 2 grading criteria.
 
 ---
 
