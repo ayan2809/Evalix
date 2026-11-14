@@ -71,6 +71,10 @@ Timeline of Collaboration
 │ 24. Deconstructing the "Research" Category & Target Domains                 │
 │    ▼                                                                        │
 │ 25. Full Branch Synchronization & Working Tree Verification                 │
+│    ▼                                                                        │
+│ 26. Architectural Alignment: Two-Tier Hybrid Grading & LLM-as-a-Judge      │
+│    ▼                                                                        │
+│ 27. Primary Model Provider Decision: Google AI Studio (Gemini Class)        │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -483,6 +487,37 @@ Timeline of Collaboration
 
 ---
 
+### Phase 26: Architectural Alignment — Two-Tier Hybrid Grading & LLM-as-a-Judge
+
+#### User Prompt 34 & 35
+> *"Are we not planning to use an AI judge like we had planned, or can we also add an LLM as a judge for the evaluations?"*  
+> *"What are the rules that we have planned for you to be used during the grading of a particular agent?"*
+
+* **Intent & Synthesis:**
+  * The user re-affirmed their core enterprise evaluation design: bridging deterministic programmatic evaluation with qualitative LLM-as-a-Judge analysis (replicating their proven setup at JPMorgan Chase).
+  * Synthesized a **Two-Tier Hybrid Evaluation Engine**:
+    * **Tier 1 (Deterministic / Online):** Instant, code-driven assertions on schema compliance, key-value ground truth matching, citation URL provenance verification, honeypot safety triggers (`send_email`), and execution boundaries (time $\le 120$s, model calls $\le 15$, tool calls $\le 20$, loop detection).
+    * **Tier 2 (Qualitative / Offline):** LLM-as-a-Judge post-run audit inspecting trajectory efficiency, reasoning logic, hallucination nuance, and quality of failure diagnosis when blocked by chaos.
+  * Ensures the platform achieves strict mathematical determinism ($\text{pass}^k$, cost-per-success) without sacrificing deep qualitative insight.
+
+---
+
+### Phase 27: Primary Model Provider Decision — Google AI Studio (Gemini Class)
+
+#### User Prompt 36
+> *"I think I can provide the API for Google AI Studio, which will cover, I think, all the models from the Gemini model class. That should be enough"*
+
+* **Intent & Architectural Impact:**
+  * The user provided the final critical operational dependency: a **Google AI Studio API Key**.
+  * Evaluated technical compatibility:
+    1. **Model Class:** `gemini-2.0-flash` (and `gemini-1.5-pro` for judging) provides sub-second latency, native tool calling, and high free-tier rate limits.
+    2. **Dual-API Standard:** Google AI Studio exposes both native Gemini APIs and OpenAI-compatible endpoints (`https://generativelanguage.googleapis.com/v1beta/openai/`), allowing standard `chat.completions.create` formatting across all agents and Bifrost.
+    3. **Google ADK Synergy:** The 4th benchmarked agent (built on Google GenAI / ADK) can utilize native Gemini SDK bindings without format translation.
+    4. **Bifrost Support:** Bifrost natively proxies Google Gemini models with token counting and caching controls.
+  * This completely closes Section 13 prerequisite checks in `docs/plan.md`.
+
+---
+
 ## Key Technical Decisions Made Through This Dialogue
 
 | Decision | Alternative Considered | Why This Choice Was Made |
@@ -508,3 +543,5 @@ Timeline of Collaboration
 | **Bifrost Local Deployment** | Complex cloud-only setup | Running via `npx -y @maximhq/bifrost` on `localhost:8080` provides instant, zero-friction local developer setup. |
 | **Zero-Cost Demo Strategy** | Paid cloud infrastructure | Leverages Maxim free tier (10k logs), Tavily coupon (8k credits), and Bifrost OSS to achieve $0 out-of-pocket spend. |
 | **Research Scope Definition** | Academic essay writing | Anchored research to factual information retrieval (market due diligence, pricing/API verification, SaaS comparisons). |
+| **Two-Tier Hybrid Grading** | Pure code or pure LLM judge | Combines instant, crash-proof deterministic assertions (Tier 1) with rich post-run LLM Judge trajectory audits (Tier 2). |
+| **Model Provider: Google AI Studio** | Multi-vendor billing sprawl | Covers all benchmarked agents and LLM judging via Gemini 2.0 Flash with sub-second latency and high free-tier limits. |
