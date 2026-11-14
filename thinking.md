@@ -49,6 +49,8 @@ Timeline of Collaboration
 │ 13. Frontend Design Philosophy & UI Rules (Minimalism, Zero Overload)       │
 │    ▼                                                                        │
 │ 14. Product Demo & Storytelling Standards (Clean, Polished, Universal)      │
+│    ▼                                                                        │
+│ 15. Strategic Goals: Instant Agent Builder & Pre-Built Tavily Workflows     │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -281,6 +283,22 @@ Timeline of Collaboration
 
 ---
 
+### Phase 15: Strategic Goals, Instant Agent Builder & Pre-Built Workflows
+
+#### User Prompt 23
+> *"I want to also research about the various agentic workflows I can build. I want to build a couple of them so I can use them for this demo.*  
+> *I believe we can use the Tavily thing for a couple of the agents we are building, which will be used by the Evalix platform for evaluation. It should be built so that whenever someone wants to onboard, they can create their own agent on the side. It should be easy to do, something like a one-prompt or zero-shot approach, and the agent will then be created automatically with as minimal input. That agent creation page can ask the user clarifying questions to build a small agent which can then be used to run evaluations on our platform.*  
+> *I don't know where this should be mentioned, but this is one of my goals so that it's easy to demo our product as well. You can maybe create a goal.md file for this."*
+
+* **Intent & Strategic Product Breakthrough:**
+  * Identified the primary adoption bottleneck in enterprise eval tools: onboarding an agent usually requires complex SDK integrations or lengthy YAML manifests.
+  * Defined two pivotal product features for Evalix:
+    1. **The Instant / Zero-Shot Agent Studio:** Enables any user (PM, developer, or judge) to create a custom agent in $<45$ seconds from a single prompt or through an interactive 2–3 question clarifying loop, instantly provisioning an agent runtime ready for evaluation.
+    2. **Pre-Built Tavily Showcase Workflows:** Out-of-the-box real-world research agents (Pre-Meeting Intelligence Briefing, Stale-Answer Detection, Competitive Deep-Search) built with Tavily so evaluators can run live chaos benchmarks immediately.
+  * Formalized the complete product and demo roadmap into `goal.md`.
+
+---
+
 ## Key Technical Decisions Made Through This Dialogue
 
 | Decision | Alternative Considered | Why This Choice Was Made |
@@ -297,3 +315,4 @@ Timeline of Collaboration
 | **Agent Governance: `rules.md` Protocol** | Relying on session memory | Ensures subsequent agents or IDE sessions adhere to the exact same logging, branching, and architecture rules. |
 | **Frontend Philosophy: Minimalist & Jargon-Free** | Dense, engineer-only telemetry dashboards | Democratizes evaluation for PMs, journey owners, and non-technical stakeholders without client device lag. |
 | **Demo Standard: Universal Narrative Framework** | Feature-dump technical walkthroughs | Ensures any evaluator grasps the core value proposition and business impact within 60 seconds. |
+| **Onboarding UX: Zero-Shot Agent Studio (`goal.md`)** | Requiring external API endpoint setup | Enables instant self-service onboarding in $<45$ seconds from a single prompt or 2-3 clarifying questions. |

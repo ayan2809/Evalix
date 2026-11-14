@@ -89,7 +89,8 @@ Any demo, video presentation, or walkthrough created for Evalix must follow thes
 ## 7. Core Reference Documents
 
 Before making architectural suggestions or writing code, consult:
-1. `thinking.md` — The historical reasoning, prompt transcripts, and design evolution.
-2. `AGENT_BENCHMARKING_AND_EVALS_GUIDE.md` — Complete production metric taxonomy (`pass^k`, trajectory efficiency, chaos taxonomy).
-3. `HACKATHON_GUIDE.md` — Hackathon rules, deadlines (Nov 15, 2026), prizes, and track constraints.
-4. `problem_statements/` — Original challenge briefs and PDF specifications.
+1. `goal.md` — Strategic product goals, demo flow, zero-shot agent builder, and built-in Tavily workflows.
+2. `thinking.md` — The historical reasoning, prompt transcripts, and design evolution.
+3. `AGENT_BENCHMARKING_AND_EVALS_GUIDE.md` — Complete production metric taxonomy (`pass^k`, trajectory efficiency, chaos taxonomy).
+4. `HACKATHON_GUIDE.md` — Hackathon rules, deadlines (Nov 15, 2026), prizes, and track constraints.
+5. `problem_statements/` — Original challenge briefs and PDF specifications.
