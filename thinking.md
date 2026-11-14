@@ -61,6 +61,8 @@ Timeline of Collaboration
 │ 19. Architecture Deepening: Maxim AI Stack (`maxim-py`) & Bifrost Gateway   │
 │    ▼                                                                        │
 │ 20. End-to-End Setup Guide: Bifrost Gateway & Maxim AI Platform SDK         │
+│    ▼                                                                        │
+│ 21. Economic Analysis: Zero-Cost Demo Architecture & Free-Tier Limits       │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -389,6 +391,21 @@ Timeline of Collaboration
 
 ---
 
+### Phase 21: Economic Analysis: Zero-Cost Demo Architecture & Free-Tier Limits
+
+#### User Prompt 29
+> *"How costly will it be to set up a Maxim API key and how much will it cost for this entire demo then?"*
+
+* **Intent & Budget Optimization:**
+  * The user conducted a strict cost audit before provisioning services.
+  * Verified that the entire project can be run and demoed at **\$0.00 total expense**:
+    1. **Maxim AI:** Provides a **Free-Forever Developer Plan** (up to 3 seats, 1 workspace, 10,000 logs/traces per month)—\$0 cost to obtain API keys.
+    2. **Bifrost:** 100% Free & Open Source (Apache 2.0)—self-hosted locally on `localhost:8080`.
+    3. **Tavily:** **8,000 free search credits** via hackathon coupon code `GEEKROOM2`.
+    4. **Model Costs:** Can run 100% free with local Ollama (`llama3.2`) or Google Gemini Flash free tier, or $< \$0.01 if using OpenAI `gpt-4o-mini`.
+
+---
+
 ## Key Technical Decisions Made Through This Dialogue
 
 | Decision | Alternative Considered | Why This Choice Was Made |
@@ -412,3 +429,4 @@ Timeline of Collaboration
 | **Chaos Testing: Intercepting Proxy** | Modifying agent internal code | An intercepting proxy injects runtime network/tool faults without altering the agent's core source code. |
 | **Bifrost & Maxim Separation** | Conflating gateway and evals | Clearly separates Bifrost (network model proxy, caching, failover) from Maxim SDK (distributed trace spans, eval telemetry). |
 | **Bifrost Local Deployment** | Complex cloud-only setup | Running via `npx -y @maximhq/bifrost` on `localhost:8080` provides instant, zero-friction local developer setup. |
+| **Zero-Cost Demo Strategy** | Paid cloud infrastructure | Leverages Maxim free tier (10k logs), Tavily coupon (8k credits), and Bifrost OSS to achieve $0 out-of-pocket spend. |
