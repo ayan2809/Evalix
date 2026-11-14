@@ -83,6 +83,8 @@ Timeline of Collaboration
 │ 30. Category vs. Domain Synthesis: Autonomous Research Capability Archetype │
 │    ▼                                                                        │
 │ 31. Deep Integration of Two-Tier Hybrid Grading in Master Build Plan        │
+│    ▼                                                                        │
+│ 32. Maxim AI Dashboard Onboarding & Telemetry Key Provisioning              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -592,6 +594,21 @@ Timeline of Collaboration
     5. **UI Specifications (§12):** Enhanced Screen 4 (*Run details*) to prominently render the interactive **AI Judge Audit Card** alongside the step-by-step trace viewer.
     6. **Build Schedule (§14):** Scheduled `grader.py` (Tier 1) and `judge.py` (Tier 2) into the Saturday evening backend milestone.
     7. **File Tree (§17):** Added `judge.py` to `backend/app/`.
+
+---
+
+### Phase 32: Maxim AI Dashboard Onboarding & Telemetry Key Provisioning
+
+#### User Prompt 41
+> *"i logged into maxim AI's site using my company mail id. next what?"*
+
+* **Intent & Platform Onboarding:**
+  * The user authenticated into the Maxim AI dashboard (`app.getmaxim.ai`).
+  * Guided the user through the three essential onboarding actions needed for Evalix:
+    1. **Create Project / Log Repository:** Creating an `evalix` project to host traces, spans, and evaluation metrics.
+    2. **Generate Maxim API Key:** Extracting `MAXIM_API_KEY` from Workspace Settings $\rightarrow$ API Keys.
+    3. **Capture Repository ID:** Recording `MAXIM_LOG_REPO_ID` to bind local execution traces directly to the dashboard.
+  * Verified local `.env` storage requirements (keeping keys isolated from git).
 
 ---
 
