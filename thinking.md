@@ -53,6 +53,8 @@ Timeline of Collaboration
 │ 15. Strategic Goals: Instant Agent Builder & Pre-Built Tavily Workflows     │
 │    ▼                                                                        │
 │ 16. Implementation Plan Prompt: Stack, Maxim AI SDK, Google ADK & Determinism│
+│    ▼                                                                        │
+│ 17. Plan Archiving (`docs/plan.md`) & Gitignoring Working Plans             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -330,6 +332,17 @@ Timeline of Collaboration
 
 ---
 
+### Phase 17: Implementation Plan Archiving (`docs/plan.md`) & Gitignoring Working Plans
+
+#### User Prompt 25
+> *"save the plan in a file inside the docs diretory and keep that directory gitignored"*
+
+* **Intent & Repository Hygiene:**
+  * Saved the complete Master Implementation Plan to `docs/plan.md`.
+  * Added `docs/` to `.gitignore` to maintain clean repository separation between public hackathon artifacts/documentation and local working scratchpad plans.
+
+---
+
 ## Key Technical Decisions Made Through This Dialogue
 
 | Decision | Alternative Considered | Why This Choice Was Made |
@@ -349,3 +362,4 @@ Timeline of Collaboration
 | **Onboarding UX: Zero-Shot Agent Studio (`goal.md`)** | Requiring external API endpoint setup | Enables instant self-service onboarding in $<45$ seconds from a single prompt or 2-3 clarifying questions. |
 | **Framework Independence: 4th Agent (Google ADK)** | Single-framework demo | Demonstrates true framework neutrality by benchmarking Vanilla Python, LangChain, Tavily, and Google GenAI / ADK. |
 | **Deterministic Evals Domain: Support & Fact Verification** | Open-ended conversational chat | Allows 100% deterministic assertion on database state mutations, schema validity, and exact key-value facts. |
+| **Plan Isolation: Gitignoring `docs/`** | Committing internal plan files | Keeps local scratchpad implementation plans private while maintaining clean public repo documentation. |
