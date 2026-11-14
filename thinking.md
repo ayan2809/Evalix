@@ -51,6 +51,8 @@ Timeline of Collaboration
 │ 14. Product Demo & Storytelling Standards (Clean, Polished, Universal)      │
 │    ▼                                                                        │
 │ 15. Strategic Goals: Instant Agent Builder & Pre-Built Tavily Workflows     │
+│    ▼                                                                        │
+│ 16. Implementation Plan Prompt: Stack, Maxim AI SDK, Google ADK & Determinism│
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -299,6 +301,35 @@ Timeline of Collaboration
 
 ---
 
+### Phase 16: Master Implementation Planning, Framework Independence & Deterministic Evals
+
+#### User Prompt 24
+> *"Now I want you to write a plan prompt that I will use to start the implementation of this project. Keep the language simple and easy for me to understand.*  
+> *I want to use the following tech stack:*  
+> *- React with TypeScript for the frontend*  
+> *- FastAPI in Python for the backend*  
+> *For the framework I want to understand and work with Maxim AI's text agent for observability, simulation, and related tasks.*  
+> *I want to build three things:*  
+> *1. An agent studio where the user can easily build one agent, then proceed to the evals platform to benchmark and evaluate their agents*  
+> *2. Support for both online and offline processing*  
+> *3. A UI that is as clear, intuitive, and easy to understand as possible*  
+> *These are some of the rules. I also want to look at the, based on based on the hackathon rules, I notice that they want the framework to be framework-independent. Our evals platform should also support that and be framework-independent. If it is framework-independent, let us also create one more fourth agent for the demo, which will be written in Google ADK. I also want to understand what domain I can use the agents in, such as what domain I can build these agents for. That is something I am not very clear about and it should be in the plan. Give me two to three hints on what kind of agentic workflows I can build so they can be tested on the evals platform. and the evaluation should be as much deteministic as possible.*  
+> *like check the problem statement2 pdf and check what they need and design the plan according to that."*
+
+* **Intent & Strategic Implementation Design:**
+  * Grounded the implementation plan directly in **Problem Statement 02** mandatory requirements:
+    1. **Framework Independence:** Platform treats agents as black boxes. For the demo, showcases 4 distinct frameworks:
+       - Agent 1: **Vanilla Python / HTTP Agent** (Native function calling)
+       - Agent 2: **LangChain / CrewAI Agent** (Multi-step tool agent)
+       - Agent 3: **Tavily Research Agent** (Specialized web intelligence)
+       - Agent 4: **Google GenAI / ADK Agent** (Proving Google SDK neutrality)
+    2. **Domain Selection with Deterministic Evaluation:** Solved the open question of agent domain by prioritizing categories from `ps2.pdf` (Customer Support & Research) where outcomes can be deterministically asserted (e.g. database side-effects, exact key-value extraction, tool schema validation, and zero false mutations) without relying solely on subjective LLM grading.
+    3. **Tech Stack Locked:** React + TypeScript (frontend) + FastAPI (backend) + Maxim AI (`maxim-py` SDK / Bifrost) for tracing, simulation, and observability.
+    4. **Dual Processing Modes:** Online in-flight guardrails (real-time latency/PII checks) vs. Offline batch multi-trial simulation (`pass^k` consistency).
+  * Synthesized a ready-to-execute Master Implementation Plan prompt.
+
+---
+
 ## Key Technical Decisions Made Through This Dialogue
 
 | Decision | Alternative Considered | Why This Choice Was Made |
@@ -316,3 +347,5 @@ Timeline of Collaboration
 | **Frontend Philosophy: Minimalist & Jargon-Free** | Dense, engineer-only telemetry dashboards | Democratizes evaluation for PMs, journey owners, and non-technical stakeholders without client device lag. |
 | **Demo Standard: Universal Narrative Framework** | Feature-dump technical walkthroughs | Ensures any evaluator grasps the core value proposition and business impact within 60 seconds. |
 | **Onboarding UX: Zero-Shot Agent Studio (`goal.md`)** | Requiring external API endpoint setup | Enables instant self-service onboarding in $<45$ seconds from a single prompt or 2-3 clarifying questions. |
+| **Framework Independence: 4th Agent (Google ADK)** | Single-framework demo | Demonstrates true framework neutrality by benchmarking Vanilla Python, LangChain, Tavily, and Google GenAI / ADK. |
+| **Deterministic Evals Domain: Support & Fact Verification** | Open-ended conversational chat | Allows 100% deterministic assertion on database state mutations, schema validity, and exact key-value facts. |
