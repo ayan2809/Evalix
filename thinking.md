@@ -75,6 +75,8 @@ Timeline of Collaboration
 │ 26. Architectural Alignment: Two-Tier Hybrid Grading & LLM-as-a-Judge      │
 │    ▼                                                                        │
 │ 27. Primary Model Provider Decision: Google AI Studio (Gemini Class)        │
+│    ▼                                                                        │
+│ 28. Resume-Driven Domain Personalization: JPMC, AWS & RAG AI Systems        │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -518,6 +520,25 @@ Timeline of Collaboration
 
 ---
 
+### Phase 28: Resume-Driven Domain Personalization — JPMC, AWS & RAG AI Systems
+
+#### User Prompt 37
+> *"Curate the three target domains we're benchmarking against as domains I understand and have worked on, based on my resume and experience. You can query the resume as code repository or project on my device"*
+
+* **Intent & Personalized Grounding:**
+  * The user directed the assistant to inspect their local resume repository (`/Volumes/Projects/Resume-as-code/build/resume.json`) and align Evalix's 3 target benchmarking domains directly with their production engineering background.
+  * **Resume Discovery & Core Pillars Analyzed:**
+    1. **JPMorgan Chase & Co. (Software Engineer II):** Built RAG search service for 18M customers (1.5–2M req/day) in FastAPI with OpenSearch ETL pipelines; engineered multi-agent operating memory with PII-masked context (gRPC / Spring Boot); replaced vendor FAQ search.
+    2. **Cloud & DevOps (3x AWS Certified):** AWS Certified Solutions Architect, Developer, and Machine Learning Specialist. Manages Amazon EKS, Route 53, NLB/ALB, OpenSearch, Lambda, CloudFormation, and SLA incident response.
+    3. **RAG & Agentic Systems:** Built ETL pipelines scraping/embedding PDF/web data, vector search (OpenSearch/FAISS), context engineering, and LLM evaluations.
+  * **Curated 3 Target Domains in `tasks.json`:**
+    1. **Domain 1: Retail Banking & Fintech Regulatory Intelligence (JPMC Core):** Evaluating research agents on credit card fees (Chase Sapphire Reserve), fee waiver rules (Chase Total Checking), and regulatory compliance disclosures.
+    2. **Domain 2: Enterprise Cloud & Observability Systems (AWS Core):** Evaluating research agents on AWS service limits (Lambda payload/timeout under ALB), container pricing (EKS vs. ECS Fargate), and observability ingestion SLAs.
+    3. **Domain 3: AI Infrastructure & Enterprise Vector Search (RAG Core):** Evaluating research agents on vector DB pricing (OpenSearch Serverless OCU vs. Pinecone), model pricing/context limits (Gemini 2.0 Flash in Google AI Studio), and embedding latency budgets.
+  * **Impact:** Gives the user authentic, effortless domain authority during live presentations, code walkthroughs, and Q&A with hackathon judges.
+
+---
+
 ## Key Technical Decisions Made Through This Dialogue
 
 | Decision | Alternative Considered | Why This Choice Was Made |
@@ -545,3 +566,4 @@ Timeline of Collaboration
 | **Research Scope Definition** | Academic essay writing | Anchored research to factual information retrieval (market due diligence, pricing/API verification, SaaS comparisons). |
 | **Two-Tier Hybrid Grading** | Pure code or pure LLM judge | Combines instant, crash-proof deterministic assertions (Tier 1) with rich post-run LLM Judge trajectory audits (Tier 2). |
 | **Model Provider: Google AI Studio** | Multi-vendor billing sprawl | Covers all benchmarked agents and LLM judging via Gemini 2.0 Flash with sub-second latency and high free-tier limits. |
+| **Resume-Driven Task Domains** | Generic hypothetical trivia | Curates tasks across JPMC retail banking, AWS cloud infrastructure, and enterprise RAG vector search where the user has proven production mastery. |
