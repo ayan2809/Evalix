@@ -43,6 +43,8 @@ Timeline of Collaboration
 │ 10. Standing Rule: Continuous Real-Time Co-Creation Logging                 │
 │    ▼                                                                        │
 │ 11. Git Remote Setup & Branching Strategy (`feature/research` → `main`)     │
+│    ▼                                                                        │
+│ 12. Establishing `rules.md`: Agent Instructions & Persistent Chat Context   │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -233,6 +235,17 @@ Timeline of Collaboration
 
 ---
 
+### Phase 12: Establishing `rules.md` & Agent Instructions
+
+#### User Prompt 20
+> *"Also create a rules.md file with the rules for this particular project so that whenever any other agent starts this project, they read the rules. Also save the conversations I'm having with the AI agent so that my thinking is captured there as well, not just in this conversation"*
+
+* **Intent & Governance:**
+  * Created `rules.md` as the explicit instruction manual for any AI agent or collaborator opening this workspace.
+  * Formalized the Prime Directive: any future agent working on Evalix must read `rules.md` first, maintain continuous prompt capture in `thinking.md`, adhere to the `feature/research` branching model, and preserve the active chaos / `pass^k` architectural guardrails.
+
+---
+
 ## Key Technical Decisions Made Through This Dialogue
 
 | Decision | Alternative Considered | Why This Choice Was Made |
@@ -246,3 +259,4 @@ Timeline of Collaboration
 | **Research Before Code** | Immediate code generation | User deliberately paused development to thoroughly map out industry metrics and architecture first. |
 | **Standing Rule: Continuous Co-Creation Log** | Post-hoc manual writeup | Continuous capture guarantees verbatim accuracy and radical transparency for judges. |
 | **Branching Strategy: `feature/research` PR** | Direct push to `main` | Keeps `main` clean and tracks foundational architecture, rules, and thinking logs as an auditable PR. |
+| **Agent Governance: `rules.md` Protocol** | Relying on session memory | Ensures subsequent agents or IDE sessions adhere to the exact same logging, branching, and architecture rules. |
