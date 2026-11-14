@@ -49,7 +49,25 @@
 
 ---
 
-## 5. Core Reference Documents
+## 5. Frontend Design & UI/UX Operating Rules
+
+Any UI developed for Evalix must strictly comply with these design principles:
+* **Radical Minimalism & Clean Aesthetic:**
+  * Clean, distraction-free interface with generous breathing room and purposeful hierarchy.
+  * No visual clutter, flashy animations, or unnecessary nested widgets.
+* **Universal Accessibility (Engineers, PMs, & Non-Technical Stakeholders):**
+  * The interface must be instantly intelligible to **Product Managers, Journey Owners, Executives, and Engineers alike**.
+  * Anyone unfamiliar with AI evaluation should be able to open the dashboard and immediately understand: *Did the agent succeed? Where did it stumble? What did it cost?*
+* **Jargon-Free Clarity:**
+  * Avoid raw, intimidating ML/eval jargon. Present plain-language metrics with intuitive labels and progressive disclosure (e.g., label $pass^k$ clearly as **"Success Consistency (3/3 Runs)"**, with technical formulas tucked into helpful tooltips).
+  * Clear visual badges (Pass / Fail / Recovered) rather than wall-of-text error logs.
+* **Zero Context Overload & Low Device Footprint:**
+  * Avoid dumping multi-megabyte raw JSON traces onto the browser DOM.
+  * Use lazy-loaded, collapsible step accordions, pagination, and virtualized trace views so the UI never causes client-side memory spikes, device lag, or cognitive fatigue.
+
+---
+
+## 6. Core Reference Documents
 
 Before making architectural suggestions or writing code, consult:
 1. `thinking.md` — The historical reasoning, prompt transcripts, and design evolution.

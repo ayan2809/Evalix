@@ -45,6 +45,8 @@ Timeline of Collaboration
 │ 11. Git Remote Setup & Branching Strategy (`feature/research` → `main`)     │
 │    ▼                                                                        │
 │ 12. Establishing `rules.md`: Agent Instructions & Persistent Chat Context   │
+│    ▼                                                                        │
+│ 13. Frontend Design Philosophy & UI Rules (Minimalism, Zero Overload)       │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -246,6 +248,22 @@ Timeline of Collaboration
 
 ---
 
+### Phase 13: Frontend Design Philosophy & UI/UX Rules
+
+#### User Prompt 21
+> *"For the UI I want to set a rule: it has to be very clean, minimalistic, easy to navigate, and easy to understand. It should be built for everyone, from product managers and engineers to even someone who is not really accustomed to these kinds of systems.*  
+> *It should not have a lot of jargon, should be as clean as possible, and should not cause context overload on the device. These are the rules for frontend development"*
+
+* **Intent & Design Philosophy:**
+  * Established the non-negotiable frontend design principles for **Evalix**:
+    1. **Radical Minimalism & Clean Layout:** Focused on purposeful typography, whitespace, and immediate visual clarity.
+    2. **Democratized Accessibility:** The interface must not be an impenetrable matrix of ML graphs built solely for researchers. It must be effortlessly usable by **Product Managers, Journey Owners, Executives, and Engineers alike**.
+    3. **Jargon-Free Metrics:** Technical concepts are rendered in human terms (e.g., *“3 out of 3 Runs Succeeded”* instead of an unexplained $pass^k$ formula) with progressive disclosure via tooltips.
+    4. **Zero Device Overload & Low Footprint:** Prevent client-side browser lag by avoiding raw multi-megabyte JSON dumps; use collapsible step accordions and clean summary cards.
+  * Formalized these principles into Section 5 of `rules.md`.
+
+---
+
 ## Key Technical Decisions Made Through This Dialogue
 
 | Decision | Alternative Considered | Why This Choice Was Made |
@@ -260,3 +278,4 @@ Timeline of Collaboration
 | **Standing Rule: Continuous Co-Creation Log** | Post-hoc manual writeup | Continuous capture guarantees verbatim accuracy and radical transparency for judges. |
 | **Branching Strategy: `feature/research` PR** | Direct push to `main` | Keeps `main` clean and tracks foundational architecture, rules, and thinking logs as an auditable PR. |
 | **Agent Governance: `rules.md` Protocol** | Relying on session memory | Ensures subsequent agents or IDE sessions adhere to the exact same logging, branching, and architecture rules. |
+| **Frontend Philosophy: Minimalist & Jargon-Free** | Dense, engineer-only telemetry dashboards | Democratizes evaluation for PMs, journey owners, and non-technical stakeholders without client device lag. |
