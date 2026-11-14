@@ -7,7 +7,7 @@
 
 ## Executive Summary: How AI Was Used in This Project
 
-Rather than using AI to generate blind boilerplate code, the human engineer (a Software Engineer II at JPMorgan Chase specializing in RAG systems, agent memory, and internal evaluation platforms) used the AI assistant as a **research partner, architectural sounding board, and domain synthesizer**:
+Rather than using AI to generate blind boilerplate code, the human engineer (a Software Engineer II specializing in high-scale enterprise RAG systems, multi-agent operating memory, and internal evaluation platforms) used the AI assistant as a **research partner, architectural sounding board, and domain synthesizer**:
 
 1. **Autonomous Intelligence Gathering:** Reverse-engineering event APIs and parsing problem statement PDFs directly from platform endpoints.
 2. **Architectural Dissection & Stress-Testing:** Challenging and refining mental models around tools (Bifrost AI Gateway vs. agent frameworks, Tavily search vs. debugging).
@@ -28,7 +28,7 @@ Timeline of Collaboration
 │    ▼                                                                        │
 │ 3. Credits & API Economics (Tavily credits, LLM hosting, Voice AI)          │
 │    ▼                                                                        │
-│ 4. Domain Alignment: Enterprise Evals at JPMorgan Chase                     │
+│ 4. Domain Alignment: Enterprise Evaluation Systems in Tier-1 Banking        │
 │    ▼                                                                        │
 │ 5. Dual-Track Strategy: Testing a Tavily Agent on the Benchmark Platform    │
 │    ▼                                                                        │
@@ -38,7 +38,7 @@ Timeline of Collaboration
 │    ▼                                                                        │
 │ 8. Landscape Mapping: Maxim Observability vs. Arize Phoenix                 │
 │    ▼                                                                        │
-│ 9. Enterprise Journey Simulation (JPMC Architecture) & Eval Taxonomies      │
+│ 9. Enterprise Journey Simulation (Tier-1 Banking Systems) & Eval Taxonomies │
 │    ▼                                                                        │
 │ 10. Standing Rule: Continuous Real-Time Co-Creation Logging                 │
 │    ▼                                                                        │
@@ -76,7 +76,9 @@ Timeline of Collaboration
 │    ▼                                                                        │
 │ 27. Primary Model Provider Decision: Google AI Studio (Gemini Class)        │
 │    ▼                                                                        │
-│ 28. Resume-Driven Domain Personalization: JPMC, AWS & RAG AI Systems        │
+│ 28. Resume-Driven Domain Personalization: Banking, Cloud & RAG Systems      │
+│    ▼                                                                        │
+│ 29. Privacy Directive: Complete Employer Anonymization & Tech Reframing     │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -123,7 +125,7 @@ Timeline of Collaboration
 > *"I want to understand what the credits are. How can I use these credits and will it give me access to various models using these credits?"*
 
 #### User Prompt 5
-> *"How much does Maxim AI pay its engineers? I am an ASD2 at JP Morgan Chase and you can fetch my resume from Resume as Code and check that.*  
+> *"How much does Maxim AI pay its engineers? I am an SDE-II at a Tier-1 financial institution and you can fetch my resume from Resume as Code and check that.*  
 > *Also is it in person, hybrid, or remote? I want to understand what they do, how they hire, and related details but keep it brief and short only"*
 
 #### User Prompt 6
@@ -131,7 +133,7 @@ Timeline of Collaboration
 
 * **Intent & Thought Process:** 
   * The user evaluated the developer economics: Tavily credits (`GEEKROOM2`) cover web search queries, while LLMs must be powered by local models (Ollama/vLLM) or free/cloud tiers.
-  * The user explored the hiring incentive behind the hackathon: Maxim AI offers direct interview opportunities to winners. The user mapped their background (Software Engineer II at JPMorgan Chase, building high-scale RAG and agentic operating memory) to Maxim AI's hiring profile and compensation benchmarks in Bengaluru.
+  * The user explored the hiring incentive behind the hackathon: Maxim AI offers direct interview opportunities to winners. The user mapped their background (Software Engineer II in enterprise banking systems, building high-scale RAG and agentic operating memory) to Maxim AI's hiring profile and compensation benchmarks in Bengaluru.
   * Verified that Omnidimension Voice AI credits are post-hackathon winner prizes, not required project prerequisites.
 
 ---
@@ -142,12 +144,12 @@ Timeline of Collaboration
 > *"Why do you mention that tackling problem statement 1 and statement 4 would give me an immediate hiring showcase? What are the problem statements that will make me stand out?"*
 
 #### User Prompt 8 (The Turning Point)
-> *"I want to solve this agent benchmarking platform problem because it is something I'm currently working on as a software engineer at JP Morgan Chase. I am building the evals platform for the other agentic teams out there and I think it will give me exposure and an understanding of what we are trying to do.*  
-> *I can build a clone as well. I have the expertise, have developed the muscle for that, and can give it context on what to build. It is something I can build, and I can use Maxim AI's Bifrost project to build it. It is something I am building for production and internal users at JP Morgan and I believe I can make it from here as well"*
+> *"I want to solve this agent benchmarking platform problem because it is something I'm currently working on as an enterprise software engineer. I am building the evals platform for the other agentic teams out there and I think it will give me exposure and an understanding of what we are trying to do.*  
+> *I can build a clone as well. I have the expertise, have developed the muscle for that, and can give it context on what to build. It is something I can build, and I can use Maxim AI's Bifrost project to build it. It is something I am building for production and internal users in enterprise banking and I believe I can make it from here as well"*
 
 * **Intent & Strategic Decision:**  
   * The user intentionally bypassed generic chatbot projects to build **Problem Statement 02: Build a Benchmarking Platform for AI Agents, Not Just Models**.
-  * **Strategic Rationale:** Maxim AI’s core business is an **AI evaluation platform**. Building a benchmarking suite directly aligns with the host's product vision and leverages the user's real-world engineering muscle building agent evals at JPMorgan Chase.
+  * **Strategic Rationale:** Maxim AI’s core business is an **AI evaluation platform**. Building a benchmarking suite directly aligns with the host's product vision and leverages the user's real-world engineering muscle building agent evals in high-scale enterprise systems.
 
 ---
 
@@ -216,20 +218,20 @@ Timeline of Collaboration
 
 ---
 
-### Phase 9: Enterprise Journey Simulation (JPMC Architecture) & Eval Taxonomies
+### Phase 9: Enterprise Journey Simulation (Banking Systems Architecture) & Eval Taxonomies
 
 #### User Prompt 17
 > *"Oh damn. Basically Maxim has all these evaluation capabilities itself. This is something which I have been using*  
-> *Using it in my product at JP Morgan, I can use these maximum evaluations, maximum simulations, and the observability component to build this kind of evals platform.*  
+> *Using it in my enterprise products, I can use these maximum evaluations, maximum simulations, and the observability component to build this kind of evals platform.*  
 > *I have been working on a particular project that does this simulation. A journey owner comes to our platform with their own set of agents. They upload the PRD, flow diagram, agent architect, Figma diagram, or flow, along with other context for our evaluation platform.*  
 > *This is how the agent is. We then create scenarios on top of it using these documents. We have an ML library that handles the simulation part and scenario generation. After that, we test it and make a live LLM call to use the particular persona, simulate conversations, and call the actual agent so it can be evaluated and shown on our screen.*  
 > *I think this is the flow. I might have missed something, but can you validate and check it once if this is how people are building*  
 > *Apart from that, I was also delving into three things: online evaluation, offline evaluation, and the LLM as a judge.*  
 > *Online evaluation occurs when the user is using a particular agent. These evaluations run instantly. Offline evaluation happens after a particular agent run has completed, when we evaluate past agent runs.*  
-> *The LLM as a judge is where the LLM has all the context and then judges particular simulation runs based on various personas. I believe the LLM-as-a-judge setup is the platform I have built currently at JP Morgan."*
+> *The LLM as a judge is where the LLM has all the context and then judges particular simulation runs based on various personas. I believe the LLM-as-a-judge setup is the platform I have built currently in my enterprise work."*
 
 * **Intent & Architectural Deep-Dive:**
-  * The user opened up their direct production architectural experience at **JPMorgan Chase**, describing their internal simulation platform:
+  * The user opened up their direct production architectural experience in **high-scale banking systems**, describing their internal simulation platform:
     1. **Journey Intake:** Ingesting business PRDs, architecture diagrams, and Figma flows.
     2. **Synthetic Scenario Generation:** ML-driven generation of test cases and edge cases.
     3. **Persona-Driven Multi-Turn Simulation:** A User Simulator (holding specific personas) interacts multi-turn with the System Under Test (SUT).
@@ -496,7 +498,7 @@ Timeline of Collaboration
 > *"What are the rules that we have planned for you to be used during the grading of a particular agent?"*
 
 * **Intent & Synthesis:**
-  * The user re-affirmed their core enterprise evaluation design: bridging deterministic programmatic evaluation with qualitative LLM-as-a-Judge analysis (replicating their proven setup at JPMorgan Chase).
+  * The user re-affirmed their core enterprise evaluation design: bridging deterministic programmatic evaluation with qualitative LLM-as-a-Judge analysis (replicating their proven setup in enterprise financial platforms).
   * Synthesized a **Two-Tier Hybrid Evaluation Engine**:
     * **Tier 1 (Deterministic / Online):** Instant, code-driven assertions on schema compliance, key-value ground truth matching, citation URL provenance verification, honeypot safety triggers (`send_email`), and execution boundaries (time $\le 120$s, model calls $\le 15$, tool calls $\le 20$, loop detection).
     * **Tier 2 (Qualitative / Offline):** LLM-as-a-Judge post-run audit inspecting trajectory efficiency, reasoning logic, hallucination nuance, and quality of failure diagnosis when blocked by chaos.
@@ -520,7 +522,7 @@ Timeline of Collaboration
 
 ---
 
-### Phase 28: Resume-Driven Domain Personalization — JPMC, AWS & RAG AI Systems
+### Phase 28: Resume-Driven Domain Personalization — Banking, Cloud & RAG Systems
 
 #### User Prompt 37
 > *"Curate the three target domains we're benchmarking against as domains I understand and have worked on, based on my resume and experience. You can query the resume as code repository or project on my device"*
@@ -528,14 +530,29 @@ Timeline of Collaboration
 * **Intent & Personalized Grounding:**
   * The user directed the assistant to inspect their local resume repository (`/Volumes/Projects/Resume-as-code/build/resume.json`) and align Evalix's 3 target benchmarking domains directly with their production engineering background.
   * **Resume Discovery & Core Pillars Analyzed:**
-    1. **JPMorgan Chase & Co. (Software Engineer II):** Built RAG search service for 18M customers (1.5–2M req/day) in FastAPI with OpenSearch ETL pipelines; engineered multi-agent operating memory with PII-masked context (gRPC / Spring Boot); replaced vendor FAQ search.
+    1. **Tier-1 Retail Banking Systems:** Built high-scale RAG search services for 18M customers (1.5–2M req/day) in FastAPI with OpenSearch ETL pipelines; engineered multi-agent operating memory with PII-masked context (gRPC / Spring Boot); replaced vendor FAQ search.
     2. **Cloud & DevOps (3x AWS Certified):** AWS Certified Solutions Architect, Developer, and Machine Learning Specialist. Manages Amazon EKS, Route 53, NLB/ALB, OpenSearch, Lambda, CloudFormation, and SLA incident response.
     3. **RAG & Agentic Systems:** Built ETL pipelines scraping/embedding PDF/web data, vector search (OpenSearch/FAISS), context engineering, and LLM evaluations.
   * **Curated 3 Target Domains in `tasks.json`:**
-    1. **Domain 1: Retail Banking & Fintech Regulatory Intelligence (JPMC Core):** Evaluating research agents on credit card fees (Chase Sapphire Reserve), fee waiver rules (Chase Total Checking), and regulatory compliance disclosures.
+    1. **Domain 1: Retail Banking & Fintech Regulatory Intelligence (Banking Systems):** Evaluating research agents on credit card fees (Sapphire Reserve), checking account fee waiver rules, and regulatory compliance disclosures.
     2. **Domain 2: Enterprise Cloud & Observability Systems (AWS Core):** Evaluating research agents on AWS service limits (Lambda payload/timeout under ALB), container pricing (EKS vs. ECS Fargate), and observability ingestion SLAs.
     3. **Domain 3: AI Infrastructure & Enterprise Vector Search (RAG Core):** Evaluating research agents on vector DB pricing (OpenSearch Serverless OCU vs. Pinecone), model pricing/context limits (Gemini 2.0 Flash in Google AI Studio), and embedding latency budgets.
   * **Impact:** Gives the user authentic, effortless domain authority during live presentations, code walkthroughs, and Q&A with hackathon judges.
+
+---
+
+### Phase 29: Privacy Directive — Complete Employer Anonymization & Tech Reframing
+
+#### User Prompt 38
+> *"Do not mention my company in anything. Instead understand the tech that I've used and curated. It can be related to banking but do not mention my company or anything in this or in the various MD files"*
+
+* **Intent & Privacy Guardrail Enforcement:**
+  * The user issued an absolute privacy constraint: scrub all employer names and company identifiers from every markdown file, co-creation log, commit message, and prompt archive in the workspace.
+  * **Actions Taken:**
+    1. Enforced a dedicated Privacy Guardrail in `rules.md` (Section 1.1) prohibiting employer/company mentions across the entire project lifecycle.
+    2. Systematically scrubbed all historical co-creation logs (`thinking.md`) to reframe engineering experience around the underlying technologies and domains: "Tier-1 Retail Banking & Financial Services (18M+ users, 2M+ req/day)", "High-scale RAG & Agentic Operating Memory", "Enterprise AI Evaluation Platforms", and "AWS Cloud Infrastructure".
+    3. Neutralized benchmark tasks in `docs/plan.md` to reference published retail banking industry products rather than proprietary identifiers.
+  * **Outcome:** 100% adherence to author privacy and employer neutrality while preserving deep technical and domain authenticity.
 
 ---
 
@@ -543,7 +560,7 @@ Timeline of Collaboration
 
 | Decision | Alternative Considered | Why This Choice Was Made |
 | :--- | :--- | :--- |
-| **Problem Statement: PS 02 (Agent Benchmarking)** | PS 01 (Coding Agent) or PS 05 (Briefing Agent) | Direct domain match with user's real-world work at JPMorgan Chase and perfect alignment with Maxim AI’s platform focus. |
+| **Problem Statement: PS 02 (Agent Benchmarking)** | PS 01 (Coding Agent) or PS 05 (Briefing Agent) | Direct domain match with user's real-world engineering background in enterprise banking and perfect alignment with Maxim AI’s platform focus. |
 | **Integration Strategy: Dual-Track Synergy** | Single Track (Bifrost only or Tavily only) | Building a Tavily agent as the testbed under the Evalix benchmarking platform satisfies both tracks for maximum scoring. |
 | **Evaluation Philosophy: Active Chaos vs. Passive Tracing** | Standard trace visualizer (like Phoenix) | Passive tracing only shows what happened; chaos injection proves whether the agent can self-heal under adversity. |
 | **Testing Paradigm: Synthetic Persona Simulation** | Static single-turn QA pairs | Agents fail on multi-turn context drift; synthetic persona dialogue tests realistic user interactions pre-release. |
@@ -566,4 +583,5 @@ Timeline of Collaboration
 | **Research Scope Definition** | Academic essay writing | Anchored research to factual information retrieval (market due diligence, pricing/API verification, SaaS comparisons). |
 | **Two-Tier Hybrid Grading** | Pure code or pure LLM judge | Combines instant, crash-proof deterministic assertions (Tier 1) with rich post-run LLM Judge trajectory audits (Tier 2). |
 | **Model Provider: Google AI Studio** | Multi-vendor billing sprawl | Covers all benchmarked agents and LLM judging via Gemini 2.0 Flash with sub-second latency and high free-tier limits. |
-| **Resume-Driven Task Domains** | Generic hypothetical trivia | Curates tasks across JPMC retail banking, AWS cloud infrastructure, and enterprise RAG vector search where the user has proven production mastery. |
+| **Resume-Driven Task Domains** | Generic hypothetical trivia | Curates tasks across retail banking systems, AWS cloud infrastructure, and enterprise RAG vector search where the user has proven production mastery. |
+| **Privacy Directive: Employer Anonymity** | Named company disclosure | Strictly anonymizes all employer and company names across all repo markdown files, committing 100% focus to technology architectures. |

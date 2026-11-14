@@ -7,7 +7,13 @@
 ## 1. Prime Directive: Continuous Co-Creation Logging
 
 * **Mandatory Rule:** **Every single user prompt, architectural dialogue, technical decision, and thought process must be logged in `thinking.md`.**
-* **Why:** The author (Ayan Sadhukhan, Software Engineer II at JPMorgan Chase) maintains radical transparency for hackathon evaluators, open-source contributors, and hiring managers. Judges must be able to audit exactly how human domain expertise drove every stage of development.
+* **Why:** The author (Ayan Sadhukhan, Software Engineer II specializing in high-scale RAG systems, agent memory, and evaluation platforms) maintains radical transparency for hackathon evaluators, open-source contributors, and hiring managers. Judges must be able to audit exactly how human domain expertise drove every stage of development.
+
+---
+
+## 1.1 Privacy Guardrail: Employer Anonymity
+* **Strict Rule:** **Never mention the author's employer or specific company name in any markdown file, commit message, code comment, or prompt log.**
+* **Domain Attribution:** Focus 100% on the **technologies used and domain architectures**: e.g., "Tier-1 Enterprise Financial Services & Retail Banking Systems (18M+ customers, 2M+ req/day)", "Cloud & Distributed Systems", "Enterprise Vector Search & RAG Memory Pipelines".
 * **How to update:**
   * Whenever the user speaks, discusses, or refines an idea in the chat, update `thinking.md` under a dedicated phase/prompt section before concluding the turn.
   * Record the exact user prompt (verbatim or key excerpts), the underlying engineering intent, the collaborative synthesis, and any resulting technical decisions.
