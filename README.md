@@ -19,6 +19,8 @@
 ---
 
 ## Project Documentation
+* 🎯 [goal.md](./goal.md) — **Strategic Goals & Demo Roadmap** (zero-shot agent builder, built-in Tavily workflows, and 2-minute demo flow).
+* 📜 [rules.md](./rules.md) — **Project Operating Rules & Agent Guidelines** (mandatory reading for any AI agent or contributor).
 * 💡 [thinking.md](./thinking.md) — **The Thinking Process & AI Collaboration Log** (all prompts, architectural decisions, and co-creation history).
 * 📘 [HACKATHON_GUIDE.md](./HACKATHON_GUIDE.md) — Complete rules, deadlines, prizes, and official problem statements.
 * 🧠 [AGENT_BENCHMARKING_AND_EVALS_GUIDE.md](./AGENT_BENCHMARKING_AND_EVALS_GUIDE.md) — Deep-dive architecture, production metric taxonomy, and chaos injection design.
