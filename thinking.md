@@ -57,6 +57,8 @@ Timeline of Collaboration
 │ 17. Plan Archiving (`docs/plan.md`) & Gitignoring Working Plans             │
 │    ▼                                                                        │
 │ 18. Chaos Engine Mechanics: Active Fault Injection & Self-Healing Testing   │
+│    ▼                                                                        │
+│ 19. Architecture Deepening: Maxim AI Stack (`maxim-py`) & Bifrost Gateway   │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -359,6 +361,19 @@ Timeline of Collaboration
 
 ---
 
+### Phase 19: Architecture Deepening: Maxim AI Stack (`maxim-py`) & Bifrost Integration
+
+#### User Prompt 27
+> *"In the Evalix architecture that you have created, also mention Maxim AI's test stack and the Bifrost implementation within this particular architecture so that I am clear about what we are implementing"*
+
+* **Intent & Integration Blueprinting:**
+  * The user directed the architecture to explicitly detail where **Maxim AI's platform** and **Bifrost AI Gateway** sit within Evalix:
+    1. **Bifrost AI Gateway (Network Proxy):** Positioned between all agent adapters and underlying LLMs. Intercepts model calls to perform prompt caching, cost calculation, and automatic model failover (rerouting to secondary models when the Chaos Engine injects 429 rate limits).
+    2. **Maxim AI Platform SDK (`maxim-py`):** Positioned inside the FastAPI backend. Captures hierarchical distributed traces (Session $\rightarrow$ Trace $\rightarrow$ Span) across multi-turn reasoning steps and tool calls, synchronizing deterministic evaluation scores with Maxim’s online/offline dashboards.
+  * Updated `docs/plan.md` with an expanded architecture diagram and component mapping table.
+
+---
+
 ## Key Technical Decisions Made Through This Dialogue
 
 | Decision | Alternative Considered | Why This Choice Was Made |
@@ -380,3 +395,4 @@ Timeline of Collaboration
 | **Deterministic Evals Domain: Support & Fact Verification** | Open-ended conversational chat | Allows 100% deterministic assertion on database state mutations, schema validity, and exact key-value facts. |
 | **Plan Isolation: Gitignoring `docs/`** | Committing internal plan files | Keeps local scratchpad implementation plans private while maintaining clean public repo documentation. |
 | **Chaos Testing: Intercepting Proxy** | Modifying agent internal code | An intercepting proxy injects runtime network/tool faults without altering the agent's core source code. |
+| **Bifrost & Maxim Separation** | Conflating gateway and evals | Clearly separates Bifrost (network model proxy, caching, failover) from Maxim SDK (distributed trace spans, eval telemetry). |
