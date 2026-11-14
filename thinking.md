@@ -55,6 +55,8 @@ Timeline of Collaboration
 │ 16. Implementation Plan Prompt: Stack, Maxim AI SDK, Google ADK & Determinism│
 │    ▼                                                                        │
 │ 17. Plan Archiving (`docs/plan.md`) & Gitignoring Working Plans             │
+│    ▼                                                                        │
+│ 18. Chaos Engine Mechanics: Active Fault Injection & Self-Healing Testing   │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -343,6 +345,20 @@ Timeline of Collaboration
 
 ---
 
+### Phase 18: Chaos Engine Architecture & Fault Injection Mechanics
+
+#### User Prompt 26
+> *"What is the chaos engine or chaos benchmark runner that we are planning to build? How does that work?"*
+
+* **Intent & Conceptual Deep-Dive:**
+  * The user paused to interrogate the inner workings of the **Chaos Engine**: how it operates architecturally, where it sits in the network stack, and how it actively tests agent resilience.
+  * Formalized the "Chaos Monkey for AI Agents" paradigm:
+    1. **Transparent Proxy Architecture:** Placed between the Agent and its tools/models to intercept invocations dynamically.
+    2. **Fault Injection Taxonomy:** Simulating tool 500 crashes, HTTP 429 gateway throttles, schema truncations, and poisoned web snippets.
+    3. **Behavioral Recovery Verification:** Differentiating brittle failure modes (infinite loops, hallucinations, silent crashes) from resilient recovery (exponential backoff, alternative query synthesis, graceful degradation).
+
+---
+
 ## Key Technical Decisions Made Through This Dialogue
 
 | Decision | Alternative Considered | Why This Choice Was Made |
@@ -363,3 +379,4 @@ Timeline of Collaboration
 | **Framework Independence: 4th Agent (Google ADK)** | Single-framework demo | Demonstrates true framework neutrality by benchmarking Vanilla Python, LangChain, Tavily, and Google GenAI / ADK. |
 | **Deterministic Evals Domain: Support & Fact Verification** | Open-ended conversational chat | Allows 100% deterministic assertion on database state mutations, schema validity, and exact key-value facts. |
 | **Plan Isolation: Gitignoring `docs/`** | Committing internal plan files | Keeps local scratchpad implementation plans private while maintaining clean public repo documentation. |
+| **Chaos Testing: Intercepting Proxy** | Modifying agent internal code | An intercepting proxy injects runtime network/tool faults without altering the agent's core source code. |
