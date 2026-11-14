@@ -67,7 +67,26 @@ Any UI developed for Evalix must strictly comply with these design principles:
 
 ---
 
-## 6. Core Reference Documents
+## 6. Product Demo & Storytelling Standards
+
+Any demo, video presentation, or walkthrough created for Evalix must follow these criteria:
+* **Polished, Clean & Professional Presentation:**
+  * High-fidelity, smooth walkthroughs with crisp audio/visual pacing.
+  * No erratic clicking, unfinished mock states, or confusing debug output.
+* **Universal Storytelling Frameworks:**
+  * Use proven product narrative frameworks (e.g., **"The Problem $\rightarrow$ The Chaos Challenge $\rightarrow$ The Resolution $\rightarrow$ The Metric Impact"**).
+  * Structure the narrative so that **anyone**—regardless of their technical background—can grasp within the first 60 seconds:
+    1. *What problem are we solving?* (Agents look good in demos but silently fail in production).
+    2. *What makes Evalix different?* (We don't just watch agents; we stress-test them with chaos).
+    3. *What is the outcome?* (Reliable, cost-effective agents safe for real users).
+* **High-Impact Side-by-Side Contrast (The "Show, Don't Just Tell"):**
+  * Show a clear baseline comparison: **The Brittle Agent** (crashes when a tool returns 500 or throttles) vs. **The Evalix-Hardened Agent** (self-heals, retries, and gracefully completes the goal).
+* **Brevity & Zero Jargon:**
+  * Keep explanations focused, concise, and grounded in real-world business impact (e.g. money saved, crashes prevented, customer trust preserved).
+
+---
+
+## 7. Core Reference Documents
 
 Before making architectural suggestions or writing code, consult:
 1. `thinking.md` — The historical reasoning, prompt transcripts, and design evolution.

@@ -47,6 +47,8 @@ Timeline of Collaboration
 │ 12. Establishing `rules.md`: Agent Instructions & Persistent Chat Context   │
 │    ▼                                                                        │
 │ 13. Frontend Design Philosophy & UI Rules (Minimalism, Zero Overload)       │
+│    ▼                                                                        │
+│ 14. Product Demo & Storytelling Standards (Clean, Polished, Universal)      │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -264,6 +266,21 @@ Timeline of Collaboration
 
 ---
 
+### Phase 14: Product Demo & Storytelling Standards
+
+#### User Prompt 22
+> *"For the demo I also want to set the rule that it has to be very clean, neat, and polished. It should be easy to understand and grasp. We can use those kinds of frameworks to explain the product that we are building to anyone."*
+
+* **Intent & Presentation Philosophy:**
+  * Mandated that all demonstrations, video pitches, and walkthroughs for **Evalix** adhere to a crisp, professional standard:
+    1. **Neat, Clean & Polished Execution:** Smooth, intentional demonstration flow without erratic clicks or confusing debug noise.
+    2. **Universal Storytelling Frameworks:** Structuring explanations around clear narrative arcs (e.g., **"The Problem $\rightarrow$ The Chaos Spike $\rightarrow$ The Recovery $\rightarrow$ The Business Impact"**).
+    3. **Instant 60-Second Grasp:** Anyone (from hackathon judges and executive leaders to non-technical users) should instantly understand what Evalix does within the opening minute.
+    4. **Side-by-Side Contrast ("Show, Don't Just Tell"):** Visually contrasting an unhardened, brittle agent failing under fault injection against an Evalix-hardened agent recovering seamlessly.
+  * Formalized into Section 6 of `rules.md`.
+
+---
+
 ## Key Technical Decisions Made Through This Dialogue
 
 | Decision | Alternative Considered | Why This Choice Was Made |
@@ -279,3 +296,4 @@ Timeline of Collaboration
 | **Branching Strategy: `feature/research` PR** | Direct push to `main` | Keeps `main` clean and tracks foundational architecture, rules, and thinking logs as an auditable PR. |
 | **Agent Governance: `rules.md` Protocol** | Relying on session memory | Ensures subsequent agents or IDE sessions adhere to the exact same logging, branching, and architecture rules. |
 | **Frontend Philosophy: Minimalist & Jargon-Free** | Dense, engineer-only telemetry dashboards | Democratizes evaluation for PMs, journey owners, and non-technical stakeholders without client device lag. |
+| **Demo Standard: Universal Narrative Framework** | Feature-dump technical walkthroughs | Ensures any evaluator grasps the core value proposition and business impact within 60 seconds. |
