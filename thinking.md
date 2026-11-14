@@ -93,6 +93,8 @@ Timeline of Collaboration
 │ 35. Build-Ready Plan: Setup Facts Checked Against Official Docs              │
 │    ▼                                                                         │
 │ 36. Submission Form Strategy, Demo Video Bounds & PR Merge Preparation       │
+│    ▼                                                                         │
+│ 37. Implementation Kick-off: Live Checks, Build Contract & Parallel Builders │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -548,7 +550,7 @@ Timeline of Collaboration
     2. **Cloud & DevOps (3x AWS Certified):** AWS Certified Solutions Architect, Developer, and Machine Learning Specialist. Manages Amazon EKS, Route 53, NLB/ALB, OpenSearch, Lambda, CloudFormation, and SLA incident response.
     3. **RAG & Agentic Systems:** Built ETL pipelines scraping/embedding PDF/web data, vector search (OpenSearch/FAISS), context engineering, and LLM evaluations.
   * **Curated 3 Target Domains in `tasks.json`:**
-    1. **Domain 1: Retail Banking & Fintech Regulatory Intelligence (Banking Systems):** Evaluating research agents on credit card fees (Sapphire Reserve), checking account fee waiver rules, and regulatory compliance disclosures.
+    1. **Domain 1: Retail Banking & Fintech Regulatory Intelligence (Banking Systems):** Evaluating research agents on premium travel credit card fees, checking account fee waiver rules, and regulatory compliance disclosures.
     2. **Domain 2: Enterprise Cloud & Observability Systems (AWS Core):** Evaluating research agents on AWS service limits (Lambda payload/timeout under ALB), container pricing (EKS vs. ECS Fargate), and observability ingestion SLAs.
     3. **Domain 3: AI Infrastructure & Enterprise Vector Search (RAG Core):** Evaluating research agents on vector DB pricing (OpenSearch Serverless OCU vs. Pinecone), model pricing/context limits (Gemini 2.0 Flash in Google AI Studio), and embedding latency budgets.
   * **Impact:** Gives the user authentic, effortless domain authority during live presentations, code walkthroughs, and Q&A with hackathon judges.
@@ -683,6 +685,32 @@ Timeline of Collaboration
     * *Tavily Integration Question:* Selected **`Stale-Answer Detector`** to formally qualify Evalix for Tavily sponsor prizes.
     * *Two Projects Question:* Selected **`NA (not applied)`** because Evalix is submitted as a single unified dual-track platform.
   * **Git & PR Synchronization:** Prepared branch `feature/research` for full review and merger into `main` via PR [#1](https://github.com/ayan2809/Evalix/pull/1).
+
+---
+
+### Phase 37: Implementation Kick-off — Live Checks, Build Contract & Parallel Builders
+
+#### User Prompt 49
+> *"start implementing the plan. ... Divide the tasks into small subtasks and use subagents judiciously ... Use Sonnet 5.5 ... After everything is implemented code-wise, run it locally and test it out. Run a small smoke test, then update the README ... Keep a human queue ... After taking a pull from `main`, create a `feature/implementaiton` branch and implement it there."*
+
+* **Intent:** Move from plan to working code, with the main session acting as orchestrator and smaller, well-scoped builders doing the parts.
+* **Setup Done by the Orchestrator:**
+  1. Pulled `main` and created branch `feature/implementaiton`.
+  2. Copied the Gemini key from another local project into `.env` without printing it. `.env` stays git-ignored.
+  3. **Live checks (now run, not just read):** both `gemini-3.5-flash-lite` and `gemini-3.8-flash` are listed for the key; Bifrost starts with the plan's `config.json`; a two-turn tool call works through Bifrost. Finding: Bifrost packs Gemini's "thought signature" into the tool call id, so agents need no special handling.
+  4. Created the two Python environments (`backend/`, `agents/`) with `uv`.
+  5. Wrote a **build contract** (local, next to the plan) that pins every function signature, file format, and web address, so parts built in parallel fit together.
+* **Parallel Builders (Sonnet 5.5):** (a) task data and saved Tavily results, (b) grading, faults, and scores, (c) runner, tool server, model door, judge, and web addresses, (d) the four sample agents, (e) the web app.
+* **Human Queue:** a local file holds open questions for the author, each with context, an analogy, and a safe default, so nothing blocks the build while waiting for an answer. First question: the key's per-minute and per-day limits, which only show inside AI Studio.
+* **Integration Findings (bugs caught by running the whole system, then fixed):**
+  1. Agents turned a model's "blocked" reply into an empty answer, so "tool gone" could never pass. The shared wrapper now keeps "blocked".
+  2. The real model sometimes sent `{"queries": [...]}` instead of `{"query": "..."}`. The tool server accepted it silently and returned junk, which made a careful agent give up. Tools now check their inputs and reply with a clear error the agent can act on.
+  3. The compare screen marked every pair of agents as different from step 1, because their prompts differ. Model calls are now matched by outcome, and tool calls by tool, input, and outcome.
+  4. A card brand linked to the author's employer survived inside saved web pages. It was scrubbed, and the recording script now filters it.
+  5. Some tests could write to the real database. Tests now always use a throwaway database in test mode.
+* **Honest Finding:** the real model resists the "lying result" even when the Careless agent is told to trust the first result. Left honest by default; raised in the human queue instead of rigging the agent.
+* **After the Cut Line, Also Built:** Tier 2 judge, Agent Studio, the Bifrost gateway failover test (a fake main model that is always down; Bifrost falls back to Gemini), and export of runs to Maxim as traces.
+* **Author Answer (human queue):** the AI Studio key is on the paid tier, so parallel runs were raised from 2 to 4.
 
 ---
 

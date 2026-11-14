@@ -24,10 +24,10 @@
 
 * **Core Mission:** **Evalix** is a framework-independent benchmarking and chaos evaluation platform for autonomous AI agents (Problem Statement 02 of the Geek Room Global AI Hackathon).
 * **Key Architecture Pillars:**
-  1. **Framework Independence:** Agents (LangChain, CrewAI, AutoGen, or vanilla HTTP/CLI) are treated as black boxes via standard JSON input/output schemas or Model Context Protocol (MCP). No agent rewrites allowed.
+  1. **Framework Independence:** Agents (LangChain, Google ADK, CrewAI, or plain Python) are treated as black boxes via a standard JSON input/output contract over HTTP (`POST /run`). No agent rewrites allowed. *(Connecting agents through Model Context Protocol (MCP) is future work.)*
   2. **Active Chaos Engineering:** Unlike passive observers (Arize Phoenix, Datadog), Evalix actively injects faults: HTTP 429 rate limits, 500 tool crashes, schema mismatches, empty search payloads, and stale web contexts.
   3. **Strict Reliability (`pass^k` over `pass@k`):** Production agents must be evaluated on statistical consistency ($(\text{accuracy})^k$) across multiple runs, measuring variance and failure recovery.
-  4. **Multi-Turn Synthetic Simulation:** Ingesting PRDs/flows to generate synthetic user personas and multi-turn dialogues to test agents pre-release.
+  4. **Multi-Turn Synthetic Simulation (future work):** Ingesting PRDs/flows to generate synthetic user personas and multi-turn dialogues to test agents pre-release. The hackathon build uses single-request research tasks.
 * **Dual-Track Technology Integration:**
   * **Bifrost by Maxim AI:** Open-source AI gateway managing model routing, caching, budget caps, and failover telemetry.
   * **Tavily:** Search API serving as the live tool for the built-in research agent testbed.

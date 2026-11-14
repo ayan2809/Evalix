@@ -6,3 +6,12 @@ node_modules/
 .venv/
 venv/
 docs/
+
+# Evalix build outputs
+*.db
+*.db-journal
+frontend/dist/
+.pytest_cache/
+.logs/
+*.db-shm
+*.db-wal

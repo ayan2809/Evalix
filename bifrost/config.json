@@ -1,0 +1,23 @@
+{
+  "config_store": { "enabled": false },
+  "providers": {
+    "gemini": {
+      "keys": [
+        { "name": "gemini-key-1", "value": "env.GEMINI_API_KEY", "models": ["*"], "weight": 1.0 }
+      ]
+    },
+    "fake-down": {
+      "keys": [
+        { "name": "k", "value": "dummy", "models": ["*"], "weight": 1.0 }
+      ],
+      "network_config": {
+        "base_url": "http://localhost:8000/fake-model",
+        "allow_private_network": true
+      },
+      "custom_provider_config": {
+        "base_provider_type": "openai",
+        "allowed_requests": { "chat_completion": true }
+      }
+    }
+  }
+}

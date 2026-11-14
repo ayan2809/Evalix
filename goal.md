@@ -37,6 +37,8 @@ For **Evalix**, our primary product goal is **instant, friction-free onboarding*
 ---
 
 ### Goal 2: Pre-Built Tavily Agent Workflows (Out-of-the-Box Showcase)
+
+> **Note (build):** In the hackathon build these three workflows became **task styles** inside one research category (find facts, check freshness, compare sources), not three separate agents. Every agent runs the same six Tavily-backed research tasks, so results can be compared fairly.
 To ensure the platform is immediately demoable without manual setup, Evalix ships with pre-configured, high-value agentic workflows powered by **Tavily Search**:
 
 #### Workflow A: Pre-Meeting Executive Briefing Agent (PS 05 Synergy)
