@@ -85,6 +85,10 @@ Timeline of Collaboration
 │ 31. Deep Integration of Two-Tier Hybrid Grading in Master Build Plan        │
 │    ▼                                                                        │
 │ 32. Maxim AI Dashboard Onboarding & Telemetry Key Provisioning              │
+│    ▼                                                                        │
+│ 33. Plan v3: Clean, Implementation-Ready Rewrite of `docs/plan.md`          │
+│    ▼                                                                        │
+│ 34. Maxim AI Telemetry & Repository Credentials Saved to `.env`              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -609,6 +613,40 @@ Timeline of Collaboration
     2. **Generate Maxim API Key:** Extracting `MAXIM_API_KEY` from Workspace Settings $\rightarrow$ API Keys.
     3. **Capture Repository ID:** Recording `MAXIM_LOG_REPO_ID` to bind local execution traces directly to the dashboard.
   * Verified local `.env` storage requirements (keeping keys isolated from git).
+
+---
+
+### Phase 33: Plan v3 — Clean, Implementation-Ready Rewrite of `docs/plan.md`
+
+#### User Prompt 42
+> *"review the plan once again. I have updated some things in the plan. Make a clean version v3 of it. Making the plan clean and implementation-ready"*
+
+* **Intent:** Review the plan after the recent edits (three subject areas, two-tier grading, Gemini as the model provider) and produce one clean version that can be built from directly.
+* **Review Findings on the Edited Plan:**
+  1. **Answer keys were typed in from memory.** Prices and limits change, so keys must be written from the saved search results.
+  2. **Some tasks could not be graded by code:** one named no exact product, and others asked for free-text answers. All answer fields are now numbers, yes/no, or a pick from a list.
+  3. **A banking task named a specific card brand,** which sat badly with the privacy rule. Tasks now use products with no link to the author.
+  4. **The two Gemini model names are old** and may be switched off. Picking current models is now the first setup check.
+  5. **The model key was marked done but is not in `.env`.**
+  6. **Leftovers from v2:** the run budget still described five tasks and a paid model, and did not count judge calls.
+  7. **The judge needed guardrails:** it must never change the score, never count as agent steps, and never compete with agents for the model.
+* **What v3 Adds:** exact data shapes for tasks, fault scripts, tool replies, the judge reply, database columns, addresses, and live messages; ports and `.env` names; a rule that hides real provider rate limits from agents; a PS 02 requirement map; and a build order restarted from Saturday 16:30 with a visible check per block.
+* **Change to Flag:** the Tier 2 judge moved from Saturday evening to just after the cut line on Sunday, because PS 02 does not require it and it should not delay the web app.
+
+---
+
+### Phase 34: Maxim AI Telemetry & Repository Credentials Saved to `.env`
+
+#### User Prompt 43 & 44
+> *"https://app.getmaxim.ai/workspace/cmwgab6px02jm117rof1n8da4/logs/cmwgad3ur02mn117rgyhbk5gt... what is the log id?"*  
+> *"save it in the .env"*
+
+* **Intent & Secret Provisioning:**
+  * Identified the parameters from the user's live Maxim AI dashboard URL:
+    * `MAXIM_LOG_REPO_ID="cmwgad3ur02mn117rgyhbk5gt"`
+    * `MAXIM_WORKSPACE_ID="cmwgab6px02jm117rof1n8da4"`
+  * Populated these directly into `/Volumes/Projects/Evalix/.env` alongside `MAXIM_API_KEY` and `TAVILY_API_KEY`.
+  * Verified that `.env` remains strictly gitignored to guarantee zero secrets leak into the public GitHub repository.
 
 ---
 
