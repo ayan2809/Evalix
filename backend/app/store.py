@@ -11,13 +11,14 @@ _conn: sqlite3.Connection | None = None
 _lock = threading.Lock()
 
 BOOL_COLS = {"live_mode", "looped", "fault_fired"}
-JSON_COLS = {"answer_json", "review_json", "input_json", "output_json", "selection_json"}
+JSON_COLS = {"answer_json", "review_json", "input_json", "output_json", "selection_json", "checks_json"}
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS agents (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL, url TEXT NOT NULL,
-  source TEXT NOT NULL DEFAULT 'registered', created_at TEXT NOT NULL
+  source TEXT NOT NULL DEFAULT 'registered', created_at TEXT NOT NULL,
+  tag TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS benchmarks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,7 +35,7 @@ CREATE TABLE IF NOT EXISTS runs (
   tokens_in INTEGER NOT NULL DEFAULT 0, tokens_out INTEGER NOT NULL DEFAULT 0,
   cost_usd REAL NOT NULL DEFAULT 0, seconds REAL NOT NULL DEFAULT 0,
   looped INTEGER NOT NULL DEFAULT 0, fault_fired INTEGER NOT NULL DEFAULT 0,
-  answer_json TEXT, review_json TEXT, started_at TEXT NOT NULL
+  answer_json TEXT, review_json TEXT, started_at TEXT NOT NULL, checks_json TEXT
 );
 CREATE INDEX IF NOT EXISTS runs_by_benchmark ON runs(benchmark_id);
 CREATE TABLE IF NOT EXISTS steps (
@@ -42,7 +43,7 @@ CREATE TABLE IF NOT EXISTS steps (
   run_id TEXT NOT NULL, position INTEGER NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL,
   input_json TEXT, output_json TEXT, status_code INTEGER NOT NULL DEFAULT 200,
   fault TEXT NOT NULL DEFAULT '', tokens_in INTEGER NOT NULL DEFAULT 0,
-  tokens_out INTEGER NOT NULL DEFAULT 0, ms INTEGER NOT NULL DEFAULT 0
+  tokens_out INTEGER NOT NULL DEFAULT 0, ms INTEGER NOT NULL DEFAULT 0, at_ms INTEGER
 );
 CREATE INDEX IF NOT EXISTS steps_by_run ON steps(run_id, position);
 CREATE TABLE IF NOT EXISTS studio_agents (
@@ -50,7 +51,17 @@ CREATE TABLE IF NOT EXISTS studio_agents (
   description TEXT NOT NULL, answers_json TEXT NOT NULL, setup_json TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 """
+
+# Columns added after the first version. An older database gets them with ALTER TABLE.
+NEW_COLUMNS = [
+    ("agents", "tag", "TEXT NOT NULL DEFAULT ''"),
+    ("agents", "description", "TEXT NOT NULL DEFAULT ''"),
+    ("runs", "checks_json", "TEXT"),
+    ("steps", "at_ms", "INTEGER"),
+]
+STUDIO_TAG = "Made from one sentence"
 
 
 def _now() -> str:
@@ -105,15 +116,32 @@ def init_db(path: str | None = None) -> None:
         _conn = sqlite3.connect(path, check_same_thread=False)
         _conn.row_factory = sqlite3.Row
         _conn.executescript(SCHEMA)
+        _migrate()
         _conn.commit()
+
+
+def _migrate() -> None:
+    """Add any missing new columns, and fill the words of studio agents made before they existed."""
+    for table, column, ddl in NEW_COLUMNS:
+        have = {row["name"] for row in _conn.execute(f"PRAGMA table_info({table})")}
+        if column not in have:
+            _conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+    _conn.execute("UPDATE agents SET tag=?, description=COALESCE((SELECT description FROM studio_agents"
+                  " WHERE studio_agents.agent_id=agents.id), '') WHERE source='studio' AND tag=''", (STUDIO_TAG,))
 
 
 # ---- agents ----
 
-def add_agent(name: str, url: str, source: str = "registered") -> dict:
-    agent_id = _run("INSERT INTO agents (name, url, source, created_at) VALUES (?,?,?,?)",
-                    (name, url, source, _now()))
+def add_agent(name: str, url: str, source: str = "registered", tag: str = "", description: str = "") -> dict:
+    agent_id = _run("INSERT INTO agents (name, url, source, created_at, tag, description) VALUES (?,?,?,?,?,?)",
+                    (name, url, source, _now(), tag, description))
     return get_agent(agent_id)
+
+
+def fill_agent_words(name: str, tag: str, description: str) -> None:
+    """Give a registered agent its tag and sentence, only if it has none yet."""
+    _run("UPDATE agents SET tag=?, description=? WHERE name=? AND source='registered' AND tag=''",
+         (tag, description, name))
 
 
 def list_agents() -> list[dict]:
@@ -149,6 +177,12 @@ def list_benchmarks() -> list[dict]:
     return _all("SELECT * FROM benchmarks ORDER BY id DESC")
 
 
+def benchmark_costs() -> dict[int, float]:
+    """Dollars spent on model calls so far, for every benchmark."""
+    rows = _all("SELECT benchmark_id, SUM(cost_usd) AS total FROM runs GROUP BY benchmark_id")
+    return {r["benchmark_id"]: r["total"] or 0.0 for r in rows}
+
+
 # ---- runs ----
 
 def create_run(run_id: str, benchmark_id: int, agent_id: int, task_id: str,
@@ -159,7 +193,7 @@ def create_run(run_id: str, benchmark_id: int, agent_id: int, task_id: str,
 
 
 RUN_FIELDS = {"ending", "fail_reason", "steps", "tool_calls", "tokens_in", "tokens_out", "cost_usd",
-              "seconds", "looped", "fault_fired", "answer_json", "review_json"}
+              "seconds", "looped", "fault_fired", "answer_json", "review_json", "checks_json"}
 
 
 def update_run(run_id: str, **fields) -> None:
@@ -190,14 +224,15 @@ def list_runs(benchmark_id: int) -> list[dict]:
 # ---- steps ----
 
 def add_step(run_id: str, kind: str, name: str, input_obj, output_obj, status_code: int = 200,
-             fault: str = "", tokens_in: int = 0, tokens_out: int = 0, ms: int = 0) -> dict:
+             fault: str = "", tokens_in: int = 0, tokens_out: int = 0, ms: int = 0,
+             at_ms: int | None = None) -> dict:
     # The position is the next free number in this run (1-based).
     step_id = _run(
         "INSERT INTO steps (run_id, position, kind, name, input_json, output_json, status_code,"
-        " fault, tokens_in, tokens_out, ms)"
-        " VALUES (?, (SELECT COALESCE(MAX(position), 0) + 1 FROM steps WHERE run_id=?), ?,?,?,?,?,?,?,?,?)",
+        " fault, tokens_in, tokens_out, ms, at_ms)"
+        " VALUES (?, (SELECT COALESCE(MAX(position), 0) + 1 FROM steps WHERE run_id=?), ?,?,?,?,?,?,?,?,?,?)",
         (run_id, run_id, kind, name, _dump(input_obj), _dump(output_obj), status_code,
-         fault, tokens_in, tokens_out, ms))
+         fault, tokens_in, tokens_out, ms, at_ms))
     return get_step(step_id)
 
 
@@ -228,7 +263,8 @@ def add_studio_agent(description: str, answers: dict, setup: dict, public_url: s
     """Save a setup and register its agent. Returns (agent row, studio row)."""
     studio_id = _run("INSERT INTO studio_agents (description, answers_json, setup_json, created_at)"
                      " VALUES (?,?,?,?)", (description, _dump(answers), _dump(setup), _now()))
-    agent = add_agent(setup["name"], f"{public_url.rstrip('/')}/studio-agents/{studio_id}", source="studio")
+    agent = add_agent(setup["name"], f"{public_url.rstrip('/')}/studio-agents/{studio_id}", source="studio",
+                      tag=STUDIO_TAG, description=description)
     _run("UPDATE studio_agents SET agent_id=? WHERE id=?", (agent["id"], studio_id))
     return agent, get_studio_agent(studio_id)
 
@@ -239,3 +275,18 @@ def get_studio_agent(studio_id: int) -> dict | None:
 
 def get_studio_agent_by_agent(agent_id: int) -> dict | None:
     return _studio_row(_one("SELECT * FROM studio_agents WHERE agent_id=?", (agent_id,)))
+
+
+# ---- settings (the Settings popup) ----
+
+def get_setting(key: str, default=None):
+    """One saved setting. Gives the default when nothing is saved or the database is not open."""
+    if _conn is None:
+        return default
+    row = _one("SELECT value FROM settings WHERE key=?", (key,))
+    return default if row is None else json.loads(row["value"])
+
+
+def set_setting(key: str, value) -> None:
+    _run("INSERT INTO settings (key, value) VALUES (?, ?)"
+         " ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, json.dumps(value)))

@@ -15,3 +15,6 @@ frontend/dist/
 .logs/
 *.db-shm
 *.db-wal
+
+# Impeccable review captures (local only)
+frontend/.impeccable/review/

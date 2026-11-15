@@ -13,10 +13,11 @@ import re
 import time
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app import config, store
+from app import config, prefs, store
+from app.auth import require_owner
 
 router = APIRouter()
 
@@ -90,7 +91,7 @@ def _maker_prompt(description: str, answers: dict) -> str:
 
 async def _ask_model_for_setup(description: str, answers: dict) -> dict | None:
     payload = {
-        "model": "gemini/" + config.AGENT_MODEL, "temperature": 0.3, "stream": False,
+        "model": "gemini/" + prefs.agent_model(), "temperature": 0.3, "stream": False,
         "response_format": {"type": "json_object"},
         "messages": [{"role": "system", "content": MAKER_SYSTEM},
                      {"role": "user", "content": _maker_prompt(description, answers)}],
@@ -368,7 +369,7 @@ async def get_questions():
     return QUESTIONS
 
 
-@router.post("/api/studio/agents")
+@router.post("/api/studio/agents", dependencies=[Depends(require_owner)])
 async def post_studio_agent(body: NewStudioAgent):
     description = body.description.strip()
     if not description:

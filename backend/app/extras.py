@@ -1,96 +1,16 @@
-"""Two extras: the gateway test (Bifrost failover) and the Maxim export."""
+"""Extra: send a finished benchmark to Maxim. (The gateway tests live in gateway.py.)"""
 import asyncio
 import json
 import os
 import time
 
-import httpx
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException
 
 from app import config, store
+from app.auth import require_owner
 from app.data import load_faults, load_tasks
 
 router = APIRouter()
-
-# ---------------------------------------------------------------------------
-# Gateway test
-# ---------------------------------------------------------------------------
-
-MAIN_MODEL = "fake-down/any"
-fake_model_hits = 0  # how many times the fake main model was asked
-
-
-def _down_reply() -> JSONResponse:
-    global fake_model_hits
-    fake_model_hits += 1
-    return JSONResponse(status_code=503,
-                        content={"error": {"message": "fake main model is down", "code": 503}})
-
-
-# Two paths, in case Bifrost drops the "/v1" part.
-@router.post("/fake-model/v1/chat/completions")
-@router.post("/fake-model/chat/completions")
-async def fake_model():
-    return _down_reply()
-
-
-def _answered_by(body: dict) -> str:
-    # Bifrost says who answered in `extra_fields`; fall back to the reply's `model` field.
-    extra = body.get("extra_fields") or {}
-    provider, model = extra.get("provider"), extra.get("model_requested") or body.get("model")
-    if provider and model and not str(model).startswith(f"{provider}/"):
-        return f"{provider}/{model}"
-    return str(model or provider or "unknown")
-
-
-@router.post("/api/gateway-test")
-async def gateway_test():
-    backup = "gemini/" + config.AGENT_MODEL
-    if config.MOCK:
-        return {"ok": True, "main_model": MAIN_MODEL, "main_model_hits": 1, "answered_by": backup,
-                "reply_text": "OK", "seconds": 0.0,
-                "note": "Simulated result (test mode). No request was sent to Bifrost."}
-
-    hits_before = fake_model_hits
-    payload = {"model": MAIN_MODEL, "fallbacks": [backup], "stream": False,
-               "messages": [{"role": "user", "content": "Reply with the word OK."}]}
-    start = time.monotonic()
-    try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(f"{config.BIFROST_URL}/v1/chat/completions", json=payload)
-    except httpx.HTTPError as exc:
-        return _failed(hits_before, start, f"Could not reach Bifrost at {config.BIFROST_URL} ({type(exc).__name__}).")
-    seconds = round(time.monotonic() - start, 2)
-    hits = fake_model_hits - hits_before
-
-    try:
-        body = resp.json()
-    except ValueError:
-        body = {}
-    if resp.status_code != 200:
-        message = (body.get("error") or {}).get("message") if isinstance(body, dict) else None
-        return {"ok": False, "main_model": MAIN_MODEL, "main_model_hits": hits, "answered_by": "",
-                "reply_text": "", "seconds": seconds,
-                "note": f"Bifrost answered with status {resp.status_code}: {str(message or 'no details')[:200]}"}
-
-    try:
-        text = body["choices"][0]["message"]["content"] or ""
-    except (KeyError, IndexError, TypeError):
-        text = ""
-    answered_by = _answered_by(body)
-    switched = hits > 0 and not answered_by.startswith("fake-down")
-    note = ("The main model was down. Bifrost switched to the backup and the caller got a normal answer."
-            if switched else
-            "Bifrost answered, but the main model was not asked first, so no switch was seen.")
-    return {"ok": switched, "main_model": MAIN_MODEL, "main_model_hits": hits, "answered_by": answered_by,
-            "reply_text": text.strip()[:200], "seconds": seconds, "note": note}
-
-
-def _failed(hits: int, start: float, note: str) -> dict:
-    return {"ok": False, "main_model": MAIN_MODEL, "main_model_hits": hits, "answered_by": "",
-            "reply_text": "", "seconds": round(time.monotonic() - start, 2), "note": note}
-
 
 # ---------------------------------------------------------------------------
 # Maxim export
@@ -176,7 +96,7 @@ def export_benchmark(benchmark_id: int) -> dict:
     return {"ok": True, "traces_sent": sent, "note": f"Sent {sent} runs to Maxim."}
 
 
-@router.post("/api/benchmarks/{benchmark_id}/export-maxim")
+@router.post("/api/benchmarks/{benchmark_id}/export-maxim", dependencies=[Depends(require_owner)])
 async def export_maxim(benchmark_id: int):
     if store.get_benchmark(benchmark_id) is None:
         raise HTTPException(status_code=404, detail="benchmark not found")

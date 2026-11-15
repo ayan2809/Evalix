@@ -1,11 +1,12 @@
 """Runs a benchmark: starts each run, calls the agent, grades it, saves the numbers."""
 import asyncio
+import threading
 import time
 import uuid
 
 import httpx
 
-from app import config, store
+from app import config, prefs, store
 from app.data import load_faults, load_prices, load_tasks
 from app.events import publish, record_step
 from app.faults import FaultEngine
@@ -46,7 +47,8 @@ async def start_benchmark(agent_ids: list[int], task_ids: list[str], fault_ids: 
                  "task_ids": sorted({i["task_id"] for i in items if not i["fault_id"]}),
                  "fault_ids": sorted({i["fault_id"] for i in items if i["fault_id"]})}
     benchmark_id = store.create_benchmark(trials, live_mode, len(items), selection)
-    task = asyncio.create_task(_run_benchmark(benchmark_id, items, live_mode))
+    model = prefs.agent_model()  # chosen now; a later change in Settings does not touch this benchmark
+    task = asyncio.create_task(_run_benchmark(benchmark_id, items, live_mode, model))
     _background.add(task)
     task.add_done_callback(_background.discard)
     return benchmark_id
@@ -57,7 +59,7 @@ def cancel_benchmark(benchmark_id: int) -> None:
     _cancelled.add(benchmark_id)
 
 
-async def _run_benchmark(benchmark_id: int, items: list[dict], live_mode: bool) -> None:
+async def _run_benchmark(benchmark_id: int, items: list[dict], live_mode: bool, model: str) -> None:
     semaphore = asyncio.Semaphore(config.MAX_PARALLEL)
 
     async def guarded(item: dict) -> None:
@@ -65,7 +67,7 @@ async def _run_benchmark(benchmark_id: int, items: list[dict], live_mode: bool) 
             if benchmark_id in _cancelled:
                 return
             try:
-                await _run_with_retry(benchmark_id, item, live_mode)
+                await _run_with_retry(benchmark_id, item, live_mode, model)
             except Exception as exc:  # a bug in Evalix must not stop the other runs
                 print(f"run failed inside Evalix: {type(exc).__name__}: {exc}")
 
@@ -74,12 +76,23 @@ async def _run_benchmark(benchmark_id: int, items: list[dict], live_mode: bool) 
     _cancelled.discard(benchmark_id)
     store.set_benchmark_status(benchmark_id, status)
     publish(benchmark_id, "benchmark_finished", {"benchmark_id": benchmark_id, "status": status})
+    if status == "done":
+        _send_to_maxim_if_on(benchmark_id)
 
 
-async def _run_with_retry(benchmark_id: int, item: dict, live_mode: bool) -> None:
+def _send_to_maxim_if_on(benchmark_id: int) -> None:
+    """When "send every finished benchmark to Maxim" is on and the Maxim keys exist, send in the background."""
+    if not (prefs.maxim_auto() and prefs.maxim_ready()):
+        return
+    from app.extras import export_benchmark  # imported here so it is only loaded when needed
+
+    threading.Thread(target=export_benchmark, args=(benchmark_id,), daemon=True).start()
+
+
+async def _run_with_retry(benchmark_id: int, item: dict, live_mode: bool, model: str) -> None:
     # A setup problem is not the agent's fault: try once more as a new run.
     for _ in range(2):
-        ending = await _execute(benchmark_id, item, live_mode)
+        ending = await _execute(benchmark_id, item, live_mode, model)
         if ending != "setup_problem":
             break
     store.add_done_run(benchmark_id)
@@ -94,7 +107,7 @@ async def _call_agent(state: RunState, agent: dict) -> tuple[dict | None, str, i
         "answer_format": task.get("answer_format", {}),
         "tools_url": f"{config.PUBLIC_URL}/runs/{state.run_id}/tools",
         "model_url": f"{config.PUBLIC_URL}/runs/{state.run_id}/model/v1",
-        "model_name": config.AGENT_MODEL,
+        "model_name": state.model,
         "limits": state.limits,
     }
     seconds = state.limits["seconds"]
@@ -117,7 +130,7 @@ async def _call_agent(state: RunState, agent: dict) -> tuple[dict | None, str, i
         return None, "reply in the wrong shape", 200
 
 
-async def _execute(benchmark_id: int, item: dict, live_mode: bool) -> str:
+async def _execute(benchmark_id: int, item: dict, live_mode: bool, model: str) -> str:
     """One run from start to finish. Returns its ending."""
     agent, task_id, fault_id = item["agent"], item["task_id"], item["fault_id"]
     task = load_tasks()[task_id]
@@ -125,9 +138,9 @@ async def _execute(benchmark_id: int, item: dict, live_mode: bool) -> str:
     run_id = "r_" + uuid.uuid4().hex[:8]
     state = RunState(run_id=run_id, benchmark_id=benchmark_id, agent_id=agent["id"], task=task,
                      fault=fault, engine=FaultEngine(fault, task), live_mode=live_mode,
-                     limits=dict(config.RUN_LIMITS))
+                     limits=dict(config.RUN_LIMITS), model=model)
     store.create_run(run_id, benchmark_id, agent["id"], task_id, fault_id, item["trial"],
-                     item["expect"], config.AGENT_MODEL)
+                     item["expect"], model)
     publish(benchmark_id, "run_started", {"run_id": run_id, "agent_id": agent["id"], "agent": agent["name"],
                                           "task_id": task_id, "fault_id": fault_id, "trial": item["trial"]})
     ACTIVE[run_id] = state
@@ -149,25 +162,26 @@ async def _execute(benchmark_id: int, item: dict, live_mode: bool) -> str:
     record_step(state, "final_answer", "final_answer", None, reply_out, status_code=http_status or 0)
 
     # Grade it.
+    checks = None
     if state.setup_problem:
         ending, reason = "setup_problem", state.setup_problem
     else:
         crash = crash or ("" if reply is None else check_reply_shape(reply))
         result = grade(task, item["expect"], None if crash else reply, seen_urls=state.seen_urls,
                        sent_email=state.sent_email, limit_hit=state.limit_hit, crash=crash)
-        ending, reason = result.ending, result.fail_reason
+        ending, reason, checks = result.ending, result.fail_reason, result.checks
 
     tool_steps = [{"name": s["name"], "input_json": s["input_json"]}
                   for s in store.get_steps(run_id) if s["kind"] == "tool_call"]
     numbers = {
         "ending": ending, "fail_reason": reason, "steps": state.model_calls,
         "tool_calls": state.tool_calls, "tokens_in": state.tokens_in, "tokens_out": state.tokens_out,
-        "cost_usd": cost_usd(config.AGENT_MODEL, state.tokens_in, state.tokens_out, load_prices()),
+        "cost_usd": cost_usd(model, state.tokens_in, state.tokens_out, load_prices()),
         "seconds": seconds, "looped": looped(tool_steps), "fault_fired": state.engine.fired,
-        "answer_json": reply if isinstance(reply, dict) else None,
+        "answer_json": reply if isinstance(reply, dict) else None, "checks_json": checks,
     }
     store.update_run(run_id, **numbers)
     publish(benchmark_id, "run_finished", {
         "run_id": run_id, "agent_id": agent["id"], "task_id": task_id, "fault_id": fault_id,
-        "trial": item["trial"], **{k: v for k, v in numbers.items() if k != "answer_json"}})
+        "trial": item["trial"], **{k: v for k, v in numbers.items() if k not in ("answer_json", "checks_json")}})
     return ending
