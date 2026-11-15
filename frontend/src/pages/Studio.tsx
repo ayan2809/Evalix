@@ -1,138 +1,323 @@
-import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
-import { studio, type StudioResult, type StudioSetup } from '../api'
-import { ErrorBox, Loading } from '../components/States'
-import { useAsync, useTitle } from '../hooks'
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { api, asApiError, type StudioResult, type StudioSetup } from "../api";
+import { useAsync, useTitle } from "../hooks";
+import {
+  Button,
+  EmptyState,
+  ErrorState,
+  LinkButton,
+  Loading,
+  Notice,
+  PageHeader,
+  SectionBar,
+  Segmented,
+  TitleBlock,
+} from "../ui";
+import { OnlineStatus } from "./agents/OnlineStatus";
+import "./sheet.css";
+import "./studio/studio.css";
+
+/** The setup in plain words, one line each. */
+export function setupTraits(
+  s: StudioSetup,
+): { title: string; about: string }[] {
+  return [
+    s.double_check
+      ? {
+          title: "Checks every fact twice",
+          about: "Looks for each value in two results before it answers.",
+        }
+      : {
+          title: "Takes the first answer it finds",
+          about: "Does not look for a second source.",
+        },
+    s.retries > 0
+      ? {
+          title:
+            s.retries === 1
+              ? "Tries again once"
+              : `Tries again up to ${s.retries} times`,
+          about: "If a search or the model fails, it waits and tries again.",
+        }
+      : {
+          title: "Does not try again",
+          about: "If a search or the model fails, it gives up straight away.",
+        },
+    s.stop_when_unsure
+      ? {
+          title: "Owns up when unsure",
+          about: "Stops and says why, rather than making something up.",
+        }
+      : { title: "Always gives an answer", about: "Even when it is not sure." },
+  ];
+}
 
 export default function Studio() {
-  useTitle('Studio')
-  const questions = useAsync(() => studio.questions(), [])
-  const [description, setDescription] = useState('')
-  const [answers, setAnswers] = useState<Record<string, boolean>>({})
-  const [busy, setBusy] = useState(false)
-  const [formError, setFormError] = useState('')
-  const [made, setMade] = useState<StudioResult | null>(null)
+  useTitle("Make an agent");
+  const questions = useAsync(() => api.studio.questions(), []);
+  const agents = useAsync(() => api.listAgents(), []);
+  const [description, setDescription] = useState("");
+  const [answers, setAnswers] = useState<Record<string, boolean>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [made, setMade] = useState<StudioResult | null>(null);
 
-  async function create(e: FormEvent) {
-    e.preventDefault()
-    if (!description.trim()) return
-    setBusy(true)
-    setFormError('')
+  const asked = questions.data ?? [];
+  const answerFor = (id: string) => answers[id] ?? true;
+  const mine = (agents.data ?? [])
+    .filter((a) => a.source === "studio")
+    .reverse();
+
+  async function make() {
+    setBusy(true);
+    setError("");
     try {
-      setMade(await studio.createAgent(description.trim(), answers))
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Could not create the agent')
+      const body: Record<string, boolean> = {};
+      for (const q of asked) body[q.id] = answerFor(q.id);
+      const res = await api.studio.createAgent(description.trim(), body);
+      setMade(res);
+      agents.reload();
+    } catch (e) {
+      setError(asApiError(e).message);
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
   }
 
   function startOver() {
-    setMade(null)
-    setDescription('')
-    setAnswers({})
+    setMade(null);
+    setDescription("");
+    setAnswers({});
+    setError("");
   }
 
+  const empty = description.trim().length === 0;
+
   return (
-    <div className="page">
-      <h1>Studio</h1>
-      <p className="lead">Describe a research agent in one sentence, and Evalix builds it so you can test it.</p>
+    <div className="wrap ds">
+      <PageHeader
+        title="What kind of agent do you want to test?"
+        answer="Describe it in one sentence. We'll build it and put it to the test."
+        facts="One sentence and three quick questions, no code. It gets the same questions and problems as every other agent."
+      />
 
-      {made ? (
-        <MadeAgent result={made} onAnother={startOver} />
-      ) : (
-        <form onSubmit={create}>
-          <section className="section" style={{ marginTop: 0 }}>
-            <h2>Describe your research agent in one sentence</h2>
-            <input
-              style={{ width: '100%' }}
-              value={description}
-              maxLength={500}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="An assistant that looks up cloud service limits and prices"
-            />
-          </section>
+      <section className="ds-block" aria-label="Describe it">
+        <SectionBar
+          title="Describe your agent"
+          hint="One sentence and three yes or no questions"
+        />
+        <div className="ds-pad">
+          <form
+            className="ds-sheet studio-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!empty && !busy) void make();
+            }}
+          >
+            <label className="lbl-field">
+              <span className="ds-lbl">What should it do?</span>
+              <textarea
+                className="textarea"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="A cautious researcher that checks cloud and banking facts against official sources."
+                maxLength={600}
+                disabled={busy}
+              />
+            </label>
 
-          <section className="section">
-            <h2>A few quick questions</h2>
-            {questions.error && <ErrorBox error={questions.error} onRetry={questions.reload} />}
-            {!questions.error && !questions.data && <Loading />}
-            <div className="checklist" style={{ gap: 16 }}>
-              {(questions.data ?? []).map((q) => (
-                <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-                  <span style={{ flex: 1, minWidth: 260 }}>{q.text}</span>
-                  <div className="segmented" role="radiogroup" aria-label={q.text}>
-                    {[true, false].map((yes) => (
-                      <button
-                        type="button"
-                        key={String(yes)}
-                        role="radio"
-                        aria-checked={!!answers[q.id] === yes}
-                        className={!!answers[q.id] === yes ? 'active' : ''}
-                        onClick={() => setAnswers({ ...answers, [q.id]: yes })}
-                      >
-                        {yes ? 'Yes' : 'No'}
-                      </button>
-                    ))}
-                  </div>
+            <div className="stack" style={{ gap: 4 }}>
+              <span className="ds-lbl">A few quick questions</span>
+              {questions.error ? (
+                <ErrorState
+                  error={questions.error}
+                  onRetry={questions.reload}
+                />
+              ) : !questions.data ? (
+                <Loading />
+              ) : (
+                <div className="q-list">
+                  {asked.map((q) => (
+                    <div className="q-row" key={q.id}>
+                      <span>{q.text}</span>
+                      <Segmented
+                        label={q.text}
+                        value={answerFor(q.id)}
+                        onChange={(v) => setAnswers({ ...answers, [q.id]: v })}
+                        disabled={busy}
+                        options={[
+                          { value: true, label: "Yes" },
+                          { value: false, label: "No" },
+                        ]}
+                      />
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          </section>
 
-          <div className="actions">
-            <button className="btn primary large" disabled={busy || !description.trim()}>
-              {busy ? 'Creating…' : 'Create agent'}
-            </button>
+            <div className="ds-actions">
+              <Button
+                type="submit"
+                variant="primary"
+                ownerOnly
+                disabled={busy || !questions.data}
+                disabledReason={
+                  empty
+                    ? "Write a sentence about what it should do."
+                    : undefined
+                }
+              >
+                {busy ? "Making the agent…" : "Make the agent"}
+              </Button>
+              {busy && (
+                <span className="tag">
+                  The model is writing its instructions. This takes a few
+                  seconds.
+                </span>
+              )}
+            </div>
+            {error && <Notice tone="error">{error}</Notice>}
+          </form>
+        </div>
+      </section>
+
+      {made && (
+        <section className="ds-block" aria-label="Your new agent">
+          <div className="studio-made">
+            <TitleBlock
+              label="Your new agent"
+              cells={[
+                {
+                  label: "Name",
+                  value: (
+                    <>
+                      {made.setup.name}
+                      <small>
+                        {made.agent.online
+                          ? "Ready to test"
+                          : "Not answering yet"}
+                      </small>
+                    </>
+                  ),
+                  wide: true,
+                },
+                {
+                  label: "Made from",
+                  value: (
+                    <span className="studio-from">
+                      {made.agent.description}
+                    </span>
+                  ),
+                  wide: true,
+                },
+                {
+                  label: "Retries",
+                  value: made.setup.retries > 0 ? made.setup.retries : "None",
+                },
+                {
+                  label: "Double-checks",
+                  value: made.setup.double_check ? "Yes" : "No",
+                },
+                {
+                  label: "Stops when unsure",
+                  value: made.setup.stop_when_unsure ? "Yes" : "No",
+                },
+              ]}
+              action={
+                <>
+                  <LinkButton to="/run" variant="primary">
+                    Use it in a run
+                  </LinkButton>
+                  <Button onClick={startOver}>Make another</Button>
+                </>
+              }
+            />
           </div>
-          {formError && <p className="small bad-text">{formError}</p>}
-        </form>
+          <div className="ds-pad" />
+          <SectionBar title="How it behaves" />
+          <div className="ds-scroll">
+            <table className="ds-table" aria-label="How it behaves">
+              <tbody>
+                {setupTraits(made.setup).map((t) => (
+                  <tr key={t.title}>
+                    <th scope="row" className="studio-trait">
+                      {t.title}
+                    </th>
+                    <td className="graph">{t.about}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="ds-pad" />
+          <details className="ds-bar-more">
+            <summary>
+              <SectionBar
+                title="Instructions"
+                hint="See the instructions we wrote for it"
+                actions={<Chevron />}
+              />
+            </summary>
+            <p className="ds-body">{made.setup.instructions}</p>
+          </details>
+        </section>
       )}
+
+      <section className="ds-block" aria-label="Agents you've made">
+        <SectionBar title="Agents you've made" />
+        {agents.error ? (
+          <ErrorState error={agents.error} onRetry={agents.reload} />
+        ) : !agents.data ? (
+          <Loading />
+        ) : mine.length === 0 ? (
+          <EmptyState>
+            No agents made here yet. Describe one above and it will show up
+            here.
+          </EmptyState>
+        ) : (
+          <div className="ds-scroll">
+            <table className="ds-table" aria-label="Agents you've made">
+              <thead>
+                <tr>
+                  <th>Agent</th>
+                  <th>Status</th>
+                  <th className="narrow">
+                    <span className="sr-only">Use it</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {mine.map((a) => (
+                  <tr key={a.id}>
+                    <td>
+                      <span className="plate">
+                        <b>{a.name}</b>
+                        <small>{a.description || a.tag}</small>
+                      </span>
+                    </td>
+                    <td>
+                      <OnlineStatus online={a.online} />
+                    </td>
+                    <td className="narrow">
+                      <Link to="/run">Use it in a run</Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
-  )
+  );
 }
 
-// What the agent will do, in plain words.
-function describe(setup: StudioSetup): string[] {
-  return [
-    setup.retries > 0
-      ? `Tries again up to ${setup.retries} time${setup.retries === 1 ? '' : 's'} when a search or the model fails.`
-      : 'Does not try again when something fails.',
-    setup.double_check ? 'Double-checks each fact in two sources.' : 'Uses the first source that looks right.',
-    setup.stop_when_unsure
-      ? "Stops and says so when it can't find a reliable answer."
-      : 'Always gives its best answer, even when unsure.',
-  ]
-}
-
-function MadeAgent({ result, onAnother }: { result: StudioResult; onAnother: () => void }) {
-  const { agent, setup } = result
+function Chevron() {
   return (
-    <>
-      <div className="card flat">
-        <h2>{setup.name}</h2>
-        <p className="muted small">
-          <span className={`dot ${agent.online ? 'on' : 'off'}`} aria-hidden />
-          {agent.online ? 'Ready to test' : 'Created, but not reachable right now'}
-        </p>
-        <ul>
-          {describe(setup).map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-        <details>
-          <summary className="small muted">See the instructions it was given</summary>
-          <p className="small">{setup.instructions}</p>
-        </details>
-      </div>
-      <div className="actions">
-        <Link className="btn primary large" to="/run">
-          Run a benchmark with it
-        </Link>
-        <button className="btn" onClick={onAnother}>
-          Make another
-        </button>
-      </div>
-    </>
-  )
+    <svg className="ds-chev" viewBox="0 0 12 12" aria-hidden="true">
+      <path d="M2 4.5 L6 8.5 L10 4.5" />
+    </svg>
+  );
 }

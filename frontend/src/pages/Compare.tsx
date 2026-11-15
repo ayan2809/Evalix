@@ -1,136 +1,201 @@
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { api, type RunDetail } from '../api'
-import { Badge } from '../components/Badge'
-import { RunPicker } from '../components/RunPicker'
-import { StepRow } from '../components/StepRow'
-import { ErrorBox, Loading } from '../components/States'
-import { badgeFor, money, secs, stepCount } from '../format'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { api, type CompareResult } from '../api'
 import { useAsync, useTitle } from '../hooks'
-
-const PAGE = 50
-
-function RunHeader({ run, side }: { run: RunDetail; side: string }) {
-  return (
-    <div className="cmp-head">
-      <div className="muted small">{side}</div>
-      <div className="cmp-title">
-        <Badge name={badgeFor(run.ending, run.fault_fired)} />
-        <Link to={`/runs/${run.id}`} className="strong">{run.agent_name}</Link>
-      </div>
-      <div>{run.fault_label ? `Fault: ${run.fault_label}` : run.task_title} <span className="muted">· try {run.trial}</span></div>
-      <div className="muted small">
-        {stepCount(run)} steps · {money(run.cost_usd)} · {secs(run.seconds)}
-      </div>
-    </div>
-  )
-}
+import { Button, EmptyState, ErrorState, Loading, LinkButton, Notice, PageHeader, SectionBar, TimingDiagram, TitleBlock } from '../ui'
+import { PickerDialog } from './compare/PickerDialog'
+import { EndTable, Split, splitPhrase } from './compare/Split'
+import { defaultPair, partnerFor, type Pair } from './compare/defaults'
+import { buildLane, hasTimes } from './run-details/timing'
+import { lowerFirst, reasonShort } from './results/words'
+import './compare/compare.css'
 
 export default function Compare() {
-  useTitle('Compare')
-  const [params, setParams] = useSearchParams()
+  const [params] = useSearchParams()
   const a = params.get('a') ?? ''
   const b = params.get('b') ?? ''
-  const [limit, setLimit] = useState(PAGE)
-  const [presetMsg, setPresetMsg] = useState('')
+  if (a && b) return <Compared a={a} b={b} />
+  return <Choose a={a} />
+}
 
-  const cmp = useAsync(() => (a && b ? api.compare(a, b) : Promise.resolve(null)), [a, b])
+/** No two runs in the address yet: work out a good pair and move there. */
+function Choose({ a }: { a: string }) {
+  useTitle('Compare')
+  const pair = useAsync<Pair | null>(() => (a ? partnerFor(a) : defaultPair()), [a])
+  if (pair.error) {
+    return (
+      <div className="wrap sheet">
+        <ErrorState error={pair.error} onRetry={pair.reload} />
+      </div>
+    )
+  }
+  if (pair.loading && !pair.data) {
+    return (
+      <div className="wrap sheet">
+        <Loading text="Finding a good pair to compare…" />
+      </div>
+    )
+  }
+  if (!pair.data) {
+    return (
+      <div className="wrap sheet">
+        <PageHeader title="Where did two agents split?" />
+        <EmptyState title="Nothing to compare yet.">
+          {a
+            ? "This run has no other agent to compare with."
+            : 'Compare needs a finished run with at least two agents. Start one and come back.'}
+        </EmptyState>
+        <div>
+          <LinkButton to="/run" variant="primary">
+            Start a run
+          </LinkButton>
+        </div>
+      </div>
+    )
+  }
+  return <Navigate to={`/compare?a=${encodeURIComponent(pair.data.a)}&b=${encodeURIComponent(pair.data.b)}`} replace />
+}
 
-  function set(next: { a?: string; b?: string }) {
-    const p = new URLSearchParams(params)
-    if (next.a !== undefined) p.set('a', next.a)
-    if (next.b !== undefined) p.set('b', next.b)
-    setLimit(PAGE)
-    setParams(p)
+function endingPhrase(run: CompareResult['a']): string {
+  switch (run.ending) {
+    case 'passed':
+      return 'got through'
+    case 'wrong':
+      return `slipped${run.fail_reason ? `: ${lowerFirst(reasonShort(run.fail_reason))}` : ''}`
+    case 'crashed':
+      return `crashed${run.fail_reason ? `: ${lowerFirst(reasonShort(run.fail_reason))}` : ''}`
+    case 'setup_problem':
+      return 'hit a setup problem'
+    default:
+      return 'is still running'
+  }
+}
+
+function Compared({ a, b }: { a: string; b: string }) {
+  const navigate = useNavigate()
+  const result = useAsync(() => api.compare(a, b), [a, b])
+  const [picking, setPicking] = useState(false)
+  const r = result.data && result.data.a.id === a && result.data.b.id === b ? result.data : null
+  useTitle(r ? `${r.a.agent_name} and ${r.b.agent_name}` : 'Compare')
+
+  if (result.error && !r) {
+    return (
+      <div className="wrap sheet">
+        <ErrorState error={result.error} onRetry={result.reload} />
+        <div>
+          <LinkButton to="/compare">Pick a different pair</LinkButton>
+        </div>
+      </div>
+    )
+  }
+  if (!r) {
+    return (
+      <div className="wrap sheet">
+        <Loading text="Lining the two runs up…" />
+      </div>
+    )
   }
 
-  async function preset(kind: 'agents' | 'fault') {
-    setPresetMsg('')
-    try {
-      const ra = await api.getRun(a)
-      const bench = await api.getBenchmark(ra.benchmark_id)
-      const match = bench.runs.find((r) =>
-        kind === 'agents'
-          ? r.task_id === ra.task_id && r.fault_id === ra.fault_id && r.trial === ra.trial && r.agent_id !== ra.agent_id
-          : r.agent_id === ra.agent_id && r.task_id === ra.task_id && r.trial === ra.trial && (ra.fault_id ? r.fault_id === '' : r.fault_id !== ''),
-      )
-      if (match) set({ b: match.id })
-      else setPresetMsg('No matching run in this benchmark.')
-    } catch (e) {
-      setPresetMsg(e instanceof Error ? e.message : 'Could not find a matching run.')
-    }
+  const { a: ra, b: rb, pairs, first_difference: first } = r
+  const sameProblem = ra.task_id === rb.task_id && ra.fault_id === rb.fault_id
+  const topicA = ra.fault_label || ra.task_title
+  const topicB = rb.fault_label || rb.task_title
+
+  let answer: string
+  if (first === null && ra.ending === rb.ending) answer = 'They never split. Both took the same steps and ended the same way.'
+  else if (ra.ending === 'passed' && rb.ending === 'passed') answer = `Both got through, but they took different steps from step ${first}.`
+  else answer = `${ra.agent_name} ${endingPhrase(ra)}. ${rb.agent_name} ${endingPhrase(rb)}.`
+
+  const facts = [
+    sameProblem
+      ? 'Both got the same question and hit the same problem at the same moment.'
+      : 'These two runs were on different problems, so they may split early.',
+    first !== null ? `They split at step ${first}.` : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const splitPair = first === null ? undefined : pairs.find((p) => p.position === first)
+  const at = splitPair ? pairs.indexOf(splitPair) : -1
+  const stepsOf = (side: 'a' | 'b') => pairs.map((p) => p[side])
+  const phrase = (side: 'a' | 'b') => {
+    const steps = stepsOf(side)
+    const run = side === 'a' ? ra : rb
+    const prev = steps.slice(0, at).reverse().find(Boolean) ?? undefined
+    const next = steps.slice(at + 1).find(Boolean) ?? undefined
+    return `${run.agent_name} ${splitPhrase(run, steps[at] ?? null, prev, next)}`
   }
 
-  const data = cmp.data
+  // The timing diagram: one lane per run on one shared scale, with a split line at the first different step.
+  const laneA = buildLane(ra, { label: ra.agent_name })
+  const laneB = buildLane(rb, { label: rb.agent_name })
+  const bothTimed = hasTimes(ra) && hasTimes(rb) && laneA && laneB
+  let splitAtMs: number | undefined
+  if (splitPair) {
+    const at = [splitPair.a?.at_ms, splitPair.b?.at_ms].filter((v): v is number => typeof v === 'number')
+    if (at.length > 0) splitAtMs = Math.min(...at)
+  }
+  if (bothTimed && splitAtMs !== undefined) laneA.lane.marks = [...(laneA.lane.marks ?? []), { atMs: splitAtMs, label: 'They split here', tone: 'split' }]
+  const totalMs = bothTimed ? Math.max(laneA.endMs, laneB.endMs, ra.seconds * 1000, rb.seconds * 1000) : 0
 
   return (
-    <div className="page wide">
-      <h1>Compare</h1>
-      <p className="lead">Put two runs side by side and see where they split.</p>
+    <div className="wrap sheet cp">
+      <TitleBlock
+        label="What is compared"
+        cells={[
+          { label: 'Compared', value: `${ra.agent_name} vs ${rb.agent_name}`, wide: true },
+          { label: sameProblem ? (ra.fault_id ? 'Problem' : 'Question') : 'Problems', value: sameProblem ? topicA : `${topicA} and ${topicB}`, wide: true },
+          { label: 'Benchmark', value: ra.benchmark_id === rb.benchmark_id ? `#${ra.benchmark_id}` : `#${ra.benchmark_id} and #${rb.benchmark_id}` },
+        ]}
+        action={
+          <Button small onClick={() => setPicking(true)}>
+            Change
+          </Button>
+        }
+      />
 
-      <div className="pickers">
-        <RunPicker label="Run A" value={a} onChange={(id) => set({ a: id })} />
-        <RunPicker label="Run B" value={b} onChange={(id) => set({ b: id })} />
-      </div>
+      <PageHeader title={`Where did ${ra.agent_name} and ${rb.agent_name} split?`} answer={answer} facts={facts} />
 
-      <div className="presets">
-        <span className="muted small">Quick pick for B, based on A:</span>
-        <button className="btn small-btn" disabled={!a} onClick={() => preset('agents')}>Same task, two agents</button>
-        <button className="btn small-btn" disabled={!a} onClick={() => preset('fault')}>Normal vs with fault (same agent)</button>
-        {presetMsg && <span className="small bad-text">{presetMsg}</span>}
-      </div>
-
-      {(!a || !b) && <p className="muted">Choose two runs to compare.</p>}
-      {a && b && cmp.error && <ErrorBox error={cmp.error} onRetry={cmp.reload} />}
-      {a && b && !data && !cmp.error && <Loading />}
-
-      {data && (
-        <>
-          <div className="cmp-heads">
-            <RunHeader run={data.a} side="Run A" />
-            <RunHeader run={data.b} side="Run B" />
-          </div>
-
-          {data.first_difference !== null ? (
-            <div className="banner">They first differ at step {data.first_difference}.</div>
-          ) : (
-            <div className="banner calm">These two runs took the same steps.</div>
-          )}
-
-          {data.pairs.length === 0 && <p className="muted">Neither run has recorded steps.</p>}
-          <div className="pairs">
-            {data.pairs.slice(0, limit).map((p) => {
-              const first = p.position === data.first_difference
-              return (
-                <div key={p.position} className={`pair${first ? ' first' : ''}`}>
-                  <div className="pair-pos small muted">
-                    Step {p.position}
-                    {first && <span className="tag diff-tag">First difference</span>}
-                    {!first && !p.same && <span className="muted"> · differs</span>}
-                  </div>
-                  <div className="pair-cols">
-                    {[
-                      { step: p.a, run: data.a },
-                      { step: p.b, run: data.b },
-                    ].map(({ step, run }, i) =>
-                      step ? (
-                        <StepRow key={step.id} step={step} faultLabel={run.fault_label} differs={first} />
-                      ) : (
-                        <div key={i} className="step empty muted small">No step here</div>
-                      ),
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-          {data.pairs.length > limit && (
-            <button className="link" onClick={() => setLimit(limit + PAGE)}>
-              Show more ({data.pairs.length - limit} more steps)
-            </button>
-          )}
-        </>
+      {bothTimed && (
+        <section className="cp-block">
+          <SectionBar title="Timing diagram" />
+          <TimingDiagram
+            label={`When each step of ${ra.agent_name} and ${rb.agent_name} started, on one shared time scale`}
+            lanes={[laneA.lane, laneB.lane]}
+            totalMs={totalMs}
+            splitAtMs={splitAtMs}
+          />
+          <p className="tag">Both lanes use the same time scale, so a longer run really is longer.</p>
+        </section>
       )}
+
+      <section className="cp-block">
+        <SectionBar title="How each ended" />
+        <EndTable a={ra} b={rb} />
+      </section>
+
+      {first !== null && at >= 0 ? (
+        <p className="cp-banner" role="note">
+          <strong>Step {first}: this is where they split.</strong> {phrase('a')}. {phrase('b')}.
+        </p>
+      ) : (
+        <Notice>These two took the same steps from start to finish.</Notice>
+      )}
+
+      <section className="cp-block">
+        <SectionBar title="Step by step, side by side" />
+        <Split a={ra} b={rb} pairs={pairs} firstDifference={first} />
+      </section>
+
+      <PickerDialog
+        open={picking}
+        onClose={() => setPicking(false)}
+        current={r}
+        onPick={(p) => {
+          setPicking(false)
+          navigate(`/compare?a=${encodeURIComponent(p.a)}&b=${encodeURIComponent(p.b)}`)
+        }}
+      />
     </div>
   )
 }

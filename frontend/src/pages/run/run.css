@@ -1,0 +1,212 @@
+/* Start a run and the live progress page. Tables, sheets and checkboxes live in ../sheet.css. */
+
+/* ---------- The form ---------- */
+.rf-tries {
+  padding: 14px 10px 4px;
+}
+.rf-more {
+  padding: 6px 10px 0;
+}
+.rf-more-row {
+  margin-top: 10px;
+  max-width: 560px;
+  border-top: 1px solid var(--line, #d6d9db);
+  padding-top: 12px;
+}
+.rf-sub {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-2, #50585d);
+  line-height: 1.4;
+}
+
+/* The ordering summary sits at the foot of the sheet and stays in view while the lists scroll. */
+.rf-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rf-sentence {
+  max-width: 78ch;
+}
+@media (min-width: 861px) {
+  .rf-summary {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    background: var(--surface, #fff);
+    padding: 12px 0 14px;
+    margin-bottom: -14px;
+  }
+}
+
+/* ---------- Live progress ---------- */
+.rr-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rr-progress-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2px 16px;
+  font-size: 14.5px;
+}
+.rr-progress-head b {
+  font-stretch: 70%;
+  font-weight: 800;
+  font-size: 20px;
+}
+/* a thin ruled track: ten divisions, filled in ink */
+.rr-track {
+  position: relative;
+  height: 12px;
+  border: 1.5px solid var(--ink, #15181a);
+  background-color: var(--surface, #fff);
+  background-image: linear-gradient(90deg, var(--grid, #e4e7e9) 1px, transparent 1px);
+  background-size: 10% 100%;
+}
+.rr-track > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: block;
+  background: var(--ink, #15181a);
+}
+.rr-track-ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--ink-2, #50585d);
+}
+
+/* ---------- Results so far ---------- */
+.rr-grid thead th:not(:first-child) {
+  min-width: 112px;
+}
+.rr-grid .rr-item {
+  min-width: 190px;
+  max-width: 300px;
+  font-weight: 650;
+}
+.rr-grid .rr-item small {
+  display: block;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-2, #50585d);
+}
+.rr-grid .rr-group th {
+  padding: 7px 10px;
+  font-stretch: 70%;
+  font-weight: 700;
+  font-size: 14px;
+  background: var(--solder-tint, #e6efea);
+  color: var(--solder, #1f4d3a);
+  border-bottom: 1px solid var(--line, #d6d9db);
+}
+.rr-grid td.rr-cell {
+  height: 50px;
+  vertical-align: middle;
+}
+.rr-marks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: center;
+}
+.rr-link,
+.rr-running,
+.rr-stopped {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  color: var(--ink, #15181a);
+  min-height: 24px;
+}
+.rr-link:hover {
+  color: var(--ink, #15181a);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.rr-link:focus-visible {
+  outline: 2px solid var(--solder, #1f4d3a);
+  outline-offset: 2px;
+}
+.rr-link.slipped,
+.rr-link.crashed {
+  color: var(--fail, #b3261e);
+  font-weight: 650;
+}
+.rr-link.recovered {
+  color: var(--rec, #1f4fa3);
+  font-weight: 650;
+}
+.rr-link.setup,
+.rr-running,
+.rr-stopped,
+.rr-wait {
+  color: var(--ink-2, #50585d);
+}
+.rr-wait {
+  font-size: 13.5px;
+}
+
+/* ---------- Happening now ---------- */
+.rr-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.rr-broke {
+  display: inline-block;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--warn, #9a5b00);
+  background: var(--warn-bg, #fbf1e0);
+  border: 1px solid var(--warn, #9a5b00);
+  border-radius: 3px;
+  padding: 1px 7px;
+}
+
+.rr-finish {
+  gap: 14px;
+}
+
+@media (max-width: 720px) {
+  .rr-grid .rr-item {
+    min-width: 130px;
+  }
+  .rr-grid thead th:not(:first-child) {
+    min-width: 64px;
+  }
+  .rr-word {
+    display: none;
+  }
+  .rr-now thead {
+    display: none;
+  }
+  .rr-now,
+  .rr-now tbody,
+  .rr-now tr,
+  .rr-now td {
+    display: block;
+    width: 100%;
+  }
+  .rr-now tr {
+    padding: 9px 0;
+    border-bottom: 1px solid var(--line, #d6d9db);
+  }
+  .rr-now td,
+  .rr-now td.narrow {
+    border: 0;
+    padding: 2px 10px;
+    white-space: normal;
+  }
+  .rr-now tbody tr:hover > td {
+    background: transparent;
+  }
+}

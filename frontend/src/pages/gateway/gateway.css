@@ -1,0 +1,117 @@
+/* Gateway test. Section bars, tables and pass lines come from ../sheet.css and ui/datasheet.css. */
+
+.gw-about {
+  padding: 12px 10px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.gw-about p {
+  margin: 0;
+  max-width: 78ch;
+  font-size: 14.5px;
+  color: var(--ink-2, #50585d);
+}
+.gw-about p.gw-rule {
+  color: var(--ink, #15181a);
+}
+.gw-about p.ds-note {
+  font-size: 13px;
+}
+
+.gw-draw {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 10px 6px;
+  min-width: 0;
+}
+.gw-route {
+  max-width: 760px;
+}
+.gw-down,
+.gw-bad {
+  color: var(--warn, #9a5b00);
+  font-weight: 650;
+}
+.gw-bad {
+  color: var(--fail, #b3261e);
+}
+.gw-headline {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.gw-total {
+  margin-left: auto;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.ds-pass {
+  flex-wrap: wrap;
+}
+
+/* ---------- Test 3: spent against the limit ---------- */
+.gw-spent {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 22px;
+}
+.gw-spent-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px 12px;
+  flex-wrap: wrap;
+  font-size: 14.5px;
+}
+.gw-spent-line b {
+  font-stretch: 70%;
+  font-weight: 700;
+  font-size: 15px;
+}
+.gw-ruler {
+  position: relative;
+  height: 14px;
+  border: 1.5px solid var(--ink, #15181a);
+  background-color: var(--surface, #fff);
+  background-image: linear-gradient(90deg, var(--grid, #e4e7e9) 1px, transparent 1px);
+  background-size: 10% 100%;
+}
+.gw-ruler-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--ink, #15181a);
+}
+.gw-ruler-limit {
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  width: 0;
+  border-left: 2.5px solid var(--solder, #1f4d3a);
+}
+.gw-ruler-limit span {
+  position: absolute;
+  top: -17px;
+  right: 6px;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+  color: var(--solder, #1f4d3a);
+}
+
+.gw-callno {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.gw-route tr.gw-blocked td,
+.gw-route tr.gw-blocked th {
+  color: var(--fail, #b3261e);
+  font-weight: 650;
+}
+.gw-more {
+  align-self: flex-start;
+  font-size: 14px;
+  margin: 10px 10px 0;
+}

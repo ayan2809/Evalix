@@ -1,0 +1,131 @@
+/* Sign in: a datasheet cover page. */
+
+.cover {
+  min-height: 100vh;
+  padding: 28px 44px 56px;
+}
+.cover-sheet {
+  max-width: 1240px;
+  margin: 0 auto;
+}
+.cover-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 26px;
+  font-weight: 800;
+  font-stretch: 72%;
+  line-height: 1.1;
+}
+.cover-tb .tb-cell:first-child {
+  display: flex;
+  align-items: center;
+}
+.cover-tb .tb-cell:first-child dt {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.cover-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr);
+  gap: 40px 56px;
+  margin-top: 44px;
+  align-items: start;
+}
+.cover-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.cover-copy .answer {
+  max-width: 30em;
+}
+.cover-features {
+  margin-top: 8px;
+}
+.cover-features ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cover-features li {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.cover-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 380px;
+  margin-top: 12px;
+}
+.cover-actions .btn {
+  width: 100%;
+}
+.cover-actions .tag {
+  margin: 0;
+}
+.google-slot {
+  min-height: 44px;
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.cover-example {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.cover-example .tag {
+  margin: 0;
+}
+.cover-table td {
+  vertical-align: top;
+}
+.cover-table .cond {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.cover-table .res {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.cover-table .res .mark {
+  margin-top: 3px;
+}
+.cover-table .res.bad {
+  color: var(--fail);
+  font-size: 13.5px;
+}
+
+@media (max-width: 960px) {
+  .cover-cols {
+    grid-template-columns: minmax(0, 1fr);
+    margin-top: 32px;
+  }
+}
+@media (max-width: 720px) {
+  .cover {
+    padding: 16px var(--gutter) 40px;
+  }
+  .cover-actions {
+    max-width: none;
+  }
+}
+
+.cover-table .res {
+  white-space: nowrap;
+}
+.cover-table .res.bad {
+  white-space: normal;
+}
