@@ -1114,14 +1114,196 @@ Timeline of Collaboration
 
 ---
 
+### Phase 59: Human Voice & Phonetic Flow Audit for Teleprompter & Demo Script
+
+#### User Prompt 95
+> *"can you review the recording-teleprompter.md and the script file again to check if its human enough with the wording of the script"*
+
+* **Conversational Audit & Polish:**
+  - Evaluated every sentence against authentic developer speech patterns from winning hackathon presentations (WeMakeDevs / FalkorDB Graph Hacks).
+  - Replaced academic phrasing with natural developer vernacular:
+    - *Before:* "a framework-independent chaos benchmarking platform to stress-test your agents..."
+    - *After:* "an active chaos testing platform that breaks your agents before your users do, no matter what framework you built them on."
+    - *Before:* "how resilient the agent's architecture actually is"
+    - *After:* "how resilient your agent's code really is."
+  - Verified uniform naming across both scripts: **Fact Checker** and **Quick Answer** (plain Python), **Research Assistant** (LangChain), and **Web Analyst** (Google ADK), matching the updated UI and database.
+  - Scene 6 explicitly features the live creation of the **Travel Planner** flight agent.
+  - Word count tuned to ~370 words (~2:26 minutes at 150 wpm).
+* **Synchronized Files:**
+  - [`docs/submission/recording-teleprompter.md`](file:///Volumes/Projects/Evalix/docs/submission/recording-teleprompter.md)
+  - [`docs/submission/demo-script.md`](file:///Volumes/Projects/Evalix/docs/submission/demo-script.md)
+
+---
+
+### Phase 60: Calibrating 3-Minute Video Script for Natural Pacing
+
+#### User Prompt 96
+> *"cool lets make it a 3 minute video, make anymore edits to the scripts if needed."*
+
+* **Pacing Calibration for User's Measured Cadence:**
+  - Measured user's actual audio delivery from `uploaded_media_1794750514828.m4a`: ~98 words per minute with relaxed, thoughtful pauses.
+  - Adapted the 8-scene script from 370 words to **~310 words**, perfectly matching a **3:00 to 3:10 minute** total runtime at ~100 wpm.
+  - Ensured every scene is lean, impactful, and easy to speak without rushing or gasping for breath.
+* **Synchronized Script & Teleprompter:**
+  - [`docs/submission/recording-teleprompter.md`](file:///Volumes/Projects/Evalix/docs/submission/recording-teleprompter.md): Clean teleprompter view with updated ~22-26 second scene targets.
+  - [`docs/submission/demo-script.md`](file:///Volumes/Projects/Evalix/docs/submission/demo-script.md): Complete storyboard with matching narration and UI cues.
+
+---
+
+### Phase 61: Humanizing the Compare Screen Voiceover (De-AI-ifying Narration)
+
+#### User Prompt 97
+> *"Now check out the Compare Screen—this is where the contrast really hits home. Lined up side-by-side: same question, same Gemini model, same tools. On the left, Quick Answer panics on the 429 and dies immediately. On the right, Fact Checker catches the error, backs off with exponential retry, and resolves the ground truth. Same foundation model, totally different engineering resilience. this framing can be improved- it seems a bit AI written"*
+
+* **De-AI-ification Analysis:**
+  - Identified classic LLM generated tropes:
+    - *"this is where the contrast really hits home"* $\rightarrow$ corporate/marketing filler.
+    - *"resolves the ground truth"* $\rightarrow$ robotic jargon instead of plain spoken English (*"gets the right answer"* or *"finishes the job"*).
+    - *"Same foundation model, totally different engineering resilience"* $\rightarrow$ textbook essay thesis cadence instead of a developer talking to a peer.
+* **Conversational Developer Reframing:**
+  - Replaced with direct, grounded developer voice:
+    > *"Here's the compare view. You're looking at the exact same question, tools, and Gemini model for both agents. On the left, Quick Answer hits a 429 and just crashes. On the right, Fact Checker catches the error, waits a second, retries, and gets the right answer. Both ran on the exact same LLM—the only difference is the error handling in the code."*
+* **Files Updated:**
+  - `docs/submission/recording-teleprompter.md` (Scene 5)
+  - `docs/submission/demo-script.md` (Scene 5)
+
+---
+
+### Phase 62: Broadening Chaos Scope Beyond 429 Rate Limits
+
+#### User Prompt 98
+> *"arent we focusing a lot on 429 for this demo?"*
+
+* **Chaos Diversity Audit:**
+  - Evaluated narration: 429 was previously mentioned in 4 separate scenes, inadvertently giving the impression that Evalix is only an HTTP retry tester.
+  - Queried `evalix.db`: verified that the benchmark engine tests a much broader failure matrix:
+    - `lying_result`: Quick Answer returned `wrong` by falling for planted outdated blogs with fake numbers.
+    - `misleading_instruction`: tested prompt injection defenses against malicious hidden instructions.
+    - `broken_tool` (500) & `slow_tool` (504): tested infrastructure failover and timeouts.
+    - `model_busy` (429): tested rate limit backoff.
+* **Multi-Pillar Script Overhaul:**
+  - Reframed the narrative across all scenes to showcase the 4 distinct chaos pillars:
+    1. **Infrastructure Resilience:** Surviving 500 crashes and API timeouts.
+    2. **Factuality & Hallucination Defense:** Resisting lying / outdated web search results.
+    3. **Security & Prompt Injections:** Ignoring hidden malicious instructions in untrusted web pages.
+    4. **Capacity & Gateway Failover:** Managing 429 throttles and switching to backup models via Bifrost.
+  - Scene 4 and Scene 5 now highlight that Quick Answer fails on *both* infrastructure errors and lying search data, while Fact Checker verifies sources and self-heals.
+
+---
+
+### Phase 63: Full-Script Agent Name Consistency Audit
+
+#### User Prompt 99
+> *""And boom—here are the results. Fact Checker, LangChain, and Google ADK held up, but Quick Answer failed across the board. When an API threw an error, it crashed immediately. When we fed it a lying blog, it fell for the fake numbers and reported wrong facts. And notice how grading works: we run deterministic code assertions against ground truth, verifying that cited links were actually visited and checking that the agent didn't fall for prompt injections." in this we mention langchain and google adk help up, but we had renamed these agents. Change this and also check other parts of the script after scene 4 if its present or not"*
+
+* **Audit Results Across All 8 Scenes:**
+  - Found and fixed the inconsistency in Scene 4: changed `"Fact Checker, LangChain, and Google ADK held up"` to `"Fact Checker, Research Assistant, and Web Analyst held up"`.
+  - Scanned all subsequent scenes (5 through 8): confirmed no framework names or obsolete legacy names (`Careful`, `Careless`) appear as agent identifiers.
+  - The framework names (`LangChain` and `Google ADK`) only appear in Scene 2 where the agents are formally introduced alongside their tags (`Research Assistant on LangChain, and Web Analyst on Google ADK`), which is intentional and accurate.
+* **Files Updated:**
+  - [`docs/submission/recording-teleprompter.md`](file:///Volumes/Projects/Evalix/docs/submission/recording-teleprompter.md)
+  - [`docs/submission/demo-script.md`](file:///Volumes/Projects/Evalix/docs/submission/demo-script.md)
+
+---
+
+### Phase 64: Spoken Punctuation Refactor (Em Dash Elimination)
+
+#### User Prompt 100
+> *"also there are em dashes in the script, while speaking have to add filler verbs, can you modify that?"*
+
+* **Spoken Flow & Phonetic Refactor:**
+  - Em dashes (`—`) are common in written text but cause unnatural, awkward pauses when read aloud, forcing the speaker to improvise filler verbs or connectives.
+  - Eliminated every em dash across both `recording-teleprompter.md` and `demo-script.md`, replacing them with natural spoken transitions, conjunctions, and verbs:
+    - *Scene 1:* `"That's why we built Evalix: active chaos testing..."` $\rightarrow$ `"That's why we built Evalix, which injects active chaos to stress-test your agents..."`
+    - *Scene 2:* `"Evalix is completely framework-neutral—if your agent speaks HTTP..."` $\rightarrow$ `"Evalix is completely framework-neutral, so as long as your agent speaks HTTP..."`
+    - *Scene 4:* `"And boom—here are the results."` $\rightarrow$ `"And just like that, here are the results."`
+    - *Scene 5:* `"Here's the compare view. Everything here is identical—same prompt..."` $\rightarrow$ `"Here's the compare view, where everything is identical with the same prompt..."`
+    - *Scene 5:* `"Both ran on the exact same LLM—the only difference is how..."` $\rightarrow$ `"Both ran on the exact same LLM, and the only difference is how..."`
+    - *Scene 6:* `"hit 'Make the agent', and boom—it synthesizes..."` $\rightarrow$ `"hit 'Make the agent', and in just two seconds it synthesizes..."`
+    - *Scene 8:* `"That's Evalix—stop guessing if your agents..."` $\rightarrow$ `"That is Evalix, and it helps you stop guessing if your agents..."`
+* **Files Synchronized:**
+  - `docs/submission/recording-teleprompter.md`
+  - `docs/submission/demo-script.md`
+
+---
+
+### Phase 65: Simplifying Gateway Budget Jargon (Scene 7)
+
+#### User Prompt 101
+> *"Plus, virtual keys prevent runaway token costs. - this line is confusing, simplify"*
+
+* **Clarity & Jargon Removal:**
+  - The phrase *"virtual keys prevent runaway token costs"* introduces gateway configuration terminology that obscures the user benefit.
+  - Replaced with direct, relatable impact language:
+    > *"And with built-in spending caps, a looping agent will never drain your wallet."*
+  - This immediately communicates the real value proposition to judges: protecting costs from runaway recursion loops without relying on technical jargon.
+* **Files Synchronized:**
+  - `docs/submission/recording-teleprompter.md` (Scene 7)
+  - `docs/submission/demo-script.md` (Scene 7)
+
+---
+
+### Phase 66: Locating & Exporting Voice Memos Recordings
+
+#### User Prompt 102
+> *"all the recordings are done, idk where voice memo stores these, can you check the location?"*
+
+* **macOS Voice Memos Storage Location Identified:**
+  - On macOS, Voice Memos stores recordings in the sandboxed group container:
+    `~/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings/`
+  - Triggered Finder commands to automatically open:
+    1. The Voice Memos recordings folder.
+    2. The project's audio destination folder (`/Volumes/Projects/Evalix/docs/submission/audio`).
+  - Advised on the fastest 5-second workflow: dragging recordings directly from the Voice Memos application sidebar into Finder.
+
+---
+
+### Phase 67: Explaining Voice Memos Title Mapping & Direct Drag Export
+
+#### User Prompt 103
+> *"i have rename them on the voice memo app but that is not reflecting here"*
+
+* **macOS Voice Memos Title Architecture:**
+  - In Apple Voice Memos, renaming a recording in the app updates internal metadata inside a private SQLite database (`CloudRecordings.db`), while the physical raw audio files on disk retain their original timestamp names (e.g. `20261115 194512-....m4a`).
+  - Instructed the author on the native macOS drag-and-drop export mechanism: dragging recordings directly from the Voice Memos app sidebar into the destination Finder folder automatically translates the metadata title into the physical file name (producing `scene-1.m4a`, `scene-2.m4a`, etc.).
+
+---
+
+### Phase 68: Comprehensive Demo Video Analysis & Verification
+
+#### User Prompt 104
+> *"analyze the demo video that was created"*
+
+* **Technical Verification of `docs/submission/video/Evalix-demo-draft.mp4`:**
+  - **Resolution & Encoding:** 1920x1080 (1080p Full HD, 16:9 widescreen), 29.998 fps, H.264 video codec (486 kbps), AAC audio codec (185 kbps, 48 kHz stereo). Total file size: 17.6 MB (17,598,062 bytes).
+  - **Total Runtime:** 206.85 seconds (3 minutes 26.85 seconds). Perfectly within optimal hackathon submission guidelines (3-5 minutes target).
+  - **Audio Acoustics & Mixing:**
+    - Peak Level: -1.40 dBFS (ideal broadcast/web safety buffer; zero distortion or digital clipping).
+    - Speech Loudness (RMS): -18.70 dBFS (natural, broadcast-compliant conversational loudness).
+    - Silence Profile: Speech starts immediately after 1.0s title card lead-in; single 5.0s dramatic pause at 67.0s-72.0s allowing the viewer to watch the active chaos benchmark run progress bar execute before revealing the scoreboard; natural speech taper at 203s.
+  - **Visual & Scene Synchronization (Audited via OpenCV Frame Sampling & Tesseract OCR):**
+    - `0:00 - 0:24` (Scene 1): High-impact opening hook on cover/sign-in screen ("Break your agent before your users do").
+    - `0:24 - 0:48` (Scene 2): Workspace overview showing 4 framework-neutral sample agents (`Fact Checker`, `Quick Answer`, `Research Assistant`, `Web Analyst`) all marked Online.
+    - `0:48 - 1:12` (Scene 3): Start a Run setup; enabling 3 distinct chaos faults (500 tool crash, lying search result, 429 rate limit).
+    - `1:12 - 1:44` (Scene 4): Scoreboard results & run details; inspecting Quick Answer's failure on 429 and hallucinated citations ("Only used pages it actually opened" failure).
+    - `1:44 - 2:08` (Scene 5): Side-by-side Compare Screen showing the exact divergence point between Quick Answer (crashed at 1.3s) and Fact Checker (resilient retry and resolution).
+    - `2:08 - 2:34` (Scene 6): Live Agent Studio; real-time prompt synthesis ("Research ticket prices from Bangalore to Kolkata...").
+    - `2:34 - 2:56` (Scene 7): Maxim Bifrost Gateway; 7-stop request lifecycle visualization and live failover demonstration.
+    - `2:56 - 3:26` (Scene 8): Closing slide & wrap-up; clear callouts for GitHub repository (`github.com/ayan2809/Evalix`), live cloud URL (`d2n1pd4ckplxt7.cloudfront.net`), Maxim AI, and Tavily integrations.
+  - **Compliance & Privacy Check:**
+    - Zero employer names or leaks (100% compliant with rules.md §1.1).
+    - All agent names uniformly match the production codebase.
+    - Video is 100% production-ready for upload to YouTube (Unlisted) / Google Drive / Loom.
+
+---
+
 ## Pending Items (as of Nov 15, 2026)
 
 **For the author**
-1. **PR #2 merged:** `feature/implementaiton` successfully merged into `main` on GitHub! Public repo now features complete code, datasheet UI, and verified benchmark results.
-2. **Demo Video Recording:** Record the 8 scenes following `docs/submission/demo-script.md` (~2:20 to 2:30).
-3. **Review Presentation Deck:** `docs/submission/Evalix-deck.pptx` is ready with 15 branded slides and speaker notes.
-4. **Google Cloud Console:** add `http://localhost:5173` under "Authorized JavaScript origins" on the Daybook web client if testing live Google OAuth sign-in.
-5. **Final Submission on HackCulture (Deadline: Nov 15, 2026, 23:59 IST):**
+1. **Demo Video Produced:** `docs/submission/video/Evalix-demo-draft.mp4` (3:26, 1080p, 17.6 MB) and cover art `Evalix-cover.png` ready for upload.
+2. **Video Upload (Immediate):** Upload `Evalix-demo-draft.mp4` to YouTube (set to **Unlisted**) or Loom / Google Drive (set to "Anyone with link can view"), setting `Evalix-cover.png` as the thumbnail.
+3. **Presentation Deck:** `docs/submission/Evalix-deck.pptx` ready (export to PDF for upload if needed).
+4. **Final Submission on HackCulture (Deadline: Nov 15, 2026, 23:59 IST):**
    - Video link (YouTube unlisted / Loom).
    - Pitch deck (PDF / PPT export of `Evalix-deck.pptx`).
    - GitHub repo URL: `https://github.com/ayan2809/Evalix`.
