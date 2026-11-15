@@ -1,0 +1,12 @@
+[Unit]
+Description=Evalix: Bifrost gateway (localhost:8080 only)
+Requires=evalix-update.service
+After=evalix-update.service
+
+[Service]
+User=evalix
+WorkingDirectory=/opt/evalix/data
+EnvironmentFile=/opt/evalix/data/.env
+ExecStart=/opt/evalix/bin/bifrost-http -app-dir /opt/evalix/data/bifrost -host 127.0.0.1 -port 8080
+Restart=on-failure
+RestartSec=3

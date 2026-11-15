@@ -210,3 +210,15 @@
     background: transparent;
   }
 }
+
+/* Hosted only: the run engine is off or starting. */
+.rf-engine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.rf-engine .notice {
+  flex: 1 1 320px;
+}

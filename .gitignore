@@ -18,3 +18,4 @@ frontend/dist/
 
 # Impeccable review captures (local only)
 frontend/.impeccable/review/
+build/

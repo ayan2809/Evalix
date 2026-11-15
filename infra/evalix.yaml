@@ -1,0 +1,389 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Evalix app (infra/README.md). CloudFront in front of the React app (S3) and the "front desk" (a Lambda
+  running the FastAPI app in read-only mode, always available, costs nothing while unused). The "run engine"
+  (one EC2 t4g.small: backend, Bifrost and the four sample agents) is switched on only when someone starts a
+  run, and switches itself off after 15 idle minutes. No NAT, no load balancer, no Elastic IP.
+  Needs infra/storage.yaml first.
+
+Parameters:
+  DeskCodeKey:
+    Type: String
+    Description: S3 key of the front desk zip in the data bucket (artifacts/desk/<git-sha>.zip)
+  OriginSecret:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    Description: Secret header CloudFront adds (from SSM /evalix/EVALIX_ORIGIN_SECRET); the desk and engine refuse calls without it
+  EngineAmiId:
+    Type: AWS::EC2::Image::Id
+    Description: Amazon Linux 2023 arm64. Pinned at first deploy so a newer image never replaces the engine (and its disk)
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: The default VPC
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: A default public subnet (the engine needs the internet for Gemini and Tavily)
+  EngineInstanceType:
+    Type: String
+    Default: t4g.small
+    AllowedValues: [t4g.micro, t4g.small, t4g.medium]
+  EngineDiskGb:
+    Type: Number
+    Default: 12
+  IdleMinutes:
+    Type: Number
+    Default: 15
+  AdapterLayerArn:
+    Type: String
+    Default: arn:aws:lambda:ap-south-1:753240598075:layer:LambdaAdapterLayerArm64:25
+    Description: AWS Lambda Web Adapter (runs uvicorn inside Lambda and streams the reply)
+  AlertEmail:
+    Type: String
+    Default: ""
+    Description: When set, an AWS Budgets alert emails this address
+  MonthlyBudgetUsd:
+    Type: Number
+    Default: 5
+
+Conditions:
+  Budget: !Not [!Equals [!Ref AlertEmail, ""]]
+
+Resources:
+  # ---------------------------------------------------------------- run engine (EC2, on demand)
+  EngineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: evalix-engine-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore  # Session Manager terminal, no SSH key
+      Policies:
+        - PolicyName: evalix-engine
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow  # the code it runs
+                Action: s3:GetObject
+                Resource: !Sub
+                  - "${Arn}/artifacts/engine/*"
+                  - Arn: !ImportValue evalix-data-bucket-arn
+              - Effect: Allow  # the copy of the database the front desk reads
+                Action: s3:PutObject
+                Resource: !Sub
+                  - "${Arn}/db/*"
+                  - Arn: !ImportValue evalix-data-bucket-arn
+              - Effect: Allow
+                Action: ssm:GetParametersByPath
+                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/evalix
+              - Effect: Allow
+                Action: kms:Decrypt
+                Resource: "*"
+                Condition:
+                  StringEquals: { "kms:ViaService": !Sub "ssm.${AWS::Region}.amazonaws.com" }
+
+  EngineProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: evalix-engine-profile
+      Roles: [!Ref EngineRole]
+
+  EngineSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: evalix-engine
+      GroupDescription: Evalix run engine. Only the backend port; it refuses calls without the shared secret.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        # The front desk is a Lambda outside any VPC, so its address is not fixed.
+        - { IpProtocol: tcp, FromPort: 8000, ToPort: 8000, CidrIp: 0.0.0.0/0, Description: Evalix backend (secret header required) }
+      Tags:
+        - { Key: Project, Value: evalix }
+        - { Key: Name, Value: evalix-engine }
+
+  EngineInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref EngineAmiId
+      InstanceType: !Ref EngineInstanceType
+      IamInstanceProfile: !Ref EngineProfile
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds: [!GetAtt EngineSecurityGroup.GroupId]
+      CreditSpecification: { CPUCredits: standard }  # never pays for extra CPU bursts
+      InstanceInitiatedShutdownBehavior: stop        # "shutdown" from inside stops it, never deletes it
+      MetadataOptions: { HttpTokens: required, HttpEndpoint: enabled }
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs: { VolumeSize: !Ref EngineDiskGb, VolumeType: gp3, DeleteOnTermination: true }
+      PropagateTagsToVolumeOnCreation: true
+      Tags:
+        - { Key: Project, Value: evalix }
+        - { Key: Name, Value: evalix-engine }
+      # First boot only: fetch and run the set-up script (infra/engine/bootstrap.sh). Later boots start
+      # the services, which fetch the newest code themselves.
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            set -euo pipefail
+            aws s3 cp --region ${AWS::Region} s3://${Bucket}/artifacts/engine/bootstrap.sh /root/evalix-bootstrap.sh
+            bash /root/evalix-bootstrap.sh ${Bucket} ${AWS::Region} ${IdleMinutes}
+          - Bucket: !ImportValue evalix-data-bucket
+
+  # Once a night, stop the engine whatever it is doing (a cost guard if it was left on).
+  SchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: evalix-scheduler-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: scheduler.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals: { "aws:SourceAccount": !Ref AWS::AccountId }
+      Policies:
+        - PolicyName: evalix-stop-engine
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ec2:StopInstances
+                Resource: !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${EngineInstance}
+
+  NightlyStop:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: evalix-nightly-stop
+      Description: Stop the Evalix run engine every night
+      ScheduleExpression: cron(30 2 * * ? *)
+      ScheduleExpressionTimezone: Asia/Kolkata
+      State: ENABLED
+      FlexibleTimeWindow: { Mode: "OFF" }
+      Target:
+        Arn: arn:aws:scheduler:::aws-sdk:ec2:stopInstances
+        RoleArn: !GetAtt SchedulerRole.Arn
+        Input: !Sub '{"InstanceIds": ["${EngineInstance}"]}'
+        RetryPolicy: { MaximumRetryAttempts: 3, MaximumEventAgeInSeconds: 3600 }
+
+  # ---------------------------------------------------------------- front desk (Lambda, always available)
+  DeskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: evalix-desk-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: evalix-desk
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/evalix-*:*
+              - Effect: Allow  # read the copy of the database
+                Action: s3:GetObject
+                Resource: !Sub
+                  - "${Arn}/db/*"
+                  - Arn: !ImportValue evalix-data-bucket-arn
+              - Effect: Allow  # so a missing copy reads as "not found", not "forbidden"
+                Action: s3:ListBucket
+                Resource: !ImportValue evalix-data-bucket-arn
+              - Effect: Allow
+                Action: ssm:GetParametersByPath
+                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/evalix
+              - Effect: Allow
+                Action: kms:Decrypt
+                Resource: "*"
+                Condition:
+                  StringEquals: { "kms:ViaService": !Sub "ssm.${AWS::Region}.amazonaws.com" }
+              - Effect: Allow  # is the engine on, and what is its address (cannot be narrowed further)
+                Action: ec2:DescribeInstances
+                Resource: "*"
+              - Effect: Allow  # switch the engine on; it switches itself off
+                Action: ec2:StartInstances
+                Resource: !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${EngineInstance}
+
+  DeskLogs:
+    Type: AWS::Logs::LogGroup
+    Properties: { LogGroupName: /aws/lambda/evalix-desk, RetentionInDays: 7 }
+
+  DeskFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: DeskLogs
+    Properties:
+      FunctionName: evalix-desk
+      Description: Evalix front desk (FastAPI in read-only mode via Lambda Web Adapter)
+      Runtime: python3.12
+      Architectures: [arm64]
+      Handler: run.sh
+      Layers: [!Ref AdapterLayerArn]
+      MemorySize: 1024
+      Timeout: 900  # a live run's stream stays open up to 15 minutes, then the browser reconnects
+      Role: !GetAtt DeskRole.Arn
+      Code:
+        S3Bucket: !ImportValue evalix-data-bucket
+        S3Key: !Ref DeskCodeKey
+      LoggingConfig: { LogGroup: !Ref DeskLogs }
+      Environment:
+        Variables:
+          AWS_LAMBDA_EXEC_WRAPPER: /opt/bootstrap
+          AWS_LWA_INVOKE_MODE: response_stream
+          AWS_LWA_PORT: "8080"
+          AWS_LWA_READINESS_CHECK_PATH: /healthz
+          EVALIX_ROLE: desk
+          EVALIX_DB: /tmp/evalix.db
+          EVALIX_SSM_PREFIX: /evalix/
+          EVALIX_BUCKET: !ImportValue evalix-data-bucket
+          EVALIX_ENGINE_INSTANCE_ID: !Ref EngineInstance
+
+  # Public URL, but only CloudFront knows the X-Evalix-Origin value the app requires.
+  DeskUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !GetAtt DeskFunction.Arn
+      AuthType: NONE
+      InvokeMode: RESPONSE_STREAM
+
+  # A NONE-auth function URL needs both statements (same as Daybook).
+  DeskUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DeskFunction
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+
+  DeskUrlInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DeskFunction
+      Action: lambda:InvokeFunction
+      Principal: "*"
+      InvokedViaFunctionUrl: true
+
+  # ---------------------------------------------------------------- CloudFront (one https address)
+  WebOac:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: evalix-web-oac
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # App routes (no dot in the last part) serve index.html.
+  SpaRewrite:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: evalix-spa-rewrite
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Rewrite app routes to /index.html
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var req = event.request;
+          var last = req.uri.split('/').pop();
+          if (last.indexOf('.') === -1) { req.uri = '/index.html'; }
+          return req;
+        }
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: Evalix
+        Enabled: true
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_200  # includes India edges
+        DefaultRootObject: index.html
+        ViewerCertificate: { CloudFrontDefaultCertificate: true }
+        Origins:
+          - Id: web
+            DomainName: !ImportValue evalix-web-bucket-domain
+            OriginAccessControlId: !Ref WebOac
+            S3OriginConfig: { OriginAccessIdentity: "" }
+          - Id: desk
+            DomainName: !Select [2, !Split ["/", !GetAtt DeskUrl.FunctionUrl]]
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols: [TLSv1.2]
+              OriginReadTimeout: 60
+              OriginKeepaliveTimeout: 60
+            OriginCustomHeaders:
+              - HeaderName: X-Evalix-Origin
+                HeaderValue: !Ref OriginSecret
+        DefaultCacheBehavior:
+          TargetOriginId: web
+          ViewerProtocolPolicy: redirect-to-https
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # CachingOptimized
+          ResponseHeadersPolicyId: 67f7725c-6f97-4210-82d7-5512b31e9d03  # SecurityHeadersPolicy
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt SpaRewrite.FunctionMetadata.FunctionARN
+        CacheBehaviors:
+          - PathPattern: /api/*
+            TargetOriginId: desk
+            ViewerProtocolPolicy: https-only
+            AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+            CachedMethods: [GET, HEAD]
+            Compress: false  # keeps the live stream flowing
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # CachingDisabled
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac  # AllViewerExceptHostHeader
+            ResponseHeadersPolicyId: 67f7725c-6f97-4210-82d7-5512b31e9d03
+
+  WebBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !ImportValue evalix-web-bucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: cloudfront.amazonaws.com }
+            Action: s3:GetObject
+            Resource: !Sub
+              - "${Arn}/*"
+              - Arn: !ImportValue evalix-web-bucket-arn
+            Condition:
+              StringEquals:
+                "AWS:SourceArn": !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}
+
+  # ---------------------------------------------------------------- cost alert (optional)
+  MonthlyBudget:
+    Type: AWS::Budgets::Budget
+    Condition: Budget
+    Properties:
+      Budget:
+        BudgetName: evalix-monthly
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit: { Amount: !Ref MonthlyBudgetUsd, Unit: USD }
+      NotificationsWithSubscribers:
+        - Notification: { NotificationType: ACTUAL, ComparisonOperator: GREATER_THAN, Threshold: 20 }
+          Subscribers: [{ SubscriptionType: EMAIL, Address: !Ref AlertEmail }]
+        - Notification: { NotificationType: FORECASTED, ComparisonOperator: GREATER_THAN, Threshold: 100 }
+          Subscribers: [{ SubscriptionType: EMAIL, Address: !Ref AlertEmail }]
+
+Outputs:
+  SiteUrl:
+    Value: !Sub https://${Distribution.DomainName}
+  DistributionId:
+    Value: !Ref Distribution
+  EngineInstanceId:
+    Value: !Ref EngineInstance
+  DeskFunctionUrl:
+    Value: !GetAtt DeskUrl.FunctionUrl

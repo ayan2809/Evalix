@@ -841,7 +841,53 @@ Timeline of Collaboration
 > *"for this particular codebase, I want you to plan the infrastructure so the frontend is always up but the backend can be started when a run starts. I want to separate the frontend so it is up while the backend is up in parts. Can that be done? Tell me if it is possible. When a run starts, it will bring up the active process for running it. If any other instances are needed, I want them hosted on AWS, but I want the setup to be free for demo purposes because I don't want to pay a lot for this. Also give me the JSON file for the role. I will use that role, attach it to the policy JSON, and attach it to the role on Mac, as I have set up Daybook. Give me the infrastructure design and an estimate of the cost to run it per day, per week, and per month"*  
 > *"Assume there will be maybe a maximum of 5 to 10 users for this product and that usage won't be heavy. It should also have a mandate: if we find traction, we might increase the infrastructure but right now it is just a demo product for a hackathon."*
 
-* **Note:** handled in a separate session running at the same time; its output is in `infra/` (not yet committed).
+* **Intent:** Host Evalix for judges and a handful of users without paying for an always-on server. The website must always load; the costly part (the run engine) should exist only while a benchmark is running. Reuse the Daybook setup: CloudFormation in `ap-south-1`, and a deployer policy attached to the IAM user on the author's Mac. (Handled in a second session running at the same time as Phases 44–45.)
+* **What the Code Allowed (checked before designing):**
+  1. Sign-in is a signed cookie (HMAC with `EVALIX_SECRET`), not a server-side session, so two separate backend processes can share sign-in.
+  2. The live run page polls every 3 s and the event stream replays its history, so the page does not depend on one unbroken stream.
+  3. A run is a long in-process background job (a full benchmark is about 25 minutes), and agents call back into the backend for every tool and model call. This rules out Lambda for runs and favours keeping the backend, Bifrost and the four agents on one machine.
+* **Design Agreed (answer: yes, it is possible):**
+  * **Always on, scales to zero (~$0):** CloudFront + S3 for the React app, plus a Lambda "front desk" running the same FastAPI app in a read-only mode. While the engine sleeps, the front desk answers sign-in, scoreboard, run details, compare, agents and tasks from a copy of the SQLite database kept in S3.
+  * **On demand:** one EC2 `t4g.small` "run engine" holding the backend, Bifrost, the four agents, and SQLite on its own disk.
+    * Pressing "Start the run" wakes it, which takes about 1 minute. While it is awake, the front desk passes every request through to it.
+    * It saves the database to S3 and switches itself off after 15 idle minutes, with a 3-hour cap per wake. A nightly schedule stops it anyway.
+    * CPU credits are set to "standard" so it can't burst into extra charges, and a $5 budget alert emails the author.
+  * **Rejected:**
+    * Lambda for runs: the 15-minute limit, and background jobs die when the request ends.
+    * CloudFront reaching a private EC2 directly ("VPC origins"): this needs a private subnet, so a ~$32/month NAT gateway to reach Gemini.
+    * A fixed Elastic IP: ~$3.65/month, even while the engine is stopped.
+    * An always-on server: ~$16.70/month.
+  * **Trade-off recorded:** traffic from the front desk to the engine is plain HTTP inside the region, guarded by a secret header. Acceptable for a demo; TLS later.
+* **Cost Estimate:** at upper-bound prices, the engine costs about $0.022 per hour (including its public IPv4 address) and its disk about $0.03 per day. Everything else stays inside AWS's free allowances.
+
+  | Usage | Engine hours/day | Per day | Per week | Per month |
+  | :--- | :--- | :--- | :--- | :--- |
+  | Nobody uses it | 0 | $0.03 | $0.21 | ~$0.90 |
+  | Light | 1 | $0.05 | $0.36 | ~$1.60 |
+  | Hackathon demo days | 3 | $0.10 | $0.67 | ~$2.90 |
+  | Heavy (judging week) | 8 | $0.21 | $1.45 | ~$6.20 |
+  | Always on (comparison) | 24 | $0.56 | $3.90 | ~$16.70 |
+
+  Gemini is billed separately: about $0.003 per run, so a full 3-try benchmark of 195 runs is about $0.50. The bill is $0 out of pocket if the AWS account still has free-tier credits.
+* **Delivered:** two customer-managed policies. One policy alone was over AWS's 6,144-character limit, so it was split in two. Both are valid JSON and under the limit.
+  * [`infra/iam/evalix-deployer-policy.json`](./infra/iam/evalix-deployer-policy.json) covers:
+    * CloudFormation and CloudFront;
+    * the `evalix-*` buckets, the `evalix-*` Lambdas and the Lambda web-adapter layer;
+    * the `/evalix/*` keys in SSM;
+    * the `evalix-*` roles and instance profiles;
+    * the nightly schedule and the budget.
+  * [`infra/iam/evalix-engine-deployer-policy.json`](./infra/iam/evalix-engine-deployer-policy.json) covers EC2 and access to the engine:
+    * it can only create instances tagged `Project=evalix`, only of size `t4g.micro`, `t4g.small` or `t4g.medium`, and only in `ap-south-1`;
+    * it denies resizing an instance to anything bigger;
+    * it allows an SSM terminal and port-forward to the engine, so no SSH key is needed.
+  * Both follow Daybook's pattern: they attach to the IAM user, not to a role, so no trust policy is needed. From an admin login:
+    ```bash
+    aws iam create-policy --policy-name evalix-deployer --policy-document file://infra/iam/evalix-deployer-policy.json
+    aws iam create-policy --policy-name evalix-engine-deployer --policy-document file://infra/iam/evalix-engine-deployer-policy.json
+    aws iam attach-user-policy --user-name <deployer-user> --policy-arn arn:aws:iam::<account-id>:policy/evalix-deployer
+    aws iam attach-user-policy --user-name <deployer-user> --policy-arn arn:aws:iam::<account-id>:policy/evalix-engine-deployer
+    ```
+* **Pending:** see "Pending Items" below ("For the author" items 6–8, "To build" items 5–6).
 
 ---
 
@@ -854,22 +900,199 @@ Timeline of Collaboration
 
 ---
 
+### Phase 48: Demo Video Script and Pitch Deck
+
+#### User Prompt 83
+> *"I want you to now work on a script to demo it, based on the rules of this hackathon. I believe the demo should be about 2.5 minutes long for a video, not much longer and not around 3 minutes. Once that is done, show me the script first, only the script. I'll review it once and then we can decide. Apart from this also work on creating a presentation deck for this hackathon based on the rules mentioned in the repo. Keep all these changes in the private docs directory as of now so they get ignored"*
+
+* **Rules applied:** the hackathon asks for a pitch deck (problem, solution, architecture, results and walkthrough) and a demo video, and judges innovation, technical execution, impact, use of AI, UX and scalability. `rules.md` section 6 asks for "The Problem → The Chaos Challenge → The Resolution → The Metric Impact", a brittle-versus-hardened contrast, and no jargon.
+* **Script:** eight scenes, 365 spoken words (about 2:26). It follows a new user: an empty workspace, the four sample agents, a run with three problems, Careless crashing on "model busy", the compare view, Agent Studio, and one call through Bifrost with the main model switched off. Every claim matches a real run; the recording notes say to change a line if the screen shows something different.
+* **Deck:** 15 slides as a `.pptx` (the rules say "PPT"), in the app's look: solder green, square result marks, and fresh screenshots of the current build. The cover reuses the real Nov 15 results grid. Speaker notes are on every slide.
+* **Where:** `docs/submission/` (git-ignored): `demo-script.md`, `Evalix-deck.pptx`, and `deck/` (the generator and screenshots).
+* **Pending:** the author reviews the script; the deck has not been opened in PowerPoint or Keynote yet (it was checked with the file validator and a Quick Look preview).
+
+---
+
+### Phase 49: Humanized Demo Script Rewrite (WeMakeDevs & FalkorDB Graph Hacks Inspiration)
+
+#### User Prompt 84
+> *"@[/Volumes/Projects/Evalix/docs/submission/demo-script.md] this demo script sounds so much AI ish written. Make it sound more human.*
+> *Take inspiration from these youtube videos which have won a hackathon for we make devs for the falkor db graph hacks which happened in oct 2026*
+> *https://youtu.be/_RRVB81bUJY?si=gH6XhN5CwBWDw14l*
+> *https://youtu.be/Pc49zZzByUw?si=CDYJvWckdVnSGoip*
+> *https://youtu.be/yG-YKcJTyhk?si=78nr16LKCdkNdvN_*
+> *ik they are long but we can maybe use their script to enhance ours and not make it sound AIis"*
+
+* **Video Structure Analysis:** Top-tier hackathon winners avoid reading UI menus or reciting feature checklists. Instead, they lead with an authentic, relatable developer problem in the first 15 seconds, immediately show side-by-side chaos and failure, showcase sponsor integrations (Bifrost Gateway & Tavily) as native superpowers, and wrap with a clear takeaway.
+* **Script Rewrite (`docs/submission/demo-script.md`):**
+  - **Scene 1 (0:00–0:16):** Authentic hook: *"Hey everyone! We've all seen this: you build an AI agent, test it on a few happy-path prompts, and it looks like magic. But the second you ship it to production? A search tool times out, an API throws a 429... and it falls apart. That's why we built Evalix."*
+  - **Scene 2 (0:16–0:32):** Black-box framework neutrality: loading the 4 sample agents (Vanilla, LangChain, Google ADK) over HTTP.
+  - **Scene 3 (0:32–0:50):** Controlled chaos injection (429, lying search, 500 crash) holding models and tools constant.
+  - **Scene 4 (0:50–1:14):** Results datasheet & deep dive: Careless crashing on 429 vs. deterministic code assertions.
+  - **Scene 5 (1:14–1:28):** Side-by-side Compare screen: visual contrast between Careless dying and Careful self-healing via exponential backoff.
+  - **Scene 6 (1:28–1:44):** Zero-shot Agent Studio onboarding.
+  - **Scene 7 (1:44–2:12):** Maxim Bifrost Gateway live failover: switching off primary Gemini model and watching Bifrost transparently route to backup with zero downtime, plus virtual key budget limits.
+  - **Scene 8 (2:12–2:30):** Closing punchline, Tavily web search ground truth, Maxim trace telemetry, and GitHub repo link.
+* **Recording Guidelines:** 1080p @ 110% zoom, clean browser, modular scene-by-scene multi-take recording with simple jump cuts, zero AI cadence.
+* **Length:** Exactly 370 spoken words (~2:20–2:30 at 150 wpm).
+
+---
+
+### Phase 50: Video Strategy, Human Voice Brainstorming & Agent Studio Live Demo
+
+#### User Prompt 85
+> *"What I can do is record the audio files and ask an agent to create the demo videos, then attach each particular demo video to the audio I have provided. I think that is it. I don't want you to implement these things. I just want brainstorming around how to present it in a more human way*
+> *Also regarding the demo, what we can do is create an agent live on the Agent Studio.*
+> *Also is there any provision or is there any rule in the hackathon that there is a time limit for the demo?*
+> *If there is a time limit, let's make one video with the demo part within that limit. and then also make one more detailed video that shows all the features and explains everything in more detail."*
+
+* **Hackathon Time Limit Analysis:**
+  - Evaluated official HackCulture event details (`raw_event_details.json`) and `HACKATHON_GUIDE.md`.
+  - While the submission form does not enforce a rigid hard-coded duration lock on video uploads, judging evaluation etiquette strongly favors ~2:00 to 2:30 minutes to review hundreds of projects.
+  - Adopted the **Dual-Video Strategy**:
+    1. **The Hero Cut (2:15–2:30):** Primary submission link. Fast-paced, high-impact, problem $\rightarrow$ chaos $\rightarrow$ contrast $\rightarrow$ Bifrost failover $\rightarrow$ punchline.
+    2. **The Deep-Dive Cut (5:00–7:00):** Secondary link in README & submission description. Live Agent Studio agent synthesis, complete 7-fault chaos suite, Maxim trace telemetry, and AWS on-demand architecture.
+* **Audio-First Assembly Technique:**
+  - Recording spoken audio snippets first allows natural conversational inflection, emotional cadence, micro-pauses, and developer authenticity without the cognitive burden of navigating screens simultaneously. Screen recording can then be smoothly synchronized to audio cuts.
+* **Live Agent Studio Choreography:**
+  - Designed an effortless 15-second live synthesis flow in Agent Studio: typing a realistic banking agent goal, selecting 2 model-generated clarifying questions, and synthesizing a live benchmarkable agent on `:8000/studio-agents/1` to prove the platform is framework-independent and dynamic.
+
+---
+
+### Phase 51: Live Agent Creation Added to Scene 6 of Demo Script
+
+#### User Prompt 86
+> *"Update the script to add this live agent creation thing if it is not already done. Just edit that part"*
+
+* **Changes Made (`docs/submission/demo-script.md`):**
+  - Updated Scene 6 (1:28–1:48) to explicitly detail the live synthesis walkthrough:
+    - Step 1: Navigating to `/studio` and typing a real banking search query (*"Find travel card perks and verify fees against official bank terms"*).
+    - Step 2: Clicking **"Next"** to trigger model-generated tactical questions.
+    - Step 3: Toggling retry habits (*"Tries again up to 2 times"*) and fact-checking (*"Checks every fact twice"*).
+    - Step 4: Clicking **"Make the agent"** to synthesize and spin up the live endpoint.
+    - Step 5: Clicking **"Use it in a run"** to show the newly created agent immediately selected on the `/run` grid alongside Careful and Careless.
+  - Adjusted narration timing to 20 seconds (~88 words) with natural conversational transitions.
+
+---
+
+### Phase 52: Audio-Driven Video Assembly Workflow Established
+
+#### User Prompt 87
+> *"For the video screen recording, I'll ask the agent to use the screen player to create the recording and then stitch them together. I will do the hard part of recording the audio"*
+
+* **Workflow Division of Labor:**
+  - **User Responsibility:** Record the 8 natural audio clips (`scene-1.mp3` through `scene-8.mp3`) following the voiceover scripts in `docs/submission/demo-script.md`.
+  - **Agent Automation:** Once audio files are provided, the agent drives browser screen recordings (via Chrome DevTools / Playwright / screencast) matching the exact timings of each audio file, captures the UI actions, and stitches audio and video using `ffmpeg`.
+  - **Asset Location:** Audio inputs organized in `docs/submission/audio/` and final stitched output in `docs/submission/demo-script.md`.
+
+---
+
+### Phase 53: Live Travel Planner Agent in Agent Studio & Tavily Search Verification
+
+#### User Prompt 88
+> *"Make the research task for the live agent studio agent run something like this: 'Research for me the price of tickets from Bangalore to Kolkata on 14 January. It is a return on 31 January 2027.' We can name the agent a travel researcher or travel planner. This is one thing, instead of finding travel card bugs. It is a real search task and I believe it will search the internet for it. I also want to understand whether we have the capability to search the internet and return the answer for that query"*
+
+* **Live Internet Search Capability Confirmed:**
+  - Verified `tool_server.py` implementation: `_live_search(query)` invokes `tavily.TavilyClient(api_key=config.TAVILY_API_KEY).search(query, max_results=5)` and `_live_read(url)` invokes `TavilyClient.extract(urls=[url])`.
+  - Executed a live test query via Tavily for `"flight tickets price Bangalore to Kolkata 14 January return 31 January"`, successfully returning real live flight data from Google Flights, MakeMyTrip, and Cheapflights.
+  - When a benchmark run is started with `live_mode=True` (selectable on the `/run` form), the tool server automatically routes all agent search and read calls directly through Tavily to the live web.
+* **Agent Studio Model Prompt Verification:**
+  - Tested the exact flight research prompt through `studio.make_questions(desc)`: Gemini dynamically produced three domain-specific questions:
+    1. Handling far-future date pricing availability.
+    2. Trusted source types (direct airline portals vs. travel aggregators).
+    3. Fare breakdown rules (base fare vs. taxes/baggage fees).
+  - Synthesized setup: named **"Travel Planner"** with tailored flight retrieval instructions and retry policies.
+* **Demo Script Updated:**
+  - Updated Scene 6 in `docs/submission/demo-script.md` to feature the Bangalore-to-Kolkata flight query and the live synthesis of the **Travel Planner** agent.
+
+---
+
+### Phase 54: Clean Recording Teleprompter & macOS Audio Recording Guide
+
+#### User Prompt 89
+> *"how to record these audio files on mac. also create one more md file with the timestamp and not the scene details. Will speak it loud and record the audio"*
+
+* **Clean Teleprompter Created (`docs/submission/recording-teleprompter.md`):**
+  - Designed specifically for speech delivery without UI descriptions, click instructions, or markdown tables.
+  - Divided cleanly into 8 modular scenes with target timestamps, target durations, tone notes, and exact spoken narration lines.
+  - Formatted for easy side-by-side reading or teleprompter viewing.
+* **macOS Audio Recording Workflow Documented:**
+  - Provided practical instructions for recording on macOS using built-in native tools (QuickTime Player vs. Voice Memos) with zero background noise and direct file export to `docs/submission/audio/`.
+
+---
+
+### Phase 55: Building the Hosting (Branch `feature/infra`)
+
+#### User Prompt 90
+> *"I have attached the policies to the Ayan Mac user. 1. Create the infra. 2. Commit and push the changes to the `feature/infra` branch after creating it from `origin/main`. 3. Log all the thinking in the context of this chat. 4. Once the infra is provisioned, deploy all the changes and deploy the application to the endpoint. 5. Give me the hosted endpoint to test."*
+
+* **Done first:** created `feature/infra` from `origin/main` (which already holds the merged app), and confirmed with read-only AWS calls that the new permissions work: the default VPC and subnets, an ARM Amazon Linux image, the Lambda web-adapter layer, and `t4g.small` offered in all three Mumbai zones.
+* **Risk closed (Phase 46 pending check):** Bifrost does ship a Linux ARM build (138 MB, at a fixed download address for each version). The engine pins v2.5.1, the version tested on the author's Mac.
+* **One step paused:** a safety check stopped the assistant's response while it was reading backend files. The assistant did not retry that step and asked instead. The author then said which parts to build (below).
+
+#### User Prompt 91
+> *"go ahead and change the backend according to the infra needs, write the tech stacks, and also write the deploy script. I'll run it myself and store it in the secrets manager like I did for daybook"*
+> *(later: "retry", "continue where it stopped", "continue the task", after the model was switched between sessions)*
+
+* **Intent:** the assistant writes code, stacks and scripts; the author runs the deploy and the key upload. So nothing was provisioned and no key was copied. Items 4–5 of Prompt 90 (deploy and give the endpoint) wait for the author's run.
+* **What was built:**
+  * **Backend roles (`backend/app/hosting.py`, one setting `EVALIX_ROLE`):** `local` (the default; nothing changes), `desk` (the front desk in Lambda) and `engine` (the real backend on EC2). The same FastAPI code serves all three.
+    * Desk: answers from a copy of the database in S3 (checked every 20 s by version tag). Engine ready: passes every request on, streaming. Engine off: a change by a signed-in person switches it on and gets a "starting" reply (503); a guest gets the normal "sign in" message; an agent's tool or model call gets a plain "engine is off".
+    * Engine: refuses any call without the shared secret unless it comes from its own machine (the agents and Bifrost). Saves the database to S3 after every benchmark and when stopping. Switches itself off after 15 idle minutes with no benchmark running, or after 3 hours no matter what.
+    * Keys: when `EVALIX_SSM_PREFIX` is set, `config.py` reads them from SSM Parameter Store at start-up.
+  * **Website:** `EngineNotice` on Start a run (shows "switched off" or "starting", has a "Switch on the run engine" button, and reloads the agents when the engine is ready). Nothing shows on a local run.
+  * **Stacks:** `infra/storage.yaml` (buckets, kept apart so deleting the app keeps results) and `infra/evalix.yaml` (CloudFront, the Lambda front desk with its function URL, the EC2 engine with its role, security group and nightly stop, an optional $5 budget alert).
+  * **Engine set-up:** `infra/engine/` has a first-boot script (2 GB swap, uv, Bifrost, a limited right to switch its own machine off), an update script that runs on every boot (new code from S3, Python packages, keys from SSM, Bifrost config, restore of the database if the disk is new) and systemd units for the backend, Bifrost and the four agents.
+  * **Scripts:** `infra/deploy.sh` (all, backend, frontend, status, wake, stop), `infra/push_secrets.py` (keys from `.env` to SSM, names only, with a `--check` mode; makes two new secrets for AWS and refuses to go on without Google sign-in set up), `infra/build_desk_zip.sh`, and `infra/README.md` (the design, the steps, the costs, the limits).
+* **Decisions and why:**
+  * **One backend, three roles** instead of a second read-only codebase, so sign-in (a signed cookie) works on both halves with one shared secret.
+  * **Lambda Web Adapter** (streaming mode) to run the existing FastAPI app in Lambda, so the live stream passes through.
+  * **Code reaches the engine as a tarball in S3** and is pulled at every boot: no Docker registry, no build server, and a deploy to a running engine is one command.
+  * **No fixed address for the engine:** the desk looks up its current address each time, avoiding an Elastic IP (about $3.65 a month while stopped) and a NAT gateway (about $32).
+  * **The engine's image is pinned at first deploy** (and its network place), so a newer image never replaces the machine and its disk.
+  * **Only the website and `/api/*` go through CloudFront.** The agent tool and model addresses stay private to the engine.
+* **Problems found while re-reading and fixed before finishing:**
+  1. An AWS failure (slow, or a permission error) would have made the desk return a server error on every page. It now answers from the saved copy, and a failed switch-on says so plainly.
+  2. The secrets script asked SSM for a whole folder, which the author's deployer policy may not allow. It now asks by exact name.
+  3. The first deploy would have sent an update command to a machine still booting and stopped the script. It now skips that on a first deploy and carries on if the command can't be sent.
+  4. Sign-in rate limits would have counted all visitors as one (everyone looks like CloudFront); they now use the visitor's address. Cookies are marked Secure when hosted.
+  5. A replaced engine would have lost its database. It now restores the last copy from S3.
+* **Checks run:** 228 backend tests pass (12 new ones for the front desk, the engine gate, passing requests on, streaming, and the database copy; no AWS is called in tests). Frontend builds. Both templates pass CloudFormation's own validation. The front desk zip builds (28 MB zipped, with ARM packages). The secrets script's `--check` reads SSM fine with the new permissions (all names currently missing, as expected).
+* **Not verified (needs the real deploy):** the engine's first boot (package install time, memory fit in 2 GB, the shutdown command through sudo), the Lambda adapter running the app, and the live stream through CloudFront. The nightly stop is the safety net if the self-shutdown fails.
+* **Deploy steps for the author:** run `push_secrets.py`, then `infra/deploy.sh`, then add the printed address to Google sign-in (details in `infra/README.md`).
+
+---
+
 ## Pending Items (as of Nov 15, 2026)
 
 **For the author**
-1. **Open the PR** for `feature/implementaiton` at https://github.com/ayan2809/Evalix/pull/new/feature/implementaiton (the terminal has no `gh`; the PR text is ready).
-2. **Google Cloud Console:** add `http://localhost:5173` under "Authorized JavaScript origins" on the Daybook web client, then sign in once with the owner account to confirm.
-3. **Human queue Q3:** should Careless be made weaker so the lying search result fools it? (Today the real model resists it.)
-4. **Human queue Q4:** keep the four answer values that come only from third-party pages?
-5. **Submission (deadline Nov 15, 2026, 23:59 IST):** demo video (2:00–2:30), submission form, and the README's final numbers.
-6. **Decide:** commit `.agents/`, `skills-lock.json` and `infra/`, or leave them local?
+1. **PR #2 merged:** `feature/implementaiton` successfully merged into `main` on GitHub! Public repo now features complete code, datasheet UI, and verified benchmark results.
+2. **Demo Video Recording:** Record the 8 scenes following `docs/submission/demo-script.md` (~2:20 to 2:30).
+3. **Review Presentation Deck:** `docs/submission/Evalix-deck.pptx` is ready with 15 branded slides and speaker notes.
+4. **Google Cloud Console:** add `http://localhost:5173` under "Authorized JavaScript origins" on the Daybook web client if testing live Google OAuth sign-in.
+5. **Final Submission on HackCulture (Deadline: Nov 15, 2026, 23:59 IST):**
+   - Video link (YouTube unlisted / Loom).
+   - Pitch deck (PDF / PPT export of `Evalix-deck.pptx`).
+   - GitHub repo URL: `https://github.com/ayan2809/Evalix`.
+   - Dual-project answer: `NA (not applied)`.
+   - Tavily integration answer: `Stale-Answer Detector`.
+8. **Deploy to AWS (Phase 55, code written, not deployed):**
+   - run `uv run --project backend python infra/push_secrets.py` (keys into SSM; it prints names only);
+   - run `infra/deploy.sh` (about 10 minutes the first time) and open the address it prints;
+   - add that address under "Authorized JavaScript origins" on the Google web client;
+   - check whether the AWS account still has free-tier credits (decides between $0 and about $1–3 a month);
+   - the policies are already attached; `infra/` and the backend, website and thinking.md changes are on `feature/infra`.
 
 **To build (discussed, not done)**
 1. **Your own everyday questions:** a form on Start a run with the question, the expected answer fields and a source page; or graded only by the AI second opinion. Offered on Nov 15; waiting for a yes.
 2. **Gateway stops not run live:** spreading calls across keys (needs a second key slot) and caching (needs a vector store for Bifrost's semantic cache).
 3. **Gateway extras from `docs/pending.md`:** a slow main model (G2), a main model that fails some of the time (G3), a live request log while a test runs (G5), traffic moving back when the main model recovers (G6), a whole benchmark run through an outage (G7), choosing the backup model (G8). The "Run all" route exists but has no button now.
 4. **Allowance gaps:** a member's traced gateway call and Agent Studio calls count against their Bifrost budget but not against Evalix's own "spent today" figure; live search is capped by count, not by Tavily cost.
-5. **Hosting:** the infrastructure plan from Phase 46 (always-on frontend, backend started per run, near-zero cost) is designed but not built.
+5. **Hosting follow-ups (Phase 55):**
+   - **To check on the first real boot:** the engine's setup time, that all six processes fit in 2 GB, that the engine can switch itself off through sudo (else the nightly stop is the only guard), that the Lambda adapter runs the app, and that the live stream passes through CloudFront.
+   - **Later:** TLS between the front desk and the engine (today a secret header over plain http inside AWS), a fixed address for the engine, agents hosted outside the engine.
+   - **If Evalix gets traction:** a managed database (RDS or DynamoDB), an always-on container service for the engine, separate containers per agent, a custom domain.
+   - **Known limit:** Settings changes to keys on the hosted engine don't survive a restart (keys come from SSM at every boot).
 6. **Design review:** the last review round did not look again at Settings, Start a run and Agents after the fixes.
 
 ---
@@ -912,3 +1135,13 @@ Timeline of Collaboration
 | **Explain Once (Guide + Tour)** | Hint lines on every screen | Screens stay quiet for people who know them; first-timers get the guide and a tour that opens each page. |
 | **Model-Written Follow-Up Questions** | Fixed yes/no toggles | The right questions depend on what the agent is for. |
 | **Gateway as "Follow One Call"** | Three fixed test panels | Shows the breadth of Bifrost (seven stops) with only one stop open at a time, using a real call and Bifrost's own log. |
+| **Hosting: Always-On Website, Run Engine on Demand** | One always-on server (~$16.70/month) | 5–10 light users only need the engine for minutes a day; the website and results stay up at ~$0, and the bill is about $1–3 a month. |
+| **Run Engine on One EC2 Instance** | Lambda, or a container per agent | Runs last up to ~25 minutes and every agent call goes back through the backend; one machine keeps those calls local and starts in about a minute. |
+| **Read-Only "Front Desk" from the Same FastAPI App** | A second, separate read API | No second codebase; signed-cookie sign-in works in both halves because they share one secret. |
+| **Engine Reached Through the Front Desk** | CloudFront VPC origin, or a fixed Elastic IP | A VPC origin needs a private subnet, so a ~$32/month NAT gateway; an Elastic IP costs ~$3.65/month even while stopped. |
+| **Deployer Policies Capped by Tag, Size and Region** | Broad EC2 rights | A mistake can't launch anything other than a tagged `t4g.micro/small/medium` engine in `ap-south-1`. |
+| **One Backend, Three Roles (`local`, `desk`, `engine`)** | A separate read-only API for the front desk | No second codebase to keep in step; sign-in is a signed cookie, so both halves accept it with one shared secret. |
+| **Lambda Web Adapter in Streaming Mode** | Rewriting the app for Lambda | The existing FastAPI app runs unchanged, and the live event stream passes through. |
+| **Engine Code as a Tarball in S3, Pulled at Every Boot** | A container registry or build server | A deploy is one upload; a running engine updates with one command; an off engine updates itself when it starts. |
+| **Keys in SSM, Read at Start-Up** | Keys in the templates or the repo | The author runs one script to store them (as in Daybook); nothing secret is committed or printed. |
+| **Engine Image and Network Place Pinned at First Deploy** | Always the newest image | A newer image would replace the machine and its disk. |

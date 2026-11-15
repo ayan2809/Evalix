@@ -9,6 +9,22 @@ ROOT = Path(__file__).resolve().parents[2]  # repo root
 # Real environment variables win over the .env file.
 load_dotenv(ROOT / ".env", override=False)
 
+
+def _load_ssm(prefix: str) -> None:
+    """In AWS, the keys live in SSM Parameter Store under one prefix. The last part of each name is the
+    variable name (/evalix/GEMINI_API_KEY). Values already in the environment win."""
+    import boto3  # only needed in AWS
+
+    ssm = boto3.client("ssm", region_name=os.environ.get("AWS_REGION", "ap-south-1"))
+    pages = ssm.get_paginator("get_parameters_by_path").paginate(Path=prefix.rstrip("/"), WithDecryption=True)
+    for page in pages:
+        for param in page["Parameters"]:
+            os.environ.setdefault(param["Name"].rsplit("/", 1)[-1], param["Value"])
+
+
+if os.environ.get("EVALIX_SSM_PREFIX"):
+    _load_ssm(os.environ["EVALIX_SSM_PREFIX"])
+
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 TAVILY_API_KEY = os.environ.get("TAVILY_API_KEY", "")
 AGENT_MODEL = os.environ.get("AGENT_MODEL") or "gemini-3.5-flash-lite"
@@ -37,6 +53,21 @@ OWNER_EMAILS = _emails("EVALIX_OWNER_EMAILS")
 MEMBER_DAILY_USD = float(os.environ.get("EVALIX_MEMBER_DAILY_USD") or 0.25)
 MEMBER_DAILY_SEARCHES = int(os.environ.get("EVALIX_MEMBER_DAILY_SEARCHES") or 60)
 EVALIX_SECRET = os.environ.get("EVALIX_SECRET", "")
+
+# ---- Hosting (infra/README.md) ----
+# local  = everything on one computer (the default; nothing below is used)
+# desk   = the always-available front desk in AWS Lambda: answers from a copy of the database, wakes the engine
+# engine = the run engine on EC2: the real backend; saves the database to S3 and switches itself off when idle
+ROLE = os.environ.get("EVALIX_ROLE", "local").strip() or "local"
+AWS_REGION = os.environ.get("AWS_REGION", "ap-south-1")
+DATA_BUCKET = os.environ.get("EVALIX_BUCKET", "")
+SNAPSHOT_KEY = os.environ.get("EVALIX_SNAPSHOT_KEY", "db/evalix.db")
+ENGINE_INSTANCE_ID = os.environ.get("EVALIX_ENGINE_INSTANCE_ID", "")
+ENGINE_PORT = int(os.environ.get("EVALIX_ENGINE_PORT") or 8000)
+# Shared secret: CloudFront adds it for the desk, and the desk adds it for the engine.
+ORIGIN_SECRET = os.environ.get("EVALIX_ORIGIN_SECRET", "")
+IDLE_MINUTES = float(os.environ.get("EVALIX_IDLE_MINUTES") or 15)
+MAX_AWAKE_HOURS = float(os.environ.get("EVALIX_MAX_AWAKE_HOURS") or 3)
 
 # Limits for one run (plan section 9).
 RUN_LIMITS = {"seconds": 120, "model_calls": 15, "tool_calls": 20}

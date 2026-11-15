@@ -1,0 +1,10 @@
+[Unit]
+Description=Evalix: fetch the newest code and keys
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/evalix-update
+TimeoutStartSec=900
