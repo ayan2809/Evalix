@@ -144,7 +144,10 @@ def test_rank_pool():
 # ---- the web API and full runs ----
 
 def test_health_agents_tasks_faults(api):
-    assert api.get("/api/health").json() == {"ok": True, "mock": True, "agent_model": config.AGENT_MODEL}
+    health = api.get("/api/health").json()
+    assert set(health) == {"ok", "mock", "agent_model", "judge_model", "bifrost_up", "search_mode"}
+    assert health["ok"] is True and health["mock"] is True and health["bifrost_up"] is None
+    assert health["search_mode"] == "saved"
     aid = agent_id(api, "normal")
     agents = {a["id"]: a for a in api.get("/api/agents").json()}
     assert agents[aid]["online"] is True
@@ -154,6 +157,7 @@ def test_health_agents_tasks_faults(api):
     assert "answer_key" not in tasks[0] and "pool" not in tasks[0]
     faults = {f["id"]: f for f in api.get("/api/faults").json()}
     assert faults["model_busy"]["expect"] == "answer" and "rules" not in faults["model_busy"]
+    assert faults["lying_result"]["short"] == "An old blog with wrong numbers comes first"
 
 
 def test_empty_task_list_is_fine(api):

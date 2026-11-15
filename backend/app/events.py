@@ -1,6 +1,7 @@
 """Live updates (SSE). Each benchmark keeps its history so late listeners can catch up."""
 import asyncio
 import json
+import time
 
 from app import store
 
@@ -51,10 +52,14 @@ async def stream(benchmark_id: int):
 
 def record_step(state, kind: str, name: str, input_obj, output_obj, *, status_code: int = 200,
                 action=None, tokens_in: int = 0, tokens_out: int = 0, ms: int = 0) -> dict:
-    """Save one step of a run and tell the listeners. `action` is the FaultAction that hit it, if any."""
+    """Save one step of a run and tell the listeners. `action` is the FaultAction that hit it, if any.
+
+    `ms` is how long the step took. The step is saved with when it began, in ms since the run started.
+    """
+    at_ms = max(0, int((time.monotonic() - state.started) * 1000) - ms)
     step = store.add_step(state.run_id, kind, name, input_obj, output_obj, status_code=status_code,
                           fault=action.fault if action else "", tokens_in=tokens_in,
-                          tokens_out=tokens_out, ms=ms)
+                          tokens_out=tokens_out, ms=ms, at_ms=at_ms)
     publish(state.benchmark_id, "step", {
         "run_id": state.run_id, "position": step["position"], "kind": kind,
         "name": name, "status": status_code,

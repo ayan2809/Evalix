@@ -7,7 +7,7 @@ import httpx
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from app import config
+from app import config, prefs
 from app.events import record_step
 from app.run_state import ACTIVE, RunState
 
@@ -121,7 +121,7 @@ async def chat_completions(run_id: str, request: Request):
     else:
         # Same request, except the model name and no streaming.
         payload = dict(body)
-        payload["model"] = "gemini/" + config.AGENT_MODEL
+        payload["model"] = "gemini/" + (state.model or prefs.agent_model())
         payload["stream"] = False
         payload.pop("stream_options", None)
         status, data = await forward(payload, run_id)

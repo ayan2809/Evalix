@@ -11,7 +11,7 @@ def _load(name: str):
     # Read a data file once. Missing file gives None.
     if name not in _cache:
         path = DATA_DIR / name
-        _cache[name] = json.loads(path.read_text()) if path.exists() else None
+        _cache[name] = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
     return _cache[name]
 
 
@@ -26,6 +26,10 @@ def load_tasks() -> dict[str, dict]:
 
 def load_faults() -> dict[str, dict]:
     return _by_id("faults.json")
+
+
+def load_models() -> list[dict]:
+    return _load("models.json") or []
 
 
 def load_prices() -> dict[str, dict]:

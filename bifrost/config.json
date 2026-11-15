@@ -1,14 +1,31 @@
 {
-  "config_store": { "enabled": false },
+  "setup_token": "evalix-local-setup",
+  "client": {
+    "enforce_auth_on_inference": false
+  },
   "providers": {
     "gemini": {
       "keys": [
-        { "name": "gemini-key-1", "value": "env.GEMINI_API_KEY", "models": ["*"], "weight": 1.0 }
+        {
+          "name": "gemini-key-1",
+          "value": "env.GEMINI_API_KEY",
+          "models": [
+            "*"
+          ],
+          "weight": 1.0
+        }
       ]
     },
-    "fake-down": {
+    "fake-main": {
       "keys": [
-        { "name": "k", "value": "dummy", "models": ["*"], "weight": 1.0 }
+        {
+          "name": "k",
+          "value": "dummy",
+          "models": [
+            "*"
+          ],
+          "weight": 1.0
+        }
       ],
       "network_config": {
         "base_url": "http://localhost:8000/fake-model",
@@ -16,7 +33,34 @@
       },
       "custom_provider_config": {
         "base_provider_type": "openai",
-        "allowed_requests": { "chat_completion": true }
+        "allowed_requests": {
+          "chat_completion": true
+        }
+      }
+    },
+    "fake-busy": {
+      "keys": [
+        {
+          "name": "k",
+          "value": "dummy",
+          "models": [
+            "*"
+          ],
+          "weight": 1.0
+        }
+      ],
+      "network_config": {
+        "base_url": "http://localhost:8000/fake-busy",
+        "allow_private_network": true,
+        "max_retries": 3,
+        "retry_backoff_initial": 1000,
+        "retry_backoff_max": 4000
+      },
+      "custom_provider_config": {
+        "base_provider_type": "openai",
+        "allowed_requests": {
+          "chat_completion": true
+        }
       }
     }
   }

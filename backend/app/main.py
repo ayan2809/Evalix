@@ -4,27 +4,34 @@ import json
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
-from app import config, events, judge, runner, store
+from app import config, events, judge, prefs, runner, store
 from app.data import load_faults, load_tasks, public_task
-from app.auth import router as auth_router
+from app.auth import require_owner, router as auth_router
 from app.extras import router as extras_router
 from app.gateway import router as gateway_router
 from app.model_door import router as model_router
 from app.scores import agent_summary, grid
-from app.settings_api import router as settings_router
+from app.settings_api import bifrost_up, router as settings_router
 from app.studio import router as studio_router
 from app.tool_server import router as tool_router
 
+# (name, url, tag, description). The words are from spec/api.md.
 BUILT_IN_AGENTS = [
-    ("Careful", "http://localhost:9001"),
-    ("Careless", "http://localhost:9002"),
-    ("LangChain", "http://localhost:9003"),
-    ("Google ADK", "http://localhost:9004"),
+    ("Careful", "http://localhost:9001", "Retries, checks sources",
+     "Plain Python. Tries again when something fails, trusts official pages over blogs, "
+     "and ignores instructions hidden in web pages."),
+    ("Careless", "http://localhost:9002", "Same code, safety off",
+     "The same code as Careful, with the safety habits turned off."),
+    ("LangChain", "http://localhost:9003", "LangChain, out of the box",
+     "LangChain's standard agent, straight out of the box."),
+    ("Google ADK", "http://localhost:9004", "Google ADK, out of the box",
+     "Google's Agent Development Kit, straight out of the box."),
 ]
 CUT = 500  # long step text in /api/runs is cut to this many characters
 
@@ -34,14 +41,16 @@ async def lifespan(app: FastAPI):
     store.init_db()
     store.mark_orphans()
     if not store.list_agents():
-        for name, url in BUILT_IN_AGENTS:
-            store.add_agent(name, url, source="registered")
+        for name, url, tag, description in BUILT_IN_AGENTS:
+            store.add_agent(name, url, source="registered", tag=tag, description=description)
+    for name, _, tag, description in BUILT_IN_AGENTS:  # an older database has none of these words yet
+        store.fill_agent_words(name, tag, description)
     yield
 
 
 app = FastAPI(title="Evalix", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"],
-                   allow_methods=["*"], allow_headers=["*"])
+                   allow_methods=["*"], allow_headers=["*"], allow_credentials=True)
 app.include_router(tool_router)
 app.include_router(model_router)
 app.include_router(studio_router)
@@ -49,6 +58,15 @@ app.include_router(extras_router)
 app.include_router(auth_router)
 app.include_router(gateway_router)
 app.include_router(settings_router)
+
+
+@app.exception_handler(RequestValidationError)
+async def bad_request(request: Request, exc: RequestValidationError):
+    """A wrong request gets a plain sentence, as the spec says."""
+    first = exc.errors()[0] if exc.errors() else {}
+    where = ".".join(str(p) for p in first.get("loc", ()) if p != "body")
+    return JSONResponse(status_code=400, content={"detail": f"The request is not right: {where or 'body'} "
+                                                          f"({first.get('msg', 'bad value')})."})
 
 
 # ---- helpers ----
@@ -84,9 +102,12 @@ def _run_view(run: dict) -> dict:
     task = load_tasks().get(run["task_id"], {})
     fault = load_faults().get(run["fault_id"], {}) if run["fault_id"] else {}
     return {**run,
+            "checks": run.get("checks_json"),
             "agent_name": agent["name"] if agent else "",
             "task_title": task.get("title", run["task_id"]),
+            "task_text": task.get("task", ""),
             "fault_label": fault.get("label", ""),
+            "fault_short": fault.get("short", ""),
             "steps": [_short_step(s) for s in store.get_steps(run["id"])]}
 
 
@@ -100,7 +121,9 @@ def _or_404(value, what: str):
 
 @app.get("/api/health")
 async def health():
-    return {"ok": True, "mock": config.MOCK, "agent_model": config.AGENT_MODEL}
+    return {"ok": True, "mock": config.MOCK, "agent_model": prefs.agent_model(),
+            "judge_model": prefs.judge_model(), "bifrost_up": await bifrost_up(),
+            "search_mode": prefs.search_default()}
 
 
 @app.get("/api/agents")
@@ -111,11 +134,14 @@ async def get_agents():
 class NewAgent(BaseModel):
     name: str
     url: str
+    tag: str = ""
+    description: str = ""
 
 
-@app.post("/api/agents")
+@app.post("/api/agents", dependencies=[Depends(require_owner)])
 async def post_agent(body: NewAgent):
-    agent = store.add_agent(body.name.strip(), body.url.strip().rstrip("/"))
+    agent = store.add_agent(body.name.strip(), body.url.strip().rstrip("/"),
+                            tag=body.tag.strip(), description=body.description.strip())
     return (await _with_online([agent]))[0]
 
 
@@ -126,7 +152,7 @@ async def get_tasks():
 
 @app.get("/api/faults")
 async def get_faults():
-    keys = ("id", "label", "about", "task_id", "expect")
+    keys = ("id", "label", "short", "about", "task_id", "expect")
     return [{k: f.get(k) for k in keys} for f in load_faults().values()]
 
 
@@ -138,7 +164,7 @@ class NewBenchmark(BaseModel):
     live_mode: bool = False
 
 
-@app.post("/api/benchmarks")
+@app.post("/api/benchmarks", dependencies=[Depends(require_owner)])
 async def post_benchmark(body: NewBenchmark):
     trials = max(1, min(body.trials, 10))
     benchmark_id = await runner.start_benchmark(body.agent_ids, body.task_ids, body.fault_ids,
@@ -146,14 +172,17 @@ async def post_benchmark(body: NewBenchmark):
     return {"id": benchmark_id}
 
 
-def _bench_view(b: dict) -> dict:
+def _bench_view(b: dict, total_cost: float) -> dict:
+    agent_ids = (b["selection_json"] or {}).get("agent_ids", [])
     return {"id": b["id"], "status": b["status"], "trials": b["trials"], "live_mode": b["live_mode"],
-            "created_at": b["created_at"], "total_runs": b["total_runs"], "done_runs": b["done_runs"]}
+            "created_at": b["created_at"], "total_runs": b["total_runs"], "done_runs": b["done_runs"],
+            "total_cost": round(total_cost, 6), "agent_count": len(agent_ids)}
 
 
 @app.get("/api/benchmarks")
 async def get_benchmarks():
-    return [_bench_view(b) for b in store.list_benchmarks()]
+    costs = store.benchmark_costs()
+    return [_bench_view(b, costs.get(b["id"], 0.0)) for b in store.list_benchmarks()]
 
 
 @app.get("/api/benchmarks/{benchmark_id}")
@@ -166,11 +195,12 @@ async def get_benchmark(benchmark_id: int):
     run_keys = ("id", "agent_id", "task_id", "fault_id", "trial", "ending", "fail_reason", "steps",
                 "tool_calls", "cost_usd", "seconds", "fault_fired", "looped")
     return {
-        **_bench_view(bench),
-        "agents": [{"id": a["id"], "name": a["name"]} for a in agents],
+        **_bench_view(bench, sum(r["cost_usd"] or 0 for r in runs)),
+        "agents": [{"id": a["id"], "name": a["name"], "tag": a["tag"], "description": a["description"]}
+                   for a in agents],
         "tasks": [{"id": t, "title": tasks[t]["title"], "area": tasks[t]["area"]}
                   for t in selection.get("task_ids", []) if t in tasks],
-        "faults": [{"id": f, "label": faults[f]["label"], "task_id": faults[f]["task_id"],
+        "faults": [{"id": f, "label": faults[f]["label"], "short": faults[f].get("short", ""), "task_id": faults[f]["task_id"],
                     "expect": faults[f].get("expect", "answer")}
                    for f in selection.get("fault_ids", []) if f in faults],
         "summary": agent_summary(runs, tasks),
@@ -186,7 +216,7 @@ async def get_events(benchmark_id: int):
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
-@app.post("/api/benchmarks/{benchmark_id}/cancel")
+@app.post("/api/benchmarks/{benchmark_id}/cancel", dependencies=[Depends(require_owner)])
 async def cancel_benchmark(benchmark_id: int):
     _or_404(store.get_benchmark(benchmark_id), "benchmark")
     runner.cancel_benchmark(benchmark_id)
@@ -230,7 +260,7 @@ async def compare(a: str, b: str):
     return {"a": _run_view(run_a), "b": _run_view(run_b), "pairs": pairs, "first_difference": first}
 
 
-@app.post("/api/runs/{run_id}/review")
+@app.post("/api/runs/{run_id}/review", dependencies=[Depends(require_owner)])
 async def review(run_id: str):
     _or_404(store.get_run(run_id), "run")
     result = await judge.review_run(run_id)

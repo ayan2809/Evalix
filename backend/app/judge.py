@@ -4,7 +4,7 @@ import json
 
 import httpx
 
-from app import config, store
+from app import config, prefs, store
 from app.data import load_faults, load_tasks
 
 GROUNDED = {"grounded", "partly", "not_grounded"}
@@ -74,7 +74,7 @@ def _parse_json(text: str):
 
 async def _ask_judge(prompt: str) -> dict | None:
     payload = {
-        "model": "gemini/" + config.JUDGE_MODEL, "temperature": 0, "stream": False,
+        "model": "gemini/" + prefs.judge_model(), "temperature": 0, "stream": False,
         "response_format": {"type": "json_object"},
         "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}],
     }

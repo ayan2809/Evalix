@@ -26,6 +26,7 @@ class RunState:
     tokens_in: int = 0
     tokens_out: int = 0
     finished: bool = False
+    model: str = ""  # the agent model chosen when the benchmark started
 
     def count_call(self, target: str) -> int:
         """Count one call to a target ('model', 'tool:search', ...). Returns the new count."""

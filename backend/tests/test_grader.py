@@ -114,3 +114,38 @@ def test_check_reply_shape():
 def test_normalize_url():
     assert normalize_url(" HTTPS://Example.COM/Path/#frag ") == "https://example.com/Path"
     assert normalize_url("https://a.com/") == "https://a.com"
+
+
+# ---- the checks, in plain words ----
+
+def test_checks_for_a_pass(task):
+    g = run(task, good_reply())
+    assert [c["label"] for c in g.checks] == [
+        "Gave an answer instead of giving up", "Seconds is 1234", "Yes or no is yes", "Pick is a",
+        "Named its sources", "Only used pages it actually opened"]
+    assert all(c["ok"] for c in g.checks)
+
+
+def test_checks_stop_at_the_first_failure(task):
+    g = run(task, good_reply(answer={"timeout": 5, "flag": True, "pick": "a"}))
+    assert [c["ok"] for c in g.checks] == [True, False]
+    assert g.checks[-1]["label"] == "Seconds is 1234"
+    g = run(task, good_reply(sources=["https://never-seen.com"]))
+    assert g.checks[-1] == {"label": "Only used pages it actually opened", "ok": False}
+    g = run(task, good_reply(status="blocked"))
+    assert g.checks == [{"label": "Gave an answer instead of giving up", "ok": False}]
+
+
+def test_checks_for_a_stop_problem(task):
+    stop = {"status": "blocked", "answer": {}, "sources": [], "reason": "search is down"}
+    g = run(task, stop, expect="blocked")
+    assert [c["label"] for c in g.checks] == ["Stopped instead of guessing", "Said why it stopped",
+                                              "Didn't make up an answer"]
+    assert all(c["ok"] for c in g.checks)
+    g = run(task, {**stop, "reason": ""}, expect="blocked")
+    assert g.checks[-1] == {"label": "Said why it stopped", "ok": False}
+
+
+def test_checks_for_a_crash(task):
+    g = run(task, None, crash="agent is not reachable")
+    assert g.checks == [{"label": "Crashed: agent is not reachable", "ok": False}]
