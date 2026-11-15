@@ -1,0 +1,121 @@
+/* Make an agent. Tables, sheets and the section-bar disclosure live in ../sheet.css. */
+
+.studio-form {
+  max-width: 760px;
+}
+.studio-form label.lbl-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.studio-form .textarea {
+  min-height: 96px;
+}
+.studio-said {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--solder, #1f4d3a);
+  background: var(--surface-2, #f3f4f4);
+}
+.studio-said p {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.q-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.q-item {
+  padding: 14px 0;
+  border-top: 1px solid var(--line, #d6d9db);
+}
+.q-item:last-child {
+  border-bottom: 1px solid var(--line, #d6d9db);
+}
+.q-item fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.q-item legend {
+  padding: 0;
+  margin-bottom: 10px;
+  font-weight: 650;
+}
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.choice {
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius-sm, 2px);
+  background: var(--surface, #fff);
+  font: 500 14.5px var(--sans);
+  color: var(--ink, #15181a);
+  text-align: left;
+  cursor: pointer;
+}
+.choice:hover:not(.on):not(:disabled) {
+  border-color: var(--ink, #15181a);
+}
+.choice.on {
+  background: var(--solder, #1f4d3a);
+  border-color: var(--solder, #1f4d3a);
+  color: #fff;
+}
+.choice:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.choice:focus-visible {
+  outline: 2px solid var(--solder, #1f4d3a);
+  outline-offset: 2px;
+}
+.q-item .input {
+  max-width: 520px;
+}
+.link-btn {
+  all: unset;
+  cursor: pointer;
+  color: var(--solder, #1f4d3a);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.link-btn:focus-visible {
+  outline: 2px solid var(--solder, #1f4d3a);
+  outline-offset: 2px;
+}
+
+.studio-from {
+  font-weight: 400;
+  font-size: 14.5px;
+  line-height: 1.4;
+  display: block;
+}
+.studio-trait {
+  width: 30%;
+  min-width: 190px;
+  font-weight: 650;
+}
+
+/* The buttons sit on their own ruled row under the cells, whatever the width. */
+.studio-made .tb-action {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+  border-left: 0;
+  border-top: 1px solid var(--ink, #15181a);
+}

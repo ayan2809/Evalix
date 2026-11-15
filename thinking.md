@@ -93,6 +93,8 @@ Timeline of Collaboration
 │ 35. Build-Ready Plan: Setup Facts Checked Against Official Docs              │
 │    ▼                                                                         │
 │ 36. Submission Form Strategy, Demo Video Bounds & PR Merge Preparation       │
+│    ▼                                                                         │
+│ 37. Implementation Kick-off: Live Checks, Build Contract & Parallel Builders │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -548,7 +550,7 @@ Timeline of Collaboration
     2. **Cloud & DevOps (3x AWS Certified):** AWS Certified Solutions Architect, Developer, and Machine Learning Specialist. Manages Amazon EKS, Route 53, NLB/ALB, OpenSearch, Lambda, CloudFormation, and SLA incident response.
     3. **RAG & Agentic Systems:** Built ETL pipelines scraping/embedding PDF/web data, vector search (OpenSearch/FAISS), context engineering, and LLM evaluations.
   * **Curated 3 Target Domains in `tasks.json`:**
-    1. **Domain 1: Retail Banking & Fintech Regulatory Intelligence (Banking Systems):** Evaluating research agents on credit card fees (Sapphire Reserve), checking account fee waiver rules, and regulatory compliance disclosures.
+    1. **Domain 1: Retail Banking & Fintech Regulatory Intelligence (Banking Systems):** Evaluating research agents on premium travel credit card fees, checking account fee waiver rules, and regulatory compliance disclosures.
     2. **Domain 2: Enterprise Cloud & Observability Systems (AWS Core):** Evaluating research agents on AWS service limits (Lambda payload/timeout under ALB), container pricing (EKS vs. ECS Fargate), and observability ingestion SLAs.
     3. **Domain 3: AI Infrastructure & Enterprise Vector Search (RAG Core):** Evaluating research agents on vector DB pricing (OpenSearch Serverless OCU vs. Pinecone), model pricing/context limits (Gemini 2.0 Flash in Google AI Studio), and embedding latency budgets.
   * **Impact:** Gives the user authentic, effortless domain authority during live presentations, code walkthroughs, and Q&A with hackathon judges.
@@ -686,6 +688,192 @@ Timeline of Collaboration
 
 ---
 
+### Phase 37: Implementation Kick-off — Live Checks, Build Contract & Parallel Builders
+
+#### User Prompt 49
+> *"start implementing the plan. ... Divide the tasks into small subtasks and use subagents judiciously ... Use Sonnet 5.5 ... After everything is implemented code-wise, run it locally and test it out. Run a small smoke test, then update the README ... Keep a human queue ... After taking a pull from `main`, create a `feature/implementaiton` branch and implement it there."*
+
+* **Intent:** Move from plan to working code, with the main session acting as orchestrator and smaller, well-scoped builders doing the parts.
+* **Setup Done by the Orchestrator:**
+  1. Pulled `main` and created branch `feature/implementaiton`.
+  2. Copied the Gemini key from another local project into `.env` without printing it. `.env` stays git-ignored.
+  3. **Live checks (now run, not just read):** both `gemini-3.5-flash-lite` and `gemini-3.8-flash` are listed for the key; Bifrost starts with the plan's `config.json`; a two-turn tool call works through Bifrost. Finding: Bifrost packs Gemini's "thought signature" into the tool call id, so agents need no special handling.
+  4. Created the two Python environments (`backend/`, `agents/`) with `uv`.
+  5. Wrote a **build contract** (local, next to the plan) that pins every function signature, file format, and web address, so parts built in parallel fit together.
+* **Parallel Builders (Sonnet 5.5):** (a) task data and saved Tavily results, (b) grading, faults, and scores, (c) runner, tool server, model door, judge, and web addresses, (d) the four sample agents, (e) the web app.
+* **Human Queue:** a local file holds open questions for the author, each with context, an analogy, and a safe default, so nothing blocks the build while waiting for an answer. First question: the key's per-minute and per-day limits, which only show inside AI Studio.
+* **Integration Findings (bugs caught by running the whole system, then fixed):**
+  1. Agents turned a model's "blocked" reply into an empty answer, so "tool gone" could never pass. The shared wrapper now keeps "blocked".
+  2. The real model sometimes sent `{"queries": [...]}` instead of `{"query": "..."}`. The tool server accepted it silently and returned junk, which made a careful agent give up. Tools now check their inputs and reply with a clear error the agent can act on.
+  3. The compare screen marked every pair of agents as different from step 1, because their prompts differ. Model calls are now matched by outcome, and tool calls by tool, input, and outcome.
+  4. A card brand linked to the author's employer survived inside saved web pages. It was scrubbed, and the recording script now filters it.
+  5. Some tests could write to the real database. Tests now always use a throwaway database in test mode.
+* **Honest Finding:** the real model resists the "lying result" even when the Careless agent is told to trust the first result. Left honest by default; raised in the human queue instead of rigging the agent.
+* **After the Cut Line, Also Built:** Tier 2 judge, Agent Studio, the Bifrost gateway failover test (a fake main model that is always down; Bifrost falls back to Gemini), and export of runs to Maxim as traces.
+* **Author Answer (human queue):** the AI Studio key is on the paid tier, so parallel runs were raised from 2 to 4.
+
+---
+
+### Phase 38: Human Queue Answers — Key Limits and Cost
+
+#### User Prompt 50 & 51
+> *"these are the limits i notice."* (with the AI Studio limits page open)  
+> *"how much will that cost?"*
+
+* **Intent:** Answer human queue Q1 (how many calls the Gemini key allows) and understand the spend.
+* **Outcome:** Limits recorded in the human queue: `gemini-3.5-flash-lite` 4,000 calls a minute and 150,000 a day; `gemini-3.8-flash` 1,000 a minute and 10,000 a day. A full benchmark (about 1,000 calls) uses under 1% of a day's limit. The first real benchmark (5 agents, 65 runs) cost about **$0.17**.
+
+---
+
+### Phase 39: First UI Redesign on a Shared Design Canvas
+
+#### User Prompt 52
+> *"improve the UI, like design the UI first. It does not look good and not presentable at all to judges"*
+
+* **Intent:** Design before building: a clickable design canvas (claude.ai artifact "Evalix UI Redesign") that the author can comment on screen by screen.
+* **Author comments left on the canvas (Prompts 53–61, Nov 14, verbatim):**
+  * *"this looks a bit misaligned"* (Compare): step-number column removed so everything lines up on one edge.
+  * *"keep a light greenish hue for evalix over a blue color theme"*
+  * *"make the headings more meaningful without cognitive overload on the UI"*: each heading asks or answers one plain question, details in a smaller line.
+  * *"also explain what this agent does etc"*: one sentence under every agent's name.
+  * *"the arrow key looks off as in the dropdown looks off"*: custom chevron on every dropdown.
+  * *"make the wording more human and less AI written on every page"*: copy rewritten to sound like a person; "problems we cause on purpose" instead of "faults".
+  * *"design a screen for this page as well"* (Gateway test) and *"design a page for this agent studio page as well"*: two new boards.
+  * *"i mean for the color etc take inspiration from daybook on how clean minimalistic it is and how it has that green tone to it"*
+
+---
+
+### Phase 40: A Cleaner UI with Less Cognitive Load
+
+#### User Prompt 62, 63 & 64
+> *"review all the pages and tell if they are clean enough or can we have a cleaner UI with less congnitive load"*  
+> *"apply all eight to the design"*  
+> *"continue the design modifications"*
+
+* **Intent:** Audit every screen for clutter, then apply all eight proposed simplifications to the canvas.
+* **More canvas comments (Prompts 65–69, verbatim):**
+  * *"i hope this is configurable and it opens up a popup like how its in claude and then we can select API keys etc and select the default model etc. Design a screen for that as well"*: a Claude-style Settings popup (models, API keys, gateway, search, send results to).
+  * *"i like the clean design but ground this to the problem/demo we would do for the gateway test. Want it to be feature rich. Its fine if the backend does not support those capabilities as of now but we can add that as a pending item to implemented. But it should be clear enough that the gateway is kicking in."*
+  * *"this page seems to be incomplete. can you complete the which problems each agent got through. Also should we be also not showing the tests that an agent is being tested on"*: problems became rows, agents columns; each test is shown in one plain line, answer keys stay hidden.
+  * *"we should not be mentioning demo in the page"*: the word "demo" removed from every screen (now a standing rule).
+  * *"I believe the gateway test should not be just the model, just testing that the main model is gone and then if we are able to make the request and stuff. I believe it should also be like the backoffs and some of the features. At least 2 to 3 features you should be showing on the UI for the gateway test so that we are able to tap into the real capabilities of Bifrost and able to demonstrate that in the hackathon demo."*: three tests designed (backup model, retries with backoff, spending limit).
+* **Pending list started:** backend items the design needs were written to `docs/pending.md` (G1–G11 gateway, A1–A2 sign-in, S1–S5 settings).
+
+---
+
+### Phase 41: Spec-First Full-Stack Overhaul
+
+#### User Prompt 70 (+ a message sent mid-task)
+> *"Complete the entire frontent overhaul and also add backend functionalities and features.*  
+> *1. Create a spec right now so the backend and frontend can communicate. 2. Based on the current implementation, update it. 3. Generate the backend using the API spec design. 4. Continue the implementation with the frontend as well. 5. Follow the general rules or subregions I mentioned. 6. Commit and push the changes to this feature branch (the feature implementation), then create the PR."*  
+> *"Lets also design the oauth screen like how we had done for daybook."*
+
+* **Intent:** One contract between backend and web app, then build both from it.
+* **Outcome:** `spec/api.md` written first (types and route tables; a test fails if a listed route is missing). Backend built from it: sign-in (Google, "this computer", guest), settings (models, masked keys, search mode), richer run details (grader checks, step timings), and three live gateway tests through Bifrost (backup model, retry with backoff, $0.01 spending limit). Sign-in page designed in Daybook's style. Commits pushed to `feature/implementaiton`; the PR could not be opened from the terminal (no `gh`), so its text was saved for the author.
+
+---
+
+### Phase 42: Datasheet Redesign with the Impeccable Workflow
+
+#### User Prompt 71–75
+> *"/frontend-design redesign my frontend"*  
+> *"/impeccable init"*, answered: users *"Agent builders first"*; positioning *"Both, equally"*; rules *"No employer or bank brands"* and *"No 'demo' wording"*  
+> *"use impeccable to redesign the frontend and also update the design on the artifact as well. so that i know the state we will be developing towards"*  
+> Choices along the way: direction *"assigned"* (the agent datasheet); DESIGN.md *"Overwrite it"*; after two review rounds *"One more round, then PR"*  
+> *"continue"* (after the 5-hour usage limit stopped two builders)
+
+* **Intent:** A distinctive, presentable look, with the canvas showing the target state.
+* **Outcome:** The "agent datasheet" world: white sheet, solder-green rail and section bars, ink type in Archivo, square result marks (filled = got through, hollow red = slipped, struck = crashed, dashed = setup problem), ruled title blocks and timing diagrams on a shared time scale. `PRODUCT.md`, `frontend/DESIGN.md` and the canvas were updated; three review rounds ended in "ship"; the design detector reported 0 issues.
+* **Canvas comment (Prompt 76):** *"make the sidebar collapsable"*: the rail folds to a 64 px column of icons and is remembered per browser.
+
+---
+
+### Phase 43: Google Sign-In the Same Way as Daybook
+
+#### User Prompt 77
+> *"I had set up a Google OAuth thing in the Daybook project. You can check that out and then do the same implementation here"*
+
+* **Intent:** Reuse the proven Daybook sign-in (answers human queue Q5: reuse Daybook's client).
+* **Outcome:** The backend now checks Google's ID token itself with `google-auth` (signature, audience, expiry, issuer); `EVALIX_OWNER_EMAILS` decides who is the owner; sign-in is limited to 10 tries a minute; the cookie is Secure over https. Daybook's client ID and the owner email were copied into `.env` without printing them. A crash on the sign-in page (React and Google's script writing into the same element) was found and fixed.
+
+---
+
+### Phase 44: A Clean Slate for First-Time Users
+
+#### User Prompt 78
+> *"Which agents hold up when things break? Careful, LangChain and Google ADK got through all 3 problems. Careless and Cloud and Banking got through 2. — the problem is that whenever one starts to use this application for the first time, why do we need to mention about this statement. A new user should be someone who has a clean slate. Think for an user who is new to this evaluation site and redesign and implement the changes. Ask clarifying questions for this"*  
+> *"Everyday questions / Research questions with nothing broken — Even on this page, I notice that we are referring to 'everyday questions,' but why do we need to populate them? It is something the user will figure out and understand. Instead create a help page or a new page where the user can go through this portal, understand what this does, and then start with it"*  
+> *"I also want you to look at the feedback I got for load LOR. I participated in the hackathon on VMake Devs, got the feedback, and saved it in the repository. Check that feedback so we know what gaps are present while we are building a product and we do not repeat the same mistakes"*  
+> *"For the cloud and banking agent you can mention that the source is AI Studio or 'make any agent.' 'Made here' sounds a bit odd"*  
+> *"A few quick questions on the Make an Agent page are treated like a binary, and that is not right. I feel this can be made more dynamic: based on what it should do, it will ask the clarifying questions instead of having a toggle bar"*  
+> *"The presentation for the gateway test can be improved. I know I said to make it dynamic and show the three features of Bifrost, but this does not feel natural. It does not feel like something that would help someone using the portal for the first time understand Bifrost. Make the portal so that a person using it for the first time can understand Bifrost. This part of the UI is limiting it to only three. It should not be like that, right? Bifrost can handle a lot of things. How can we present it in the UI in a way that also demonstrates all its capabilities, not just three? Also remember not to make anything cognitively overloaded while redesigning the UI for this page"*
+
+* **Clarifying answers given by the author:**
+  * Clean slate → *"Own workspace per user"*. Help → *"Guide page + first-visit tour"*. Gateway → *"Follow one call"*. Make an agent → *"Model writes follow-ups"*.
+  * New users' spending → *"Run on your keys, daily cap"*. Guests → *"Read-only example workspace"*. Studio label → *"Agent Studio"*.
+  * Lore feedback (pasted, not found in the repo): **26/30** — sponsor tech 9/10, agent effectiveness 4/5, explainability 5/5, impact 4/5, presentation 4/5. Judge: *"Strong graph-native incident investigation with access controls and cited evidence; synthetic data limits real-world validation."*
+* **Lessons taken from the Lore marks:** prefer real data over synthetic (people test their own agents; live calls; evidence from Bifrost's own log); use the sponsor tech broadly; a first-time visitor must understand the product without help. Recorded in `PRODUCT.md`.
+* **Outcome (spec v2, then backend, then web app):**
+  * Every Google account outside the owner list gets its own workspace that starts empty; other workspaces' items are "not found". Guests see the main workspace labelled as an example.
+  * Members get a daily allowance ($0.25 of model calls, 60 live searches), checked before a run and enforced by Bifrost through a virtual key per workspace with a daily budget.
+  * First screen: a three-step checklist (add an agent, start a run, read the results) with one-click sample agents.
+  * "How it works" page and a five-step first-visit tour; explanatory hint lines removed from the screens.
+  * Agent Studio: the model writes 2–4 questions for each description, each with choices plus "Something else".
+  * Gateway: one real call followed through seven Bifrost stops (key, limits, route, cache, retry, backup, log), one stop open at a time; five stops can be broken live (model access, spending limit, calls per hour, retry, backup); route and cache are explained, not run.
+  * Live checks: a member's run cost $0.0048 with every call on their own key; a traced call took about 1 s, of which Bifrost added 2–6 ms.
+
+---
+
+### Phase 45: Fixing the Tour, and Who Picks the Everyday Questions
+
+#### User Prompt 79 & 80
+> *"the tour is not working and its not opening the page where it should be guiding you."*  
+> *"Everyday questions on this start a run page, it can be also something which the user decides to run right? or am i getting it wrong here?"*
+
+* **Outcome:** Each tour step now opens its page, outlines the part it describes and scrolls to it; Back was added. A second bug was fixed: the first step had pulled first-time visitors away from a shared link.
+* **Answer:** yes, the user ticks which everyday questions (and problems) to run. Writing a brand-new question is not possible yet, because every question needs an answer key for grading (see pending items).
+
+---
+
+### Phase 46: Infrastructure Plan (parallel session)
+
+#### User Prompt 81
+> *"for this particular codebase, I want you to plan the infrastructure so the frontend is always up but the backend can be started when a run starts. I want to separate the frontend so it is up while the backend is up in parts. Can that be done? Tell me if it is possible. When a run starts, it will bring up the active process for running it. If any other instances are needed, I want them hosted on AWS, but I want the setup to be free for demo purposes because I don't want to pay a lot for this. Also give me the JSON file for the role. I will use that role, attach it to the policy JSON, and attach it to the role on Mac, as I have set up Daybook. Give me the infrastructure design and an estimate of the cost to run it per day, per week, and per month"*  
+> *"Assume there will be maybe a maximum of 5 to 10 users for this product and that usage won't be heavy. It should also have a mandate: if we find traction, we might increase the infrastructure but right now it is just a demo product for a hackathon."*
+
+* **Note:** handled in a separate session running at the same time; its output is in `infra/` (not yet committed).
+
+---
+
+### Phase 47: Auditing the Prompt Log
+
+#### User Prompt 82
+> *"did you capture all the prompts I have been giving you in the thinking.md file? That is also crucial. If there are any pending items we discussed in this chat or conversation, add them to the thinking.md file"*
+
+* **Finding:** the log had stopped at Prompt 49. Prompts 50–82 were added from the session transcripts and the design canvas's comment threads, quoted as written.
+
+---
+
+## Pending Items (as of Nov 15, 2026)
+
+**For the author**
+1. **Open the PR** for `feature/implementaiton` at https://github.com/ayan2809/Evalix/pull/new/feature/implementaiton (the terminal has no `gh`; the PR text is ready).
+2. **Google Cloud Console:** add `http://localhost:5173` under "Authorized JavaScript origins" on the Daybook web client, then sign in once with the owner account to confirm.
+3. **Human queue Q3:** should Careless be made weaker so the lying search result fools it? (Today the real model resists it.)
+4. **Human queue Q4:** keep the four answer values that come only from third-party pages?
+5. **Submission (deadline Nov 15, 2026, 23:59 IST):** demo video (2:00–2:30), submission form, and the README's final numbers.
+6. **Decide:** commit `.agents/`, `skills-lock.json` and `infra/`, or leave them local?
+
+**To build (discussed, not done)**
+1. **Your own everyday questions:** a form on Start a run with the question, the expected answer fields and a source page; or graded only by the AI second opinion. Offered on Nov 15; waiting for a yes.
+2. **Gateway stops not run live:** spreading calls across keys (needs a second key slot) and caching (needs a vector store for Bifrost's semantic cache).
+3. **Gateway extras from `docs/pending.md`:** a slow main model (G2), a main model that fails some of the time (G3), a live request log while a test runs (G5), traffic moving back when the main model recovers (G6), a whole benchmark run through an outage (G7), choosing the backup model (G8). The "Run all" route exists but has no button now.
+4. **Allowance gaps:** a member's traced gateway call and Agent Studio calls count against their Bifrost budget but not against Evalix's own "spent today" figure; live search is capped by count, not by Tavily cost.
+5. **Hosting:** the infrastructure plan from Phase 46 (always-on frontend, backend started per run, near-zero cost) is designed but not built.
+6. **Design review:** the last review round did not look again at Settings, Start a run and Agents after the fixes.
+
+---
+
 ## Key Technical Decisions Made Through This Dialogue
 
 | Decision | Alternative Considered | Why This Choice Was Made |
@@ -715,3 +903,12 @@ Timeline of Collaboration
 | **Model Provider: Google AI Studio** | Multi-vendor billing sprawl | Covers all benchmarked agents and LLM judging via Gemini 2.0 Flash with sub-second latency and high free-tier limits. |
 | **Resume-Driven Task Domains** | Generic hypothetical trivia | Curates tasks across retail banking systems, AWS cloud infrastructure, and enterprise RAG vector search where the user has proven production mastery. |
 | **Privacy Directive: Employer Anonymity** | Named company disclosure | Strictly anonymizes all employer and company names across all repo markdown files, committing 100% focus to technology architectures. |
+| **Spec-First Contract (`spec/api.md`)** | Backend and frontend built side by side | One file both sides follow; a test fails when a listed route is missing, so they cannot drift apart. |
+| **Design: the "agent datasheet"** | Dark dashboard of KPI tiles | Results read like an electronics datasheet (marks in fixed cells, timing diagrams on one scale), which is distinctive and easy to scan for judges. |
+| **Design Before Code, on a Shared Canvas** | Building screens first | The author comments on each screen; the canvas shows the state being built towards. |
+| **Google Sign-In Checked Locally (`google-auth`)** | Asking Google's tokeninfo endpoint | Same as Daybook: checks signature, audience, expiry and issuer without a network round trip per sign-in. |
+| **Own Workspace per User** | One shared workspace | New users start with a clean slate and test their own agents, which also answers the "synthetic data" note from earlier judging. |
+| **Daily Allowance via a Bifrost Virtual Key** | Trusting only Evalix's own check | Bifrost refuses over-budget calls itself, so the limit holds even mid-run, and it shows Bifrost's governance on real traffic. |
+| **Explain Once (Guide + Tour)** | Hint lines on every screen | Screens stay quiet for people who know them; first-timers get the guide and a tour that opens each page. |
+| **Model-Written Follow-Up Questions** | Fixed yes/no toggles | The right questions depend on what the agent is for. |
+| **Gateway as "Follow One Call"** | Three fixed test panels | Shows the breadth of Bifrost (seven stops) with only one stop open at a time, using a real call and Bifrost's own log. |

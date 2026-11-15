@@ -1,0 +1,142 @@
+/* Settings popup: a square datasheet dialog with ordering-information tables. */
+
+.set-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.set-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 16px;
+}
+.set-sub h3 {
+  font-size: 17px;
+  font-weight: 700;
+  font-stretch: 70%;
+}
+
+.set-tbl td,
+.set-tbl tbody th {
+  vertical-align: top;
+}
+.set-tbl .set-pick {
+  width: 34px;
+  padding-right: 0;
+  text-align: center;
+}
+.set-tbl input[type='radio'] {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+}
+.set-tbl tbody tr.on td {
+  background: var(--solder-tint);
+}
+.set-tbl tbody tr:not(.off):hover td {
+  cursor: pointer;
+}
+.set-tbl tr.off .set-name,
+.set-tbl tr.off .set-about {
+  color: var(--ink-2);
+}
+.set-name {
+  font-weight: 700;
+  cursor: inherit;
+}
+.set-about {
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+.set-provider {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.set-state {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 13.5px;
+}
+td.set-state {
+  display: table-cell;
+}
+td.set-state > * + * {
+  margin-left: 8px;
+}
+.mask {
+  font-size: 13.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+.set-key .input {
+  height: 32px;
+  min-width: 190px;
+}
+.set-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+.set-actions .btn + .btn {
+  margin-left: 6px;
+}
+.set-note td {
+  padding-top: 2px;
+}
+.set-keys tbody tr:hover td,
+.set-keys tbody tr:hover th {
+  background: transparent;
+}
+
+@media (max-width: 720px) {
+  .set-keys thead,
+  .set-keys th:not(.set-provider) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .set-keys tbody tr:first-child {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .set-keys tbody tr:first-child > * {
+    padding: 0;
+    border: 0;
+  }
+  .set-keys .set-provider {
+    grid-column: 1;
+  }
+  .set-keys .set-status {
+    grid-column: 2;
+    grid-row: 1;
+    text-align: right;
+  }
+  .set-keys .set-about,
+  .set-keys .set-key {
+    grid-column: 1 / -1;
+  }
+  .set-keys .set-actions {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+  .set-keys .set-key .input {
+    width: 100%;
+  }
+  .set-keys .set-note td {
+    display: block;
+  }
+}
