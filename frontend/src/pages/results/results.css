@@ -422,3 +422,55 @@
   min-width: min(100%, 560px);
   max-width: 100%;
 }
+
+/* A new workspace: three steps to a first run. */
+.fr-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: 760px;
+}
+.fr-steps > li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line, #d6d9db);
+  color: var(--ink-2, #50585d);
+}
+.fr-steps > li.now,
+.fr-steps > li.done {
+  color: var(--ink, #15181a);
+}
+.fr-steps > li.now {
+  border-left: 3px solid var(--solder, #1f4d3a);
+  margin-left: -15px;
+  padding-left: 12px;
+}
+.fr-state {
+  padding-top: 4px;
+}
+.fr-body h2 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-stretch: 80%;
+  line-height: 1.25;
+}
+.fr-body p {
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+.fr-body .ds-actions a {
+  font-weight: 600;
+}
+.fr-error {
+  color: var(--fail, #b3261e);
+}
+.fr-more {
+  margin: 16px 0 0;
+}
+@media (max-width: 860px) {
+  .fr-steps > li.now {
+    margin-left: 0;
+  }
+}

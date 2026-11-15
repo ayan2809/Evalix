@@ -6,13 +6,23 @@ export const API_URL: string = (import.meta.env.VITE_API_URL as string | undefin
 // ---------- Sign-in ----------
 
 export type SessionKind = 'google' | 'local' | 'guest'
-export type Role = 'owner' | 'guest'
+/** owner = the main workspace and Settings; member = their own workspace; guest = read-only example. */
+export type Role = 'owner' | 'member' | 'guest'
+
+export interface Allowance {
+  daily_usd: number | null // null = no limit (the owner)
+  spent_today_usd: number
+  daily_searches: number | null
+  searches_today: number
+}
 
 export interface Me {
   session: SessionKind | null // null = never chose; show the sign-in page
   role: Role
   user: { name: string; email: string; picture: string | null } | null
   google_client_id: string | null
+  workspace: 'own' | 'example' // example = a guest looking at the main workspace
+  allowance: Allowance
 }
 
 // ---------- Health ----------
@@ -235,9 +245,17 @@ export interface CompareResult {
 
 // ---------- Agent Studio ----------
 
+/** Written by the model for each description, so they differ every time. */
 export interface StudioQuestion {
   id: string
   text: string
+  choices: string[] // 2 to 4 short answers; the UI adds its own "Something else" box
+}
+
+export interface StudioAnswer {
+  id: string
+  question: string
+  answer: string
 }
 
 export interface StudioSetup {
@@ -255,7 +273,34 @@ export interface StudioResult {
 
 // ---------- Gateway tests ----------
 
-export type GatewayTestName = 'fallback' | 'retry' | 'budget'
+export type GatewayTestName = 'fallback' | 'retry' | 'budget' | 'rate' | 'access'
+
+/** The stops one model call passes inside Bifrost, in order. */
+export type GatewayStopId = 'key' | 'limits' | 'route' | 'cache' | 'retry' | 'fallback' | 'log'
+
+export interface GatewayTrace {
+  ok: boolean
+  simulated: boolean
+  model: string
+  answer: string
+  stops: { id: GatewayStopId; result: string }[]
+  latency_ms: number
+  overhead_ms: number | null
+  cost_usd: number | null
+}
+
+export interface GatewayLogEntry {
+  at: string
+  model: string
+  ok: boolean
+  latency_ms: number | null
+  overhead_ms: number | null
+  cost_usd: number | null
+  retries: number
+  used_backup: boolean
+  key: string | null
+  virtual_key: string | null
+}
 
 export interface GatewayCall {
   n: number
@@ -293,6 +338,8 @@ export interface GatewayTestResult {
     limit_value?: number
     spent_usd?: number
     blocked_at?: number | null
+    allowed_model?: string
+    blocked_model?: string
   }
 }
 
@@ -425,6 +472,8 @@ export const api = {
   listAgents: () => request<Agent[]>('/api/agents'),
   addAgent: (body: { name: string; url: string; tag?: string; description?: string }) =>
     post<Agent>('/api/agents', body),
+  /** Adds the four sample agents to your workspace. Returns all your agents. */
+  addSampleAgents: () => post<Agent[]>('/api/agents/samples'),
   listTasks: () => request<Task[]>('/api/tasks'),
   listFaults: () => request<Fault[]>('/api/faults'),
 
@@ -443,8 +492,9 @@ export const api = {
 
   // Agent Studio
   studio: {
-    questions: () => request<StudioQuestion[]>('/api/studio/questions'),
-    createAgent: (description: string, answers: Record<string, boolean>) =>
+    questions: (description: string) =>
+      post<{ questions: StudioQuestion[] }>('/api/studio/questions', { description }),
+    createAgent: (description: string, answers: StudioAnswer[]) =>
       post<StudioResult>('/api/studio/agents', { description, answers }),
     getSetup: (agentId: number) => request<StudioSetup>(`/api/studio/agents/${agentId}`),
   },
@@ -456,6 +506,9 @@ export const api = {
     /** Waits until the test ends (up to about a minute). 409 if one is already running. */
     runTest: (name: GatewayTestName) => post<GatewayTestResult>(`/api/gateway/tests/${name}`),
     runAll: () => post<{ results: GatewayTestResult[] }>('/api/gateway/tests/all'),
+    /** One small real call, followed through Bifrost's stops. */
+    trace: () => post<GatewayTrace>('/api/gateway/trace'),
+    logs: (limit = 8) => request<GatewayLogEntry[]>(`/api/gateway/logs?limit=${limit}`),
   },
 
   // Settings

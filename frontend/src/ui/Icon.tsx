@@ -12,6 +12,7 @@ const PATHS = {
     </>
   ),
   plus: <path d="M12 5v14M5 12h14" />,
+  guide: <path d="M5 4.5A1.5 1.5 0 016.5 3H19v15H6.5A1.5 1.5 0 005 19.5v-15zM5 19.5A1.5 1.5 0 006.5 21H19M9 7h6M9 10.5h6" />,
   pulse: <path d="M4 12h6l2-4 2 8 2-4h4" />,
   gear: (
     <>

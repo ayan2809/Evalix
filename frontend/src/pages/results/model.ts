@@ -144,6 +144,13 @@ export function agentRows(b: BenchmarkDetail, cells: Map<string, CellInfo>, ques
 
 const ofTotal = (n: number, total: number) => (n === total ? `all ${total}` : `${n} of ${total}`)
 
+/** "all 3 problems", "the 1 problem", "2 of 3 problems", "0 of 1 problem". */
+function scoreWords(n: number, total: number, unit: string): string {
+  const one = unit === 'problems' ? 'problem' : 'everyday question'
+  if (total === 1) return n === 1 ? `the ${one}` : `0 of 1 ${one}`
+  return `${ofTotal(n, total)} ${unit}`
+}
+
 /** "Careful got through all 7 problems. Careless got through 4." Handles ties and a single agent. */
 export function answerSentence(rows: AgentRow[], hasProblems: boolean): string {
   const useFaults = rows.some((r) => r.fTotal > 0)
@@ -155,7 +162,7 @@ export function answerSentence(rows: AgentRow[], hasProblems: boolean): string {
   const maxTotal = Math.max(...rows.map(total))
   if (rows.length === 1) {
     const r = rows[0]
-    return `${r.name} ${verb} ${ofTotal(score(r), total(r))} ${unit}.`
+    return `${r.name} ${verb} ${scoreWords(score(r), total(r), unit)}.`
   }
   const best = Math.max(...rows.map(score))
   const worst = Math.min(...rows.map(score))
@@ -164,9 +171,9 @@ export function answerSentence(rows: AgentRow[], hasProblems: boolean): string {
   const names = (list: AgentRow[]) => (list.length <= 3 ? joinNames(list.map((r) => r.name)) : `${list.length} agents`)
   if (best === worst) {
     const who = rows.length === 2 ? 'Both agents' : `All ${rows.length} agents`
-    return `${who} ${verb} ${ofTotal(best, maxTotal)} ${unit}.`
+    return `${who} ${verb} ${scoreWords(best, maxTotal, unit)}.`
   }
-  return `${names(top)} ${verb} ${ofTotal(best, maxTotal)} ${unit}. ${names(bottom)} ${verb} ${worst}.`
+  return `${names(top)} ${verb} ${scoreWords(best, maxTotal, unit)}. ${names(bottom)} ${verb} ${worst}.`
 }
 
 /** "65 runs on Nov 14, one try each. $0.17 in total." */

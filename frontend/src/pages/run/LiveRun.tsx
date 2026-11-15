@@ -231,7 +231,7 @@ function Body({
         ]}
         action={
           running && (
-            <Button ownerOnly disabled={stopping} onClick={stop}>
+            <Button needsSignIn disabled={stopping} onClick={stop}>
               {stopping ? 'Stopping…' : 'Stop the run'}
             </Button>
           )
@@ -270,7 +270,7 @@ function Body({
       {finishedSheet}
 
       <section className="ds-block" aria-label="Results so far">
-        <SectionBar title="Results so far" hint="Each result opens the full run." />
+        <SectionBar title="Results so far" />
         {cols === 0 ? (
           <p className="ds-empty">This run has no agents.</p>
         ) : (

@@ -7,6 +7,7 @@ import { useAsync, usePolling, useTitle } from '../hooks'
 import { Button, EmptyState, ErrorState, Loading, LinkButton, Notice, PageHeader, Plate, SectionBar, Select, Table, TitleBlock } from '../ui'
 import { useShell, useModelLabel } from '../shell/ShellContext'
 import { CostPlot } from './results/CostPlot'
+import { FirstRun } from './results/FirstRun'
 import { ProblemGrid } from './results/ProblemGrid'
 import {
   agentRows,
@@ -44,17 +45,7 @@ export default function Results() {
       </div>
     )
   }
-  if (list.data.length === 0) {
-    return (
-      <div className="wrap sheet">
-        <PageHeader title="Which agents hold up when things break?" />
-        <EmptyState title="No runs yet.">Start one and the results show up here as they come in.</EmptyState>
-        <div>
-          <StartRun large />
-        </div>
-      </div>
-    )
-  }
+  if (list.data.length === 0) return <FirstRun />
 
   const wanted = Number(params.get('b'))
   const chosen = list.data.find((b) => b.id === wanted) ?? defaultPick(list.data)!
@@ -212,7 +203,6 @@ function Board({
               <SectionBar title="Behaviour under fault conditions" />
               {faultRows.length > 0 ? (
                 <>
-                  <p className="section-hint">Same problem, same moment, for every agent. Only the slips are coloured.</p>
                   <ProblemGrid
                     bench={bench}
                     cells={cells}
@@ -250,7 +240,6 @@ function Board({
                 </Button>
               }
             />
-            <p className="section-hint">Same model, tools and questions for every agent. Only the build differs.</p>
             <AgentTable id="rs-agents" rows={rows} more={more} />
           </section>
 

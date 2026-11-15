@@ -1,16 +1,13 @@
 import { useState, type FormEvent } from 'react'
-import { api, asApiError, type Agent } from '../api'
+import { Link } from 'react-router-dom'
+import { api, asApiError } from '../api'
+import { agentSource } from '../agentSource'
 import { useAsync, useTitle } from '../hooks'
 import { useShell } from '../shell/ShellContext'
-import { Button, EmptyState, ErrorState, Loading, Notice, PageHeader, SectionBar } from '../ui'
+import { Button, ErrorState, Loading, Notice, PageHeader, SectionBar } from '../ui'
 import { OnlineStatus } from './agents/OnlineStatus'
 import './sheet.css'
 import './agents/agents.css'
-
-const SOURCE: Record<Agent['source'], string> = {
-  registered: 'Added by hand',
-  studio: 'Made here',
-}
 
 function looksLikeUrl(v: string): boolean {
   try {
@@ -31,6 +28,20 @@ export default function Agents() {
   const [description, setDescription] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [adding, setAdding] = useState(false)
+
+  async function addSamples() {
+    setAdding(true)
+    try {
+      await api.addSampleAgents()
+      toast('Added the four sample agents.')
+      agents.reload()
+    } catch (err) {
+      toast(asApiError(err).message)
+    } finally {
+      setAdding(false)
+    }
+  }
 
   const list = agents.data ?? []
   const online = list.filter((a) => a.online).length
@@ -80,7 +91,6 @@ export default function Agents() {
               : `${list.length} ${list.length === 1 ? 'agent' : 'agents'}, ${online} answering right now.`
             : undefined
         }
-        facts="Any agent that follows one simple rule can join, whatever it is built with."
       />
 
       <section className="ds-block" aria-label="All agents">
@@ -90,7 +100,15 @@ export default function Agents() {
         ) : !agents.data ? (
           <Loading />
         ) : list.length === 0 ? (
-          <EmptyState>No agents yet. Add one below, or make one from a sentence.</EmptyState>
+          <div className="agents-start">
+            <p>No agents yet.</p>
+            <div className="ds-actions">
+              <Button variant="primary" needsSignIn onClick={addSamples} disabled={adding}>
+                {adding ? 'Adding…' : 'Add the four sample agents'}
+              </Button>
+              <Link to="/studio">Describe one in Agent Studio</Link>
+            </div>
+          </div>
         ) : (
           <div className="agents-tbl ds-scroll">
             <table className="ds-table" aria-label="Agents">
@@ -117,7 +135,7 @@ export default function Agents() {
                     <td>
                       <OnlineStatus online={a.online} />
                     </td>
-                    <td className="ds-url ds-nowrap">{SOURCE[a.source]}</td>
+                    <td className="ds-url ds-nowrap">{agentSource(a)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -127,7 +145,7 @@ export default function Agents() {
       </section>
 
       <section className="ds-block" aria-label="Add your own agent">
-        <SectionBar title="Add your own agent" hint="It will show up in Start a run as soon as it answers." />
+        <SectionBar title="Add your own agent" actions={<Link className="bar-link" to="/guide#g-connect">What your agent needs</Link>} />
         <div className="ds-pad">
           <form className="ds-sheet add-form" onSubmit={add}>
             <div className="fields">
@@ -177,7 +195,7 @@ export default function Agents() {
               </label>
             </div>
             <div className="ds-actions">
-              <Button type="submit" variant="primary" ownerOnly disabled={busy} disabledReason={reason}>
+              <Button type="submit" variant="primary" needsSignIn disabled={busy} disabledReason={reason}>
                 {busy ? 'Adding…' : 'Add the agent'}
               </Button>
               {reason && (name || url) && <span className="tag">{reason}</span>}
@@ -187,32 +205,6 @@ export default function Agents() {
         </div>
       </section>
 
-      <section className="ds-block" aria-label="What an agent needs to do to join">
-        <SectionBar title="What an agent needs to do to join" />
-        <ol className="join-steps">
-          <li>
-            <span>
-              Answer <b>POST /run</b> on its address. Evalix sends the question, the address of its tools, the address
-              of its model, and the limits for the run.
-            </span>
-          </li>
-          <li>
-            <span>
-              Get its tools and call its model only through those two addresses, so Evalix can see every call and break
-              the ones it wants to.
-            </span>
-          </li>
-          <li>
-            <span>
-              Reply with its answer, the sources it used, and a reason if it decided to stop instead of answering.
-            </span>
-          </li>
-        </ol>
-        <p className="ds-note ds-pad">
-          Any framework works, as long as its model client can point at a different address. The README has the full
-          request and reply under "Plugging in any agent".
-        </p>
-      </section>
     </div>
   )
 }

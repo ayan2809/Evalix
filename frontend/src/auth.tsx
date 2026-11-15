@@ -2,8 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { api, asApiError, type ApiError, type Me } from './api'
 
 export const GUEST_REASON = "Sign in to do this. You're looking around as a guest."
-/** A Google account that isn't on the owner list (EVALIX_OWNER_EMAILS). */
-export const VIEWER_REASON = 'Your Google account can look around here but not change things. Ask the owner to add you.'
+/** A member (any Google account not on EVALIX_OWNER_EMAILS) trying to change Settings, keys or Maxim. */
+export const MEMBER_REASON = 'Only the owner of this Evalix can change this.'
 
 interface AuthValue {
   /** null until the first answer from GET /api/auth/me */
@@ -78,16 +78,24 @@ export function useAuth(): AuthValue {
 }
 
 /**
- * Whether the person may change things (start runs, save settings). Guests may only look.
- * `reason` is the sentence to show as a tooltip on a disabled button; undefined when allowed.
- *   const { canEdit, reason } = useCanEdit()
- *   <Button ownerOnly>...</Button>  // does the same for you
+ * Whether the person may change things in their own workspace (agents, runs, Agent Studio, gateway tests).
+ * Owners and members may; guests may only look. `reason` is the tooltip for a disabled button.
+ *   <Button needsSignIn>...</Button>  // does the same for you
  */
 export function useCanEdit(): { canEdit: boolean; reason: string | undefined } {
   const v = useContext(Ctx)
-  const canEdit = !v || !v.me || v.me.role === 'owner'
-  if (canEdit) return { canEdit, reason: undefined }
-  return { canEdit, reason: v?.me?.session === 'google' ? VIEWER_REASON : GUEST_REASON }
+  const canEdit = !v || !v.me || v.me.role !== 'guest'
+  return { canEdit, reason: canEdit ? undefined : GUEST_REASON }
+}
+
+/** Whether the person may change Settings, keys and Maxim: the owner only.
+ *   <Button ownerOnly>...</Button>  // does the same for you
+ */
+export function useIsOwner(): { isOwner: boolean; reason: string | undefined } {
+  const v = useContext(Ctx)
+  const isOwner = !v || !v.me || v.me.role === 'owner'
+  if (isOwner) return { isOwner, reason: undefined }
+  return { isOwner, reason: v?.me?.role === 'member' ? MEMBER_REASON : GUEST_REASON }
 }
 
 /** "Guest", "This computer" or the Google name. */

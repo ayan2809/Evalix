@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { agentSource } from '../../agentSource'
 import { api, asApiError, type Agent, type BenchmarkListItem } from '../../api'
 import { useAsync } from '../../hooks'
 import { useModelLabel, useShell } from '../../shell/ShellContext'
@@ -8,7 +9,6 @@ import { OnlineStatus } from '../agents/OnlineStatus'
 import '../sheet.css'
 import './run.css'
 
-const SOURCE: Record<Agent['source'], string> = { registered: 'Added by hand', studio: 'Made here' }
 
 const OFFLINE_REASON = 'Not answering. Start it, then reload this page.'
 
@@ -155,7 +155,6 @@ export default function RunForm() {
       <PageHeader
         title="Who do you want to put to the test?"
         answer="Same questions for everyone, then we break things."
-        facts="Pick who to test and how hard to push them. You can watch it happen live."
       />
 
       <section className="ds-block" aria-label="Who's being tested">
@@ -198,7 +197,7 @@ export default function RunForm() {
                         <small>{a.online ? a.tag || 'Ready' : OFFLINE_REASON}</small>
                       </label>
                     </td>
-                    <td className="graph hide-sm">{SOURCE[a.source]}</td>
+                    <td className="graph hide-sm">{agentSource(a)}</td>
                     <td className="graph hide-sm ds-where">{a.url}</td>
                     <td>
                       <OnlineStatus online={a.online} />
@@ -214,7 +213,6 @@ export default function RunForm() {
       <section className="ds-block" aria-label="Everyday questions">
         <SectionBar
           title="Everyday questions"
-          hint="Research questions with nothing broken"
           actions={allNone(
             () => setPickedTasks(new Set(taskList.map((t) => t.id))),
             () => setPickedTasks(new Set()),
@@ -260,7 +258,6 @@ export default function RunForm() {
       <section className="ds-block" aria-label="Problems we cause on purpose">
         <SectionBar
           title="Problems we cause"
-          hint="The same agents, with something broken"
           actions={allNone(
             () => setPickedFaults(new Set(faultList.map((f) => f.id))),
             () => setPickedFaults(new Set()),
@@ -304,7 +301,7 @@ export default function RunForm() {
       </section>
 
       <section className="ds-block" aria-label="How hard to push">
-        <SectionBar title="Tries for each" hint="More tries show which results were luck." />
+        <SectionBar title="Tries for each" />
         <div className="rf-tries">
           <Segmented
             label="Tries each"
@@ -344,7 +341,7 @@ export default function RunForm() {
             { label: 'Search', value: live ? 'Live web' : 'Saved results' },
           ]}
           action={
-            <Button variant="primary" large ownerOnly disabledReason={blocked} disabled={busy} onClick={start}>
+            <Button variant="primary" large needsSignIn disabledReason={blocked} disabled={busy} onClick={start}>
               {busy ? 'Starting…' : 'Start the run'}
             </Button>
           }

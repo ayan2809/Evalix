@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import type { GatewayCall, GatewayStatus, GatewayTestName, GatewayTestResult, GatewayTry } from '../../api'
 import { money, shortDate } from '../../format'
 import { useModelLabel } from '../../shell/ShellContext'
-import { Button, Mark, SectionBar, TimingDiagram, type Lane, type Segment } from '../../ui'
+import { Button, Mark, TimingDiagram, type Lane, type Segment } from '../../ui'
 import '../sheet.css'
 import './gateway.css'
 
@@ -55,14 +55,12 @@ function Sheet({
   const busy = running !== null
   return (
     <section className="ds-block gw-test" aria-label={`Test ${n}: ${title}`}>
-      <SectionBar
-        title={title}
-        actions={
-          <Button small ownerOnly disabled={busy} onClick={onRun} aria-busy={busyHere}>
-            {busyHere ? 'Running…' : button}
-          </Button>
-        }
-      />
+      <div className="gw-subhead">
+        <h3>{title}</h3>
+        <Button small variant="primary" needsSignIn disabled={busy} onClick={onRun} aria-busy={busyHere}>
+          {busyHere ? 'Running…' : button}
+        </Button>
+      </div>
       <div className="gw-about">
         <p>{about}</p>
         <p className="gw-rule">{rule}</p>
@@ -422,5 +420,86 @@ export function BudgetTest(p: TestProps) {
         </button>
       )}
     </Sheet>
+  )
+}
+
+// ---------- Calls per hour ----------
+
+export function RateTest(p: TestProps) {
+  const r = p.result
+  const calls = r?.calls ?? []
+  const limit = r?.numbers.limit_value ?? 3
+  return (
+    <Sheet
+      n={4}
+      title="Too many calls"
+      about={`A fresh key may make ${limit} calls an hour. We send one more than that.`}
+      rule={`Calls ${limit + 1} and later are refused with 429 until the hour is up.`}
+      button="Send calls past the limit"
+      result={r}
+      running={p.running}
+      me="rate"
+      onRun={() => p.onRun('rate')}
+    >
+      <CallTable calls={calls} label="Every call and what Bifrost did" />
+    </Sheet>
+  )
+}
+
+// ---------- A key that may only use one model ----------
+
+export function AccessTest(p: TestProps) {
+  const label = useModelLabel()
+  const r = p.result
+  const allowed = r?.numbers.allowed_model
+  const blocked = r?.numbers.blocked_model
+  return (
+    <Sheet
+      n={5}
+      title="A model the key isn't allowed"
+      about={
+        allowed && blocked
+          ? `A fresh key may only use ${label(bare(allowed))}. We ask it for ${label(bare(blocked))} too.`
+          : 'A fresh key may only use the agent model. We ask it for another model too.'
+      }
+      rule="Models that aren't on a key's list are refused with 403, before any money is spent."
+      button="Ask for a model it isn't allowed"
+      result={r}
+      running={p.running}
+      me="access"
+      onRun={() => p.onRun('access')}
+    >
+      <CallTable calls={r?.calls ?? []} label="Both calls and what Bifrost did" />
+    </Sheet>
+  )
+}
+
+function CallTable({ calls, label }: { calls: GatewayCall[]; label: string }) {
+  return (
+    <div className="ds-scroll gw-route">
+      <table className="ds-table" aria-label={label}>
+        <thead>
+          <tr>
+            <th>Call</th>
+            <th className="num">Status</th>
+            <th>What Bifrost did</th>
+          </tr>
+        </thead>
+        <tbody>
+          {calls.map((c) => (
+            <tr key={c.n} className={c.status !== 200 ? 'gw-blocked' : ''}>
+              <th scope="row">
+                <span className="gw-callno">
+                  <Mark state={c.status !== 200 ? 'crashed' : 'through'} size={13} label={c.status !== 200 ? 'Refused' : 'Let through'} />
+                  {c.n}
+                </span>
+              </th>
+              <td className="num">{c.status}</td>
+              <td>{callsDid(c)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }

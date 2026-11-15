@@ -1,9 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { accountName, useAuth } from '../auth'
+import { money } from '../format'
 import { Button, Icon, Logo, type IconName } from '../ui'
 import { useModelLabel, useShell } from './ShellContext'
 import SettingsDialog from './SettingsDialog'
+import { Tour, useTour, TOUR } from './Tour'
 import './shell.css'
 
 const NAV: { to: string; label: string; icon: IconName; on: (path: string) => boolean }[] = [
@@ -11,8 +13,9 @@ const NAV: { to: string; label: string; icon: IconName; on: (path: string) => bo
   { to: '/run', label: 'Start a run', icon: 'play', on: (p) => p === '/run' || p.startsWith('/run/') },
   { to: '/compare', label: 'Compare', icon: 'compare', on: (p) => p.startsWith('/compare') },
   { to: '/agents', label: 'Agents', icon: 'agent', on: (p) => p.startsWith('/agents') },
-  { to: '/studio', label: 'Make an agent', icon: 'plus', on: (p) => p.startsWith('/studio') },
-  { to: '/gateway', label: 'Gateway test', icon: 'pulse', on: (p) => p.startsWith('/gateway') },
+  { to: '/studio', label: 'Agent Studio', icon: 'plus', on: (p) => p.startsWith('/studio') },
+  { to: '/gateway', label: 'Gateway', icon: 'pulse', on: (p) => p.startsWith('/gateway') },
+  { to: '/guide', label: 'How it works', icon: 'guide', on: (p) => p.startsWith('/guide') },
 ]
 
 const RAIL_KEY = 'evalix.rail'
@@ -38,13 +41,22 @@ function useRailCollapsed(): [boolean, (v: boolean) => void] {
 
 export default function Shell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
-  const { me, signOut } = useAuth()
+  const { me, signOut, reload } = useAuth()
   const { health, openSettings } = useShell()
   const modelLabel = useModelLabel()
   const [leaving, setLeaving] = useState(false)
   const [collapsed, setCollapsed] = useRailCollapsed()
   const guest = me?.role === 'guest'
   const name = accountName(me)
+  const { step, setStep } = useTour()
+  const tourNav = step === null ? undefined : TOUR[step].nav
+  const allowance = me?.role === 'member' ? me.allowance : null
+
+  // A member's allowance changes as runs finish, so ask again on each page change.
+  useEffect(() => {
+    if (me?.role === 'member') reload()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname])
 
   async function leave() {
     setLeaving(true)
@@ -81,7 +93,7 @@ export default function Shell({ children }: { children: ReactNode }) {
             <Link
               key={n.to}
               to={n.to}
-              className={n.on(pathname) ? 'on' : ''}
+              className={[n.on(pathname) ? 'on' : '', tourNav === n.to ? 'tour-on' : ''].join(' ').trim()}
               aria-current={n.on(pathname) ? 'page' : undefined}
               title={collapsed ? n.label : undefined}
             >
@@ -119,6 +131,14 @@ export default function Shell({ children }: { children: ReactNode }) {
             <span>Search</span>
             <b>{health ? (health.search_mode === 'live' ? 'Live web' : 'Saved results') : '…'}</b>
           </span>
+          {allowance && allowance.daily_usd !== null && (
+            <span className="envrow">
+              <span>Today</span>
+              <b>
+                {money(allowance.spent_today_usd)} of ${allowance.daily_usd.toFixed(2)}
+              </b>
+            </span>
+          )}
         </button>
 
         <div className="account">
@@ -140,19 +160,16 @@ export default function Shell({ children }: { children: ReactNode }) {
       </aside>
 
       <main className="main">
-        {guest && me?.session === 'google' ? (
+        {guest && (
           <div className="guest-note" role="note">
-            <span>You're signed in to look around. Only the owner can start runs or change settings.</span>
-          </div>
-        ) : guest ? (
-          <div className="guest-note" role="note">
-            <span>You're looking around. Sign in to start runs or change settings.</span>
+            <span>You're looking at an example workspace. Sign in to get your own and test your agents.</span>
             <Link to="/signin">Sign in</Link>
           </div>
-        ) : null}
+        )}
         {children}
       </main>
       <SettingsDialog />
+      {step !== null && <Tour step={step} setStep={setStep} />}
     </div>
   )
 }

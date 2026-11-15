@@ -131,3 +131,5 @@
 .td-sw.hit { background: var(--warn-bg, #fbf1e0); border: 1.5px solid var(--warn, #9a5b00); }
 .td-sw.failed { background: var(--fail-bg, #fbe9e7); border: 1.5px solid var(--fail, #b3261e); }
 .td-sw.wait { height: 8px; border-left: 1px solid var(--ink-2, #50585d); border-right: 1px solid var(--ink-2, #50585d); background: linear-gradient(var(--ink-2, #50585d), var(--ink-2, #50585d)) center / 100% 1px no-repeat; }
+.sectionbar-actions a.bar-link { color: #fff; font-weight: 600; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; align-self: center; }
+.sectionbar-actions a.bar-link:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }

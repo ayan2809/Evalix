@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './auth'
 import Agents from './pages/Agents'
 import Compare from './pages/Compare'
 import Gateway from './pages/Gateway'
+import Guide from './pages/Guide'
 import Login from './pages/Login'
 import Results from './pages/Results'
 import Run from './pages/Run'
@@ -59,6 +60,7 @@ function Pages() {
       <Route path="/agents" element={<Agents />} />
       <Route path="/studio" element={<Studio />} />
       <Route path="/gateway" element={<Gateway />} />
+      <Route path="/guide" element={<Guide />} />
       <Route path="/" element={<Results />} />
       <Route path="/runs/:id" element={<RunDetails />} />
       <Route path="/compare" element={<Compare />} />

@@ -104,7 +104,7 @@ export default function Login() {
               {error && <Notice tone="error">{error}</Notice>}
               <p className="tag">
                 {clientId
-                  ? 'Only the owner’s Google account can start runs. Anyone else who signs in can look around.'
+                  ? 'Sign in with Google to get your own workspace.'
                   : "Google sign-in isn't set up on this server yet."}
               </p>
             </div>
