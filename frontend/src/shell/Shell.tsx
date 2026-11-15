@@ -135,7 +135,7 @@ export default function Shell({ children }: { children: ReactNode }) {
             <span className="envrow">
               <span>Today</span>
               <b>
-                {money(allowance.spent_today_usd)} of ${allowance.daily_usd.toFixed(2)}
+                {allowance.spent_today_usd === 0 ? '$0.00' : money(allowance.spent_today_usd)} of ${allowance.daily_usd.toFixed(2)}
               </b>
             </span>
           )}
