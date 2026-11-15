@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '../ui'
 
 /** Fired on window to show the tour again (the guide page has a button for it). */
@@ -9,34 +9,40 @@ const SEEN_KEY = 'evalix.tour.seen'
 export interface TourStep {
   title: string
   body: string
-  /** The sidebar item this step is about. It is outlined while the step shows. */
+  /** The page this step opens. Its sidebar item is outlined while the step shows. None = stay where you are. */
   nav?: string
+  /** What to point at on that page (CSS selectors, first match wins). It is outlined and scrolled into view. */
+  target?: string
 }
 
 export const TOUR: TourStep[] = [
   {
     title: 'Welcome to Evalix',
-    body: 'Evalix shows how an AI agent behaves when things break. This is your own workspace, and it starts empty.',
+    body: 'Evalix shows how an AI agent behaves when things break. This short tour opens each page and shows you what to do there.',
   },
   {
     title: 'Add an agent',
     nav: '/agents',
-    body: 'Start with the four sample agents in one click, add your own by its web address, or describe one in Agent Studio.',
+    target: 'section[aria-label="All agents"]',
+    body: 'Your agents live here. Start with the four sample agents in one click, or add your own by its web address below.',
   },
   {
     title: 'Start a run',
     nav: '/run',
-    body: 'Pick the agents and the problems to cause. Every agent gets the same questions and the same problems.',
+    target: 'section[aria-label="Who\'s being tested"]',
+    body: 'Pick the agents to test, then the problems to cause further down. Every agent gets the same questions and the same problems.',
   },
   {
     title: 'Read the results',
     nav: '/',
-    body: 'See which agents got through each problem, then open any run to find the exact step where it slipped.',
+    target: '.rs-main, .fr-steps',
+    body: 'Results land here. Each mark is one agent facing one problem; open it to see the exact step where it slipped.',
   },
   {
     title: 'See the gateway',
     nav: '/gateway',
-    body: 'Every model call goes through Bifrost. Follow one call through it, then break things live and watch it cope.',
+    target: '.gw-path',
+    body: 'Every model call goes through Bifrost. Send one call along this path, then pick a stop to break it live.',
   },
 ]
 
@@ -67,15 +73,45 @@ export function useTour(): { step: number | null; setStep: (n: number | null) =>
   return { step, setStep }
 }
 
+/** Waits for the step's page to render its target, then outlines it and scrolls it into view. */
+function usePointAt(selector: string | undefined, pathname: string, wanted: string) {
+  useEffect(() => {
+    if (!selector || pathname !== wanted) return
+    let el: Element | null = null
+    let tries = 0
+    let timer = 0
+    const find = () => {
+      el = document.querySelector(selector)
+      if (el) {
+        el.classList.add('tour-target')
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      } else if (tries++ < 40) {
+        timer = window.setTimeout(find, 100) // the page may still be loading its data
+      }
+    }
+    find()
+    return () => {
+      window.clearTimeout(timer)
+      el?.classList.remove('tour-target')
+    }
+  }, [selector, pathname, wanted])
+}
+
 export function Tour({ step, setStep }: { step: number; setStep: (n: number | null) => void }) {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const heading = useRef<HTMLHeadingElement>(null)
   const s = TOUR[step]
   const last = step === TOUR.length - 1
 
+  // Open the page this step is about.
   useEffect(() => {
+    if (s.nav && pathname !== s.nav) navigate(s.nav)
     heading.current?.focus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step])
+
+  usePointAt(s.target, pathname, s.nav ?? pathname)
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -116,14 +152,19 @@ export function Tour({ step, setStep }: { step: number; setStep: (n: number | nu
             </Button>
           </>
         ) : (
-          <>
-            <Button variant="primary" small onClick={() => setStep(step + 1)}>
-              Next
-            </Button>
-            <Button small variant="quiet" onClick={close}>
-              Skip the tour
-            </Button>
-          </>
+          <Button variant="primary" small onClick={() => setStep(step + 1)}>
+            Next
+          </Button>
+        )}
+        {step > 0 && (
+          <Button small onClick={() => setStep(step - 1)}>
+            Back
+          </Button>
+        )}
+        {!last && (
+          <Button small variant="quiet" onClick={close}>
+            Skip the tour
+          </Button>
         )}
       </div>
     </section>
