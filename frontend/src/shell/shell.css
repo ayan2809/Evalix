@@ -344,3 +344,53 @@
     gap: 20px;
   }
 }
+
+/* The first-visit tour: one small card by the rail. The sidebar item it talks about is outlined. */
+.nav a.tour-on {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.tour {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 40;
+  width: min(360px, calc(100vw - 32px));
+  padding: 22px 18px 16px;
+  background: var(--surface, #fff);
+  border: 1.5px solid var(--ink, #15181a);
+  border-radius: 0;
+  /* The solder strip along the top, drawn as an inner shadow so the frame stays one weight. */
+  box-shadow: inset 0 6px 0 var(--solder, #1f4d3a), 0 8px 24px rgb(21 24 26 / 18%);
+}
+.tour-count {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--ink-2, #50585d);
+}
+.tour h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-stretch: 80%;
+  line-height: 1.2;
+}
+.tour h2:focus {
+  outline: none;
+}
+.tour-body {
+  margin: 0 0 14px;
+  line-height: 1.45;
+}
+.tour-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+@media (max-width: 860px) {
+  .tour {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    width: auto;
+  }
+}

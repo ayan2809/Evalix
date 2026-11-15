@@ -1,6 +1,6 @@
 import { Link, type LinkProps } from 'react-router-dom'
 import type { ButtonHTMLAttributes, MouseEvent, ReactNode } from 'react'
-import { useCanEdit } from '../auth'
+import { useCanEdit, useIsOwner } from '../auth'
 
 type Variant = 'default' | 'primary' | 'quiet'
 
@@ -9,7 +9,9 @@ interface Common {
   small?: boolean
   large?: boolean
   children?: ReactNode
-  /** Disables the button for guests and shows why on hover. Use it on every button that changes something. */
+  /** Owners and members only (guests see it off, with the reason on hover). */
+  needsSignIn?: boolean
+  /** The owner only: Settings, keys, Maxim. */
   ownerOnly?: boolean
   /** Disables the button and shows this text on hover (a tooltip). */
   disabledReason?: string
@@ -26,6 +28,7 @@ export function Button({
   variant,
   small,
   large,
+  needsSignIn,
   ownerOnly,
   disabledReason,
   children,
@@ -37,7 +40,9 @@ export function Button({
   ...rest
 }: Common & ButtonHTMLAttributes<HTMLButtonElement>) {
   const { canEdit, reason } = useCanEdit()
-  const blockedBy = disabledReason ?? (ownerOnly && !canEdit ? reason : undefined)
+  const { isOwner, reason: ownerReason } = useIsOwner()
+  const blockedBy =
+    disabledReason ?? (needsSignIn && !canEdit ? reason : ownerOnly && !isOwner ? ownerReason : undefined)
   const handle = (e: MouseEvent<HTMLButtonElement>) => {
     if (blockedBy) {
       e.preventDefault()

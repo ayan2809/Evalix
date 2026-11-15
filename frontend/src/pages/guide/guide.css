@@ -1,0 +1,67 @@
+/* How it works. Prose stays at a readable width; tables use the sheet styles. */
+.guide .ds-block {
+  margin-bottom: 8px;
+}
+.g-prose {
+  max-width: 72ch;
+  margin: 12px 0;
+  line-height: 1.55;
+}
+.g-steps {
+  max-width: 72ch;
+  margin: 12px 0;
+  padding-left: 1.4em;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  line-height: 1.55;
+}
+.g-steps a {
+  white-space: nowrap;
+}
+.g-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  columns: 2 280px;
+  column-gap: 32px;
+}
+.g-list li {
+  break-inside: avoid;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line, #d6d9db);
+}
+.g-term {
+  width: 30%;
+  min-width: 170px;
+  font-weight: 650;
+  vertical-align: top;
+}
+.g-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.g-code {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.g-code figure {
+  margin: 0;
+  min-width: 0;
+}
+.g-code figcaption {
+  font-weight: 650;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.g-code pre {
+  margin: 0;
+  padding: 12px 14px;
+  overflow-x: auto;
+  background: var(--surface-2, #f3f4f4);
+  border-left: 3px solid var(--solder, #1f4d3a);
+  font-size: 13px;
+  line-height: 1.5;
+}

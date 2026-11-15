@@ -294,7 +294,7 @@ Timing diagrams use a 132px name column and a flexible track, with every lane on
 Flat. Depth is made with borders, ink rules and the green bars, not with shadows or blur. Cards are a 1px Rule border on white. The characteristics table and sheet tables have no card at all, only rules.
 
 ### Shadow Vocabulary
-- **Dialog and toast** (`box-shadow: 0 18px 48px rgb(21 24 26 / 24%)`): the only shadow in the system. It lifts a modal or a toast off the page. The modal also carries a 1.5px ink border, and a scrim of `rgb(21 24 26 / 42%)` covers the page.
+- **Dialog and toast** (`box-shadow: 0 18px 48px rgb(21 24 26 / 24%)`): the only shadow in the system, plus the lighter one under the first-visit tour card (`0 8px 24px rgb(21 24 26 / 18%)`). It lifts a modal or a toast off the page. The modal also carries a 1.5px ink border, and a scrim of `rgb(21 24 26 / 42%)` covers the page.
 - **Hot cell line** (`box-shadow: inset 0 0 0 1.5px #1f4d3a`): an inset line, not a shadow. It outlines the hovered or focused cell in the characteristics table.
 
 ### Named Rules
@@ -332,7 +332,7 @@ A mark keeps its square shape and cell position in every table, key and chip. Wo
 The signature cell. A row per problem (name in bold, the test condition in Graphite beneath), a column per agent, a mark in each cell with a short red reason next to a slip. Hovering or focusing a cell lights its row and column in Quiet Fill and the cell itself in Solder Tint with a green inset line; clicking opens that run. Cells are links with a 3px inset focus ring. On first load and as live results arrive, filled marks wipe in left to right, 260ms with a 30ms stagger in reading order (capped at index 60).
 
 ### Section bars
-A full-width Solder-Mask Green bar, 36px minimum, with the title in reversed white (17px, 700, width 70%). An optional hint sits beside the title in Bar Hint colour and actions sit at the right edge as outlined white buttons or white text links. Every named block of a page is introduced by one. The bar is the heading itself, not a label above a heading.
+A full-width Solder-Mask Green bar, 36px minimum, with the title in reversed white (17px, 700, width 70%). A hint beside the title only reports state ("3 of 5 picked"), never explains; explanations live on the How it works page. Actions sit at the right edge as outlined white buttons or white text links. Every named block of a page is introduced by one. The bar is the heading itself, not a label above a heading.
 
 ### Title block
 A ruled box (1.5px ink border) of label-over-value cells divided by 1px ink lines: label 12px Graphite, value 16px at weight 650. The last cell holds the page action, right-aligned. On phones it becomes one column of label and value rows.
@@ -356,6 +356,18 @@ White, 1.5px ink border, 4px radius, up to 920px wide (520px narrow). The left n
 
 ### Plots
 Characteristic plots are SVG with a 1.5px ink frame, 1px Plot Grid lines, 11.5 to 12px labels, ink points (red when the agent slipped) with thin pencil leader lines and direct labels, no legend box.
+
+### First-run checklist
+What an empty workspace shows instead of results: three ruled rows (add an agent, start a run, read the results), each with a mark (dashed while to do, filled when done), a 20px condensed heading and one line. The current step has a 3px Solder-Mask Green rule on its left and holds the only primary button. A "Read how it works" link sits under it.
+
+### First-visit tour
+A small non-modal card at the bottom right (full width at the bottom on phones): 1.5px ink frame, a 6px solder strip along the top drawn as an inner shadow, square corners. "2 of 5", a 20px condensed title, one sentence, Next and Skip. The rail item the step talks about gets a 2px white outline. Esc closes it; it shows once per browser and can be reopened from How it works.
+
+### Choice buttons
+For model-written questions: a wrapping row of rectangular buttons (34px, 1.5px Control Rule border, 3px radius, left-aligned text), radio semantics, the chosen one Solder-Mask Green with white text. "Something else" is always last and opens a text input below the row.
+
+### Call path
+The gateway's signature: one ruled strip from "Your agent" to the model, with a stop per Bifrost step on a 1.5px ink wire. Each stop is a button with a 12px square on the wire (filled once a real call passed it, dashed for stops explained but not run) and its name under it. The open stop is a Solder-Mask Green cell with white type and wire. Only one stop's panel is open at a time; inside it, a live test has a light heading on a 1.5px ink rule, never a second green bar. Under 860px the strip turns vertical with the wire down the left.
 
 ### Notices and states
 A notice is a 1px bordered strip (neutral, amber or red). An empty state is an ink top rule and a rule below. An error state is a red-washed box with a 1.5px red border.

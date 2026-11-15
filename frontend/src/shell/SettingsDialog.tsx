@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, asApiError, type KeyStatus, type Settings, type SettingsUpdate } from '../api'
-import { useCanEdit } from '../auth'
+import { useIsOwner } from '../auth'
 import { Button, Chip, Icon, Mark, Modal, Notice, Switch, Tabs, type TabItem } from '../ui'
 import { useShell, type SettingsTab } from './ShellContext'
 import './settings.css'
@@ -69,7 +69,7 @@ function Body({
   close: () => void
 }) {
   const { setSettings, refresh, toast } = useShell()
-  const { canEdit } = useCanEdit()
+  const { isOwner: canEdit } = useIsOwner()
   // The draft starts from what is saved. It is kept while the person moves between tabs or saves a key.
   const [draft, setDraft] = useState<Draft>(() => draftOf(settings))
   const [saving, setSaving] = useState(false)
@@ -277,7 +277,6 @@ function ChoiceTable({
 function ModelPick({
   name,
   title,
-  hint,
   value,
   onPick,
   settings,
@@ -286,7 +285,6 @@ function ModelPick({
 }: {
   name: string
   title: string
-  hint: string
   value: string
   onPick: (id: string) => void
   settings: Settings
@@ -297,7 +295,6 @@ function ModelPick({
     <section className="stack" style={{ gap: 8 }}>
       <div className="set-sub">
         <h3>{title}</h3>
-        <span className="tag">{hint}</span>
       </div>
       <ChoiceTable
         name={name}
@@ -325,7 +322,6 @@ function ModelsTab({ settings, draft, setDraft, goKeys, locked }: DraftProps) {
       <ModelPick
         name="agent-model"
         title="The model agents use"
-        hint="Same for every agent, so the test is fair"
         value={draft.agent_model}
         onPick={(id) => setDraft({ ...draft, agent_model: id })}
         settings={settings}
@@ -335,7 +331,6 @@ function ModelsTab({ settings, draft, setDraft, goKeys, locked }: DraftProps) {
       <ModelPick
         name="judge-model"
         title="The model that writes reviews"
-        hint="Never changes a score"
         value={draft.judge_model}
         onPick={(id) => setDraft({ ...draft, judge_model: id })}
         settings={settings}

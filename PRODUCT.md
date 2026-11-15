@@ -29,9 +29,10 @@ Two claims carry equal weight:
    address, so Evalix can inject faults into an agent built with any framework (plain Python, LangChain,
    Google ADK, or one made in Agent Studio). Grading is plain rule checks first; an AI second opinion is
    optional.
-2. **Live proof that the gateway copes.** Every model call goes through Bifrost. The Gateway test causes
-   three real problems (main model down, model too busy, an agent that won't stop spending) and shows
-   Bifrost's fallback, retries with backoff, and spending limit working on real calls.
+2. **Live proof that the gateway copes.** Every model call goes through Bifrost. The Gateway page follows one
+   real call through Bifrost's stops (key, limits, route, cache, retry, backup, log) and lets you break five of
+   them live: a model the key isn't allowed, a spending limit, a calls-per-hour limit, a busy model, and a main
+   model that's down. Members' own runs also go through a Bifrost key with a daily budget.
 
 ## Operating Context
 
@@ -40,7 +41,10 @@ Two claims carry equal weight:
 * Agents are separate HTTP programs that answer `POST /run`.
 * Search uses saved Tavily results by default, or the live web.
 * Results can be sent to Maxim as traces.
-* Sign-in: Google, "continue on this computer" when Google isn't set up, or look around as a guest (read only).
+* Sign-in: Google, "continue on this computer" when Google isn't set up, or look around as a guest.
+* Workspaces: the owner (`EVALIX_OWNER_EMAILS`) uses the main workspace and Settings. Every other Google account
+  is a member with its own workspace that starts empty, and a daily allowance ($0.25 of model calls, 60 live
+  searches) because members run on the owner's keys. Guests see the main workspace read only, as an example.
 
 ## Capabilities and Constraints
 
@@ -48,7 +52,8 @@ Two claims carry equal weight:
 * Models: Gemini 3.5 Flash Lite (agents) and Gemini 3.8 Flash (second opinion), chosen in Settings and applied
   to the next run only.
 * Terms used in the UI: "run", "problem" (a fault we cause), "everyday question" (a task), "got through",
-  "slipped", "crashed", "second opinion".
+  "slipped", "crashed", "second opinion", "Agent Studio" (where agents are made from a sentence).
+* Screens carry no explanations; the **How it works** page and a first-visit tour do that once.
 * Open: whether Careless should be made weaker (human queue Q3); whether to keep four answer values taken from
   third-party pages (Q4); whether to reuse an existing Google sign-in client ID (Q5).
 
@@ -64,7 +69,16 @@ Two claims carry equal weight:
   problems, LangChain 7, Google ADK 7, the Studio agent 5, Careless 4. Stored in `backend/evalix.db`.
 * Live gateway runs through Bifrost v2.5.1: fallback 6 of 6 calls answered by the backup with 0 errors; retry
   answered on the 3rd try (waits about 1 s and 2.4 s); a $0.01 limit stopped an agent after about 10 calls.
+* A member's real run on Nov 15, 2026 (Careful, one question and one problem): both got through, $0.0048,
+  every model call made with that member's own Bifrost key.
 * No users, customers, testimonials or press exist yet. Do not invent them.
+
+## Lessons from earlier judging
+
+The author's previous hackathon project scored 26 of 30. The judges' main note: "synthetic data limits real-world
+validation." So Evalix leans on real things: people test their own agents in their own workspace, runs use real
+models and can use live web search, and every gateway claim comes from a real call and Bifrost's own log.
+Presentation also lost a point, so a first-time visitor must be able to understand the product without help.
 
 ## Product Principles
 

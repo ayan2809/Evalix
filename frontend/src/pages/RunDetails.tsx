@@ -179,7 +179,6 @@ function Details({ run, task }: { run: RunDetail; task: Task | undefined }) {
 
           <section className="rd-block">
             <SectionBar title="Step by step" />
-            <p className="section-hint">Click a step to read what was sent and what came back.</p>
             <StepTable run={run} openIds={openIds} picked={picked} onToggle={toggle} />
           </section>
         </div>
@@ -395,7 +394,7 @@ function SecondOpinion({ run }: { run: RunDetail }) {
         {review?.error && <Notice tone="warn">The reviewer couldn't finish: {review.error}</Notice>}
         {error && <Notice tone="error">{error}</Notice>}
         <div>
-          <Button ownerOnly onClick={ask} disabled={busy}>
+          <Button needsSignIn onClick={ask} disabled={busy}>
             {busy ? 'Reading the steps…' : shown ? 'Ask again' : 'Ask for a second opinion'}
           </Button>
         </div>

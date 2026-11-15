@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { api, asApiError, type StudioResult, type StudioSetup } from "../api";
+import { api, asApiError, type StudioAnswer, type StudioQuestion, type StudioResult, type StudioSetup } from "../api";
 import { useAsync, useTitle } from "../hooks";
 import {
   Button,
@@ -11,7 +11,6 @@ import {
   Notice,
   PageHeader,
   SectionBar,
-  Segmented,
   TitleBlock,
 } from "../ui";
 import { OnlineStatus } from "./agents/OnlineStatus";
@@ -53,135 +52,180 @@ export function setupTraits(
   ];
 }
 
+type Step = "describe" | "answer";
+const ELSE = "__else__";
+
 export default function Studio() {
-  useTitle("Make an agent");
-  const questions = useAsync(() => api.studio.questions(), []);
+  useTitle("Agent Studio");
   const agents = useAsync(() => api.listAgents(), []);
+  const [step, setStep] = useState<Step>("describe");
   const [description, setDescription] = useState("");
-  const [answers, setAnswers] = useState<Record<string, boolean>>({});
-  const [busy, setBusy] = useState(false);
+  const [questions, setQuestions] = useState<StudioQuestion[]>([]);
+  const [picked, setPicked] = useState<Record<string, string>>({});
+  const [own, setOwn] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<"" | "asking" | "making">("");
   const [error, setError] = useState("");
   const [made, setMade] = useState<StudioResult | null>(null);
 
-  const asked = questions.data ?? [];
-  const answerFor = (id: string) => answers[id] ?? true;
   const mine = (agents.data ?? [])
     .filter((a) => a.source === "studio")
     .reverse();
+  const empty = description.trim().length === 0;
 
-  async function make() {
-    setBusy(true);
+  async function ask() {
+    setBusy("asking");
     setError("");
     try {
-      const body: Record<string, boolean> = {};
-      for (const q of asked) body[q.id] = answerFor(q.id);
-      const res = await api.studio.createAgent(description.trim(), body);
+      const res = await api.studio.questions(description.trim());
+      setQuestions(res.questions);
+      setPicked({});
+      setOwn({});
+      setStep("answer");
+    } catch (e) {
+      setError(asApiError(e).message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  function answers(): StudioAnswer[] {
+    return questions
+      .map((q) => ({
+        id: q.id,
+        question: q.text,
+        answer: (picked[q.id] === ELSE ? own[q.id] ?? "" : picked[q.id] ?? "").trim(),
+      }))
+      .filter((a) => a.answer);
+  }
+
+  async function make() {
+    setBusy("making");
+    setError("");
+    try {
+      const res = await api.studio.createAgent(description.trim(), answers());
       setMade(res);
       agents.reload();
     } catch (e) {
       setError(asApiError(e).message);
     } finally {
-      setBusy(false);
+      setBusy("");
     }
   }
 
   function startOver() {
     setMade(null);
+    setStep("describe");
     setDescription("");
-    setAnswers({});
+    setQuestions([]);
+    setPicked({});
+    setOwn({});
     setError("");
   }
 
-  const empty = description.trim().length === 0;
-
   return (
     <div className="wrap ds">
-      <PageHeader
-        title="What kind of agent do you want to test?"
-        answer="Describe it in one sentence. We'll build it and put it to the test."
-        facts="One sentence and three quick questions, no code. It gets the same questions and problems as every other agent."
-      />
+      <PageHeader title="What should your agent do?" />
 
-      <section className="ds-block" aria-label="Describe it">
-        <SectionBar
-          title="Describe your agent"
-          hint="One sentence and three yes or no questions"
-        />
-        <div className="ds-pad">
-          <form
-            className="ds-sheet studio-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!empty && !busy) void make();
-            }}
-          >
-            <label className="lbl-field">
-              <span className="ds-lbl">What should it do?</span>
-              <textarea
-                className="textarea"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="A cautious researcher that checks cloud and banking facts against official sources."
-                maxLength={600}
-                disabled={busy}
-              />
-            </label>
-
-            <div className="stack" style={{ gap: 4 }}>
-              <span className="ds-lbl">A few quick questions</span>
-              {questions.error ? (
-                <ErrorState
-                  error={questions.error}
-                  onRetry={questions.reload}
-                />
-              ) : !questions.data ? (
-                <Loading />
-              ) : (
-                <div className="q-list">
-                  {asked.map((q) => (
-                    <div className="q-row" key={q.id}>
-                      <span>{q.text}</span>
-                      <Segmented
-                        label={q.text}
-                        value={answerFor(q.id)}
-                        onChange={(v) => setAnswers({ ...answers, [q.id]: v })}
-                        disabled={busy}
-                        options={[
-                          { value: true, label: "Yes" },
-                          { value: false, label: "No" },
-                        ]}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="ds-actions">
-              <Button
-                type="submit"
-                variant="primary"
-                ownerOnly
-                disabled={busy || !questions.data}
-                disabledReason={
-                  empty
-                    ? "Write a sentence about what it should do."
-                    : undefined
-                }
+      {!made && (
+        <section className="ds-block" aria-label="Describe your agent">
+          <SectionBar title={step === "describe" ? "Describe it" : "A few questions about it"} />
+          <div className="ds-pad">
+            {step === "describe" ? (
+              <form
+                className="ds-sheet studio-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!empty && !busy) void ask();
+                }}
               >
-                {busy ? "Making the agent…" : "Make the agent"}
-              </Button>
-              {busy && (
-                <span className="tag">
-                  The model is writing its instructions. This takes a few
-                  seconds.
-                </span>
-              )}
-            </div>
-            {error && <Notice tone="error">{error}</Notice>}
-          </form>
-        </div>
-      </section>
+                <label className="lbl-field">
+                  <span className="ds-lbl">In one sentence</span>
+                  <textarea
+                    className="textarea"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Find the current annual fee and foreign transaction fee of a travel credit card."
+                    maxLength={500}
+                    disabled={!!busy}
+                  />
+                </label>
+                <div className="ds-actions">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    needsSignIn
+                    disabled={!!busy}
+                    disabledReason={empty ? "Write a sentence about what it should do." : undefined}
+                  >
+                    {busy === "asking" ? "Writing questions for it…" : "Next"}
+                  </Button>
+                </div>
+                {error && <Notice tone="error">{error}</Notice>}
+              </form>
+            ) : (
+              <form
+                className="ds-sheet studio-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!busy) void make();
+                }}
+              >
+                <div className="studio-said">
+                  <p>{description.trim()}</p>
+                  <button type="button" className="link-btn" onClick={() => setStep("describe")} disabled={!!busy}>
+                    Change
+                  </button>
+                </div>
+                <ol className="q-list">
+                  {questions.map((q) => (
+                    <li className="q-item" key={q.id}>
+                      <fieldset disabled={!!busy}>
+                        <legend>{q.text}</legend>
+                        <div className="choices" role="radiogroup" aria-label={q.text}>
+                          {[...q.choices, ELSE].map((c) => {
+                            const on = picked[q.id] === c;
+                            return (
+                              <button
+                                type="button"
+                                role="radio"
+                                aria-checked={on}
+                                key={c}
+                                className={`choice${on ? " on" : ""}`}
+                                onClick={() => setPicked((p) => ({ ...p, [q.id]: c }))}
+                              >
+                                {c === ELSE ? "Something else" : c}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {picked[q.id] === ELSE && (
+                          <input
+                            className="input"
+                            aria-label={`Your answer: ${q.text}`}
+                            value={own[q.id] ?? ""}
+                            onChange={(e) => { const v = e.target.value; setOwn((o) => ({ ...o, [q.id]: v })) }}
+                            maxLength={200}
+                            autoFocus
+                          />
+                        )}
+                      </fieldset>
+                    </li>
+                  ))}
+                </ol>
+                <div className="ds-actions">
+                  <Button type="submit" variant="primary" needsSignIn disabled={!!busy}>
+                    {busy === "making" ? "Making the agent…" : "Make the agent"}
+                  </Button>
+                  {answers().length < questions.length && !busy && (
+                    <span className="tag">Skipped questions are left to the model.</span>
+                  )}
+                </div>
+                {error && <Notice tone="error">{error}</Notice>}
+              </form>
+            )}
+          </div>
+        </section>
+      )}
 
       {made && (
         <section className="ds-block" aria-label="Your new agent">
@@ -254,11 +298,7 @@ export default function Studio() {
           <div className="ds-pad" />
           <details className="ds-bar-more">
             <summary>
-              <SectionBar
-                title="Instructions"
-                hint="See the instructions we wrote for it"
-                actions={<Chevron />}
-              />
+              <SectionBar title="Instructions it was given" actions={<Chevron />} />
             </summary>
             <p className="ds-body">{made.setup.instructions}</p>
           </details>
@@ -272,10 +312,7 @@ export default function Studio() {
         ) : !agents.data ? (
           <Loading />
         ) : mine.length === 0 ? (
-          <EmptyState>
-            No agents made here yet. Describe one above and it will show up
-            here.
-          </EmptyState>
+          <EmptyState>None yet. Describe one above.</EmptyState>
         ) : (
           <div className="ds-scroll">
             <table className="ds-table" aria-label="Agents you've made">

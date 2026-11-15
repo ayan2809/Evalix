@@ -29,7 +29,7 @@ and lets you put any two runs side by side.
 ## How it works
 
 ```
-   Web app (React) :5173 ── Run · Scoreboard · Run details · Compare · Agents · Studio · Gateway
+   Web app (React) :5173 ── Results · Start a run · Run details · Compare · Agents · Agent Studio · Gateway · How it works
           │
           ▼
    Evalix backend (FastAPI) :8000
@@ -134,27 +134,44 @@ quietly and, if it persists, marked as a **setup problem**, never counted agains
 
 ### Extras
 
-* **Agent Studio** (the **Studio** screen): describe a research agent in one sentence and answer three
-  yes/no questions ("double-check facts?", "retry when a search fails?", "stop when unsure?").
-  Evalix makes one model call to write the agent's instructions, registers it, and it can be benchmarked
-  right away like any other agent. Studio agents still reach tools and the model only over HTTP, so
-  faults and counting work the same way.
-* **Gateway test** (the **Gateway test** screen): three real problems, each caught by a real Bifrost setting.
-  These test the gateway, not the agents, so they never change agent scores.
-  1. *The main model goes down.* A stand-in main model (`/fake-model`) is switched off; Bifrost's fallback
-     sends every call to Gemini. Live: 6 of 6 calls answered by the backup, 0 errors seen.
-  2. *The model says "too busy".* A busy model (`/fake-busy`) refuses the first two tries; Bifrost retries
-     with growing waits (`max_retries` 3, starting at 1 s, doubling). Live: answered on the 3rd try after about 2.8 s.
-  3. *An agent won't stop spending.* Each test makes a fresh Bifrost virtual key with a $0.01 budget and
-     keeps calling until Bifrost refuses. Live: 10 calls let through ($0.0102), call 11 blocked with 402.
+* **Your own workspace.** Everyone who signs in with Google gets their own workspace, and it starts empty: no
+  one else's agents or results. The first screen is a three-step checklist (add an agent, start a run, read the
+  results), and the four sample agents can be added in one click. A short tour shows on the first visit, and
+  **How it works** explains everything once, so the screens themselves carry no explanations. Guests see the
+  main workspace as a read-only example.
+* **Agent Studio:** describe a research agent in one sentence. The model then asks 2 to 4 follow-up questions
+  written for that agent (which sources to trust, what to do when search fails, how sure it must be), each with
+  a few choices or your own words. A second model call turns the answers into the agent's instructions and
+  settings; it's registered and can be benchmarked right away. Studio agents still reach tools and the model only
+  over HTTP, so faults and counting work the same way.
+* **Gateway** (the **Gateway** screen): follow one real model call through Bifrost's stops: key, limits, route,
+  cache, retry, backup, log. **Send one call** shows what happened at each stop, read from Bifrost's own log
+  (live: about 1 s in all, of which Bifrost itself added 2 to 6 ms). Pick a stop to read what it does and
+  break it live:
+  1. *Key:* a fresh virtual key allowed only the agent model is asked for another one. Live: 200, then 403.
+  2. *Limits:* a fresh key with a $0.01 budget keeps calling until Bifrost refuses (live: 10 calls let through,
+     $0.0102, call 11 blocked with 402), or a key allowed 3 calls an hour gets a 4th (live: refused with 429).
+  3. *Retry:* a busy model (`/fake-busy`) refuses the first two tries; Bifrost retries with growing waits
+     (`max_retries` 3, starting at 1 s, doubling). Live: answered on the 3rd try after about 2.8 s.
+  4. *Backup:* a stand-in main model (`/fake-model`) is switched off; Bifrost's fallback sends every call to
+     Gemini. Live: 6 of 6 calls answered by the backup, 0 errors seen.
+  5. *Log:* the latest calls from Bifrost's log, with time, cost, retries and Bifrost's own overhead.
+
+  Route (spreading calls across keys) and cache are explained but not run here: they need a second key and a
+  vector store. These tests check the gateway, not the agents, so they never change agent scores.
 * **Send to Maxim** (when a run finishes): every finished run becomes a Maxim trace with its tool calls,
   model calls (with token counts), and tags for agent, task, fault, ending, cost, and time. Settings can
   send every finished benchmark automatically.
 * **Sign in:** Google sign-in (set `GOOGLE_CLIENT_ID`), or "Continue on this computer" when Google isn't
   set up, or "Look around first" as a read-only guest. The backend checks Google's ID token itself with
-  `google-auth` (signature, audience, expiry, issuer). `EVALIX_OWNER_EMAILS` lists the Google accounts that may
-  start runs and change settings; anyone else who signs in can only look. `EVALIX_ALLOWED_EMAILS` limits who may
-  sign in at all. The Google client must list `http://localhost:5173` under "Authorized JavaScript origins".
+  `google-auth` (signature, audience, expiry, issuer). `EVALIX_OWNER_EMAILS` lists the owner's Google accounts:
+  they use the main workspace and are the only ones who can change Settings. Anyone else who signs in is a
+  *member* with their own workspace. `EVALIX_ALLOWED_EMAILS` limits who may sign in at all. The Google client must
+  list `http://localhost:5173` under "Authorized JavaScript origins".
+* **Daily allowance for members.** Members run on the owner's keys, so each gets $0.25 of model calls and 60 live
+  web searches a day (`EVALIX_MEMBER_DAILY_USD`, `EVALIX_MEMBER_DAILY_SEARCHES`). Evalix checks before a run
+  starts, and Bifrost enforces the dollar limit on every call through a virtual key made for that workspace with
+  a daily budget. The sidebar shows what's left today.
 * **Settings** (the gear on the "Running on" card): pick the model for agents and for second opinions
   (applies to the next run), see masked API keys, test or replace them, and choose saved or live search.
 
@@ -184,8 +201,8 @@ EOF
 ./scripts/dev.sh --mock     # test mode: no keys, no internet, a fake model
 ```
 
-Open **http://localhost:5173**, press **Continue on this computer**, go to **Start a run**, pick agents and
-problems, press **Start the run**, and watch it live. Logs go to `.logs/`.
+Open **http://localhost:5173** and sign in (or press **Continue on this computer** when Google sign-in isn't set
+up). Follow the three steps on the first screen: add agents, start a run, read the results. Logs go to `.logs/`.
 
 The backend and web app talk through one contract: [spec/api.md](./spec/api.md). The web app calls plain
 `/api/...` paths and Vite passes them to port 8000.
@@ -198,7 +215,7 @@ Caching stays off, so trials are never replayed.
 ### Tests
 
 ```bash
-cd backend && uv run pytest -q     # 190 tests, no keys needed (includes a check that every route in spec/api.md exists)
+cd backend && uv run pytest -q     # 216 tests, no keys needed (includes a check that every route in spec/api.md exists)
 cd frontend && npm run build       # type check + build
 ```
 
@@ -231,7 +248,7 @@ step started, which the timing diagrams in Run details and Compare are drawn fro
 backend/
   app/            main.py (web addresses) · runner.py · tool_server.py · model_door.py · faults.py
                   grader.py · judge.py · scores.py · store.py (SQLite) · events.py (live updates)
-                  studio.py (Agent Studio) · gateway.py (three gateway tests) · extras.py (Maxim export)
+                  studio.py (Agent Studio) · gateway.py (call walk-through, five live tests) · allowance.py (members' daily limits) · extras.py (Maxim export)
                   auth.py (sign-in) · settings_api.py · prefs.py (saved settings)
   data/           tasks.json · faults.json · prices.json · models.json · raw/ (saved Tavily recordings)
   scripts/        record_search.py
