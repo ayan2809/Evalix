@@ -98,7 +98,8 @@ def export_benchmark(benchmark_id: int) -> dict:
 
 @router.post("/api/benchmarks/{benchmark_id}/export-maxim", dependencies=[Depends(require_owner)])
 async def export_maxim(benchmark_id: int):
-    if store.get_benchmark(benchmark_id) is None:
+    bench = store.get_benchmark(benchmark_id)
+    if bench is None or bench.get("workspace", store.MAIN) != store.MAIN:  # the owner's own workspace only
         raise HTTPException(status_code=404, detail="benchmark not found")
     # The SDK is blocking, so run it off the event loop.
     return await asyncio.to_thread(export_benchmark, benchmark_id)

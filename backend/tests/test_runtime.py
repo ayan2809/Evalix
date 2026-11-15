@@ -282,7 +282,8 @@ def test_compare_pairs_and_first_difference(api):
 
 def test_run_detail_cuts_long_text(api):
     run_id = "r_testcut1"
-    store.create_run(run_id, 999, 1, "cloud_limits", "", 1, "answer", "m")
+    bench = store.create_benchmark(1, False, 1)
+    store.create_run(run_id, bench, 1, "cloud_limits", "", 1, "answer", "m")
     long_output = {"text": "x" * 2000}
     store.add_step(run_id, "tool_call", "read_page", {"url": "u"}, long_output)
     short = store.add_step(run_id, "tool_call", "search", {"query": "q"}, {"results": []})
@@ -404,7 +405,7 @@ def test_door_forwards_to_bifrost_and_retries(door, monkeypatch):
                                  "extra_content": {"a": 1}}}],
         "usage": {"prompt_tokens": 7, "completion_tokens": 3}})]
 
-    async def fake_bifrost(payload, run_id):
+    async def fake_bifrost(payload, run_id, vk=None):
         sent.append((payload, run_id))
         return replies.pop(0)
 
@@ -421,7 +422,7 @@ def test_door_forwards_to_bifrost_and_retries(door, monkeypatch):
     assert steps[0]["input_json"]["message_count"] == 1 and steps[0]["output_json"]["content"] == "ok"
 
     # Provider keeps failing: setup problem, and the agent gets a 503.
-    async def always_busy(payload, run_id):
+    async def always_busy(payload, run_id, vk=None):
         return 503, {"error": "down"}
 
     monkeypatch.setattr(model_door, "_call_bifrost", always_busy)
@@ -429,3 +430,21 @@ def test_door_forwards_to_bifrost_and_retries(door, monkeypatch):
     assert resp.status_code == 503 and resp.json() == {"error": "model unavailable"}
     assert state.setup_problem == "model provider kept failing (503)"
     del ACTIVE["r_real0001"]
+
+
+def test_door_sends_the_member_key_and_stops_at_the_budget(door, monkeypatch):
+    state = _make_state("r_member01")
+    state.vk = "sk-bf-member"
+    monkeypatch.setattr(config, "MOCK", False)
+    monkeypatch.setattr(model_door, "RETRY_WAITS", (0, 0, 0))
+    keys = []
+
+    async def over_budget(payload, run_id, vk=None):
+        keys.append(vk)
+        return 402, {"type": "budget_exceeded", "error": {"message": "budget exceeded"}}
+
+    monkeypatch.setattr(model_door, "_call_bifrost", over_budget)
+    resp = chat(door, "r_member01")
+    assert resp.status_code == 402 and keys == ["sk-bf-member"]  # sent with the key, and not retried
+    assert state.setup_problem == "daily spending limit reached"
+    del ACTIVE["r_member01"]

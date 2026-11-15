@@ -167,7 +167,7 @@ def test_simulated_results_have_the_right_numbers(setup):
 def test_run_all_returns_three_results_in_order(setup):
     client, _ = setup
     body = client.post("/api/gateway/tests/all").json()
-    assert [r["name"] for r in body["results"]] == ["fallback", "retry", "budget"]
+    assert [r["name"] for r in body["results"]] == ["fallback", "retry", "budget", "rate", "access"]
 
 
 def test_unknown_test_is_404(setup):
@@ -183,15 +183,15 @@ def test_a_second_test_is_409_with_plain_detail(setup):
         assert "retry" in resp.json()["detail"]
 
 
-def test_changing_things_needs_owner(setup):
-    from app.auth import require_owner
+def test_changing_things_needs_sign_in(setup):
+    from app.auth import require_member
 
     client, _ = setup
 
     def guest():
         raise HTTPException(status_code=403, detail="Sign in to do this. You're looking around as a guest.")
 
-    client.app.dependency_overrides[require_owner] = guest
+    client.app.dependency_overrides[require_member] = guest
     assert client.put("/api/gateway/main-model", json={"down": True}).status_code == 403
     assert client.post("/api/gateway/tests/fallback").status_code == 403
     assert client.post("/api/gateway/tests/all").status_code == 403

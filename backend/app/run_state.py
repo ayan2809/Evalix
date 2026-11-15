@@ -27,6 +27,7 @@ class RunState:
     tokens_out: int = 0
     finished: bool = False
     model: str = ""  # the agent model chosen when the benchmark started
+    vk: str | None = None  # the workspace's Bifrost virtual key (members only), sent as x-bf-vk
 
     def count_call(self, target: str) -> int:
         """Count one call to a target ('model', 'tool:search', ...). Returns the new count."""

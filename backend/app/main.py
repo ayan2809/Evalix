@@ -10,9 +10,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
-from app import config, events, judge, prefs, runner, store
+from app import allowance, config, events, judge, prefs, runner, store
 from app.data import load_faults, load_tasks, public_task
-from app.auth import require_owner, router as auth_router
+from app.auth import Who, require_member, router as auth_router, who
 from app.extras import router as extras_router
 from app.gateway import router as gateway_router
 from app.model_door import router as model_router
@@ -21,7 +21,7 @@ from app.settings_api import bifrost_up, router as settings_router
 from app.studio import router as studio_router
 from app.tool_server import router as tool_router
 
-# (name, url, tag, description). The words are from spec/api.md.
+# The sample agents: (name, url, tag, description). The words are from spec/api.md.
 BUILT_IN_AGENTS = [
     ("Careful", "http://localhost:9001", "Retries, checks sources",
      "Plain Python. Tries again when something fails, trusts official pages over blogs, "
@@ -40,12 +40,19 @@ CUT = 500  # long step text in /api/runs is cut to this many characters
 async def lifespan(app: FastAPI):
     store.init_db()
     store.mark_orphans()
-    if not store.list_agents():
-        for name, url, tag, description in BUILT_IN_AGENTS:
-            store.add_agent(name, url, source="registered", tag=tag, description=description)
+    if not store.list_agents(store.MAIN):
+        add_samples(store.MAIN)
     for name, _, tag, description in BUILT_IN_AGENTS:  # an older database has none of these words yet
         store.fill_agent_words(name, tag, description)
     yield
+
+
+def add_samples(workspace: str) -> None:
+    """Give a workspace the four sample agents, skipping any it already has (by name and address)."""
+    have = {(a["name"], a["url"]) for a in store.list_agents(workspace)}
+    for name, url, tag, description in BUILT_IN_AGENTS:
+        if (name, url) not in have:
+            store.add_agent(name, url, source="registered", tag=tag, description=description, workspace=workspace)
 
 
 app = FastAPI(title="Evalix", lifespan=lifespan)
@@ -97,6 +104,22 @@ def _short_step(step: dict) -> dict:
     return {**step, "input_json": inp, "output_json": out, "truncated": cut_in or cut_out}
 
 
+def _mine(value, what: str, workspace: str, of: str | None):
+    """404 unless the thing exists and belongs to this workspace (spec/api.md section 2)."""
+    if value is None or of != workspace:
+        raise HTTPException(status_code=404, detail=f"{what} not found")
+    return value
+
+
+def _my_run(run_id: str, me: Who) -> dict:
+    return _mine(store.get_run(run_id), "run", me.workspace, store.run_workspace(run_id))
+
+
+def _my_benchmark(benchmark_id: int, me: Who) -> dict:
+    bench = store.get_benchmark(benchmark_id)
+    return _mine(bench, "benchmark", me.workspace, bench and bench.get("workspace"))
+
+
 def _run_view(run: dict) -> dict:
     agent = store.get_agent(run["agent_id"])
     task = load_tasks().get(run["task_id"], {})
@@ -127,8 +150,8 @@ async def health():
 
 
 @app.get("/api/agents")
-async def get_agents():
-    return await _with_online(store.list_agents())
+async def get_agents(me: Who = Depends(who)):
+    return await _with_online(store.list_agents(me.workspace))
 
 
 class NewAgent(BaseModel):
@@ -138,11 +161,17 @@ class NewAgent(BaseModel):
     description: str = ""
 
 
-@app.post("/api/agents", dependencies=[Depends(require_owner)])
-async def post_agent(body: NewAgent):
+@app.post("/api/agents", dependencies=[Depends(require_member)])
+async def post_agent(body: NewAgent, me: Who = Depends(who)):
     agent = store.add_agent(body.name.strip(), body.url.strip().rstrip("/"),
-                            tag=body.tag.strip(), description=body.description.strip())
+                            tag=body.tag.strip(), description=body.description.strip(), workspace=me.workspace)
     return (await _with_online([agent]))[0]
+
+
+@app.post("/api/agents/samples", dependencies=[Depends(require_member)])
+async def post_samples(me: Who = Depends(who)):
+    add_samples(me.workspace)
+    return await _with_online(store.list_agents(me.workspace))
 
 
 @app.get("/api/tasks")
@@ -164,11 +193,16 @@ class NewBenchmark(BaseModel):
     live_mode: bool = False
 
 
-@app.post("/api/benchmarks", dependencies=[Depends(require_owner)])
-async def post_benchmark(body: NewBenchmark):
+@app.post("/api/benchmarks", dependencies=[Depends(require_member)])
+async def post_benchmark(body: NewBenchmark, me: Who = Depends(who)):
+    allowance.check_can_start(me.role, me.workspace, body.live_mode)
     trials = max(1, min(body.trials, 10))
+    key = await allowance.workspace_key(me.workspace, me.role)
+    if me.role == "member" and key is None and not config.MOCK:
+        raise HTTPException(status_code=502, detail="Bifrost couldn't make your spending key, so the run "
+                                                    "can't start safely. Check that Bifrost is running.")
     benchmark_id = await runner.start_benchmark(body.agent_ids, body.task_ids, body.fault_ids,
-                                                trials, body.live_mode)
+                                                trials, body.live_mode, me.workspace, key and key["value"])
     return {"id": benchmark_id}
 
 
@@ -180,14 +214,14 @@ def _bench_view(b: dict, total_cost: float) -> dict:
 
 
 @app.get("/api/benchmarks")
-async def get_benchmarks():
+async def get_benchmarks(me: Who = Depends(who)):
     costs = store.benchmark_costs()
-    return [_bench_view(b, costs.get(b["id"], 0.0)) for b in store.list_benchmarks()]
+    return [_bench_view(b, costs.get(b["id"], 0.0)) for b in store.list_benchmarks(me.workspace)]
 
 
 @app.get("/api/benchmarks/{benchmark_id}")
-async def get_benchmark(benchmark_id: int):
-    bench = _or_404(store.get_benchmark(benchmark_id), "benchmark")
+async def get_benchmark(benchmark_id: int, me: Who = Depends(who)):
+    bench = _my_benchmark(benchmark_id, me)
     selection = bench["selection_json"] or {}
     tasks, faults = load_tasks(), load_faults()
     runs = store.list_runs(benchmark_id)
@@ -210,33 +244,35 @@ async def get_benchmark(benchmark_id: int):
 
 
 @app.get("/api/benchmarks/{benchmark_id}/events")
-async def get_events(benchmark_id: int):
-    _or_404(store.get_benchmark(benchmark_id), "benchmark")
+async def get_events(benchmark_id: int, me: Who = Depends(who)):
+    _my_benchmark(benchmark_id, me)
     return StreamingResponse(events.stream(benchmark_id), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
-@app.post("/api/benchmarks/{benchmark_id}/cancel", dependencies=[Depends(require_owner)])
-async def cancel_benchmark(benchmark_id: int):
-    _or_404(store.get_benchmark(benchmark_id), "benchmark")
+@app.post("/api/benchmarks/{benchmark_id}/cancel", dependencies=[Depends(require_member)])
+async def cancel_benchmark(benchmark_id: int, me: Who = Depends(who)):
+    _my_benchmark(benchmark_id, me)
     runner.cancel_benchmark(benchmark_id)
     return {"ok": True}
 
 
 @app.get("/api/runs/{run_id}")
-async def get_run(run_id: str):
-    return _run_view(_or_404(store.get_run(run_id), "run"))
+async def get_run(run_id: str, me: Who = Depends(who)):
+    return _run_view(_my_run(run_id, me))
 
 
 @app.get("/api/steps/{step_id}")
-async def get_step(step_id: int):
-    return _or_404(store.get_step(step_id), "step")
+async def get_step(step_id: int, me: Who = Depends(who)):
+    step = _or_404(store.get_step(step_id), "step")
+    _my_run(step["run_id"], me)
+    return step
 
 
 @app.get("/api/compare")
-async def compare(a: str, b: str):
-    run_a = _or_404(store.get_run(a), "run")
-    run_b = _or_404(store.get_run(b), "run")
+async def compare(a: str, b: str, me: Who = Depends(who)):
+    run_a = _my_run(a, me)
+    run_b = _my_run(b, me)
     steps_a, steps_b = store.get_steps(a), store.get_steps(b)
 
     def same(x: dict | None, y: dict | None) -> bool:
@@ -260,8 +296,8 @@ async def compare(a: str, b: str):
     return {"a": _run_view(run_a), "b": _run_view(run_b), "pairs": pairs, "first_difference": first}
 
 
-@app.post("/api/runs/{run_id}/review", dependencies=[Depends(require_owner)])
-async def review(run_id: str):
-    _or_404(store.get_run(run_id), "run")
+@app.post("/api/runs/{run_id}/review", dependencies=[Depends(require_member)])
+async def review(run_id: str, me: Who = Depends(who)):
+    _my_run(run_id, me)
     result = await judge.review_run(run_id)
     return result or {"error": "review not available"}

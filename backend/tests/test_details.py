@@ -28,7 +28,7 @@ def test_new_agent_accepts_tag_and_description(api):
 
 
 def test_studio_agent_words(api):
-    resp = api.post("/api/studio/agents", json={"description": "Find prices carefully", "answers": {}})
+    resp = api.post("/api/studio/agents", json={"description": "Find prices carefully", "answers": []})
     agent = resp.json()["agent"]
     assert (agent["tag"], agent["description"]) == ("Made from one sentence", "Find prices carefully")
 
@@ -73,7 +73,8 @@ def test_run_detail_checks_steps_and_benchmark_numbers(api):
 def test_old_runs_have_null_checks_and_step_times(api):
     from app import config, store
 
-    store.create_run("r_old00001", 998, 1, "cloud_limits", "", 1, "answer", "m")
+    bench = store.create_benchmark(1, False, 1)
+    store.create_run("r_old00001", bench, 1, "cloud_limits", "", 1, "answer", "m")
     store.add_step("r_old00001", "tool_call", "search", {}, {})  # no at_ms, like a step saved before
     run = api.get("/api/runs/r_old00001").json()
     assert run["checks"] is None and run["steps"][0]["at_ms"] is None
@@ -141,7 +142,7 @@ def test_model_door_rewrites_to_the_runs_model(servers, monkeypatch):
     state.model = "gemini-3.8-flash"
     seen = {}
 
-    async def forward(payload, run_id):
+    async def forward(payload, run_id, vk=None):
         seen.update(payload)
         return 200, {"choices": [{"message": {"role": "assistant", "content": "hi"}}], "usage": {}}
 

@@ -10,7 +10,8 @@ CLIENT_ID = "test-client.apps.googleusercontent.com"
 GOOD_TOKEN = {"iss": "https://accounts.google.com", "sub": "1234567890", "aud": CLIENT_ID,
               "email": "Ann@Example.com", "email_verified": True,
               "name": "Ann", "picture": "https://pics.example.com/ann.png"}
-VIEWER_MESSAGE = "Your Google account can look around here but not change things. Ask the owner to add you."
+MEMBER_MESSAGE = "Only the owner of this Evalix can change this."
+NO_LIMITS = {"daily_usd": None, "spent_today_usd": 0.0, "daily_searches": None, "searches_today": 0}
 
 
 @pytest.fixture
@@ -48,7 +49,8 @@ def change_something(client):
 def test_no_cookie_without_google_is_owner(setup):
     client, *_ = setup
     me = client.get("/api/auth/me").json()
-    assert me == {"session": None, "role": "owner", "user": None, "google_client_id": None}
+    assert me == {"session": None, "role": "owner", "user": None, "google_client_id": None,
+                  "workspace": "own", "allowance": NO_LIMITS}
     assert change_something(client).status_code == 404  # allowed in; the benchmark just does not exist
 
 
@@ -57,6 +59,7 @@ def test_no_cookie_with_google_is_guest(setup):
     google_on(config, monkeypatch)
     me = client.get("/api/auth/me").json()
     assert me["role"] == "guest" and me["session"] is None and me["google_client_id"] == CLIENT_ID
+    assert me["workspace"] == "example"
     resp = change_something(client)
     assert resp.status_code == 403 and resp.json() == {"detail": GUEST_MESSAGE}
 
@@ -106,7 +109,8 @@ def test_google_happy_path(setup):
     assert resp.status_code == 200
     assert resp.json() == {"session": "google", "role": "owner", "google_client_id": CLIENT_ID,
                            "user": {"name": "Ann", "email": "Ann@Example.com",
-                                    "picture": "https://pics.example.com/ann.png"}}
+                                    "picture": "https://pics.example.com/ann.png"},
+                           "workspace": "own", "allowance": NO_LIMITS}
     assert client.get("/api/auth/me").json()["user"]["email"] == "Ann@Example.com"
     assert change_something(client).status_code == 404  # an owner now
 
@@ -151,19 +155,19 @@ def test_google_cant_reach_google_is_502(setup):
     assert client.post("/api/auth/google", json={"credential": "t"}).status_code == 502
 
 
-def test_owner_emails_decide_who_may_change_things(setup):
+def test_someone_not_on_the_owner_list_is_a_member(setup):
     client, auth, config, monkeypatch = setup
     google_on(config, monkeypatch)
     fake_google(auth, monkeypatch)
     monkeypatch.setattr(config, "OWNER_EMAILS", ["boss@example.com"])
     me = client.post("/api/auth/google", json={"credential": "t"}).json()
-    assert (me["session"], me["role"]) == ("google", "guest")  # signed in, but only to look
-    resp = change_something(client)
-    assert resp.status_code == 403 and resp.json() == {"detail": VIEWER_MESSAGE}
-    assert client.get("/api/agents").status_code == 200
+    assert (me["session"], me["role"], me["workspace"]) == ("google", "member", "own")
+    assert me["allowance"]["daily_usd"] == config.MEMBER_DAILY_USD
+    assert change_something(client).status_code == 404  # may act, but benchmark 999 isn't in their workspace
+    resp = client.put("/api/settings", json={})
+    assert resp.status_code == 403 and resp.json() == {"detail": MEMBER_MESSAGE}  # Settings are the owner's
     monkeypatch.setattr(config, "OWNER_EMAILS", ["ann@example.com"])  # read on every request
     assert client.get("/api/auth/me").json()["role"] == "owner"
-    assert change_something(client).status_code == 404
 
 
 def test_too_many_sign_ins_is_429(setup):

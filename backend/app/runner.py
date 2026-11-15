@@ -18,13 +18,13 @@ _cancelled: set[int] = set()
 _background: set[asyncio.Task] = set()  # keeps background tasks from being garbage collected
 
 
-def _plan(agent_ids, task_ids, fault_ids, trials) -> list[dict]:
-    """The list of runs to do: normal runs first, then fault runs, for each agent."""
+def _plan(agent_ids, task_ids, fault_ids, trials, workspace: str = store.MAIN) -> list[dict]:
+    """The list of runs to do: normal runs first, then fault runs, for each agent in this workspace."""
     tasks, faults = load_tasks(), load_faults()
     items = []
     for agent_id in agent_ids:
         agent = store.get_agent(agent_id)
-        if agent is None:
+        if agent is None or agent.get("workspace", store.MAIN) != workspace:
             continue
         for task_id in task_ids:
             if task_id in tasks:
@@ -41,14 +41,14 @@ def _plan(agent_ids, task_ids, fault_ids, trials) -> list[dict]:
 
 
 async def start_benchmark(agent_ids: list[int], task_ids: list[str], fault_ids: list[str],
-                          trials: int, live_mode: bool) -> int:
-    items = _plan(agent_ids, task_ids, fault_ids, trials)
+                          trials: int, live_mode: bool, workspace: str = store.MAIN, vk: str | None = None) -> int:
+    items = _plan(agent_ids, task_ids, fault_ids, trials, workspace)
     selection = {"agent_ids": sorted({i["agent"]["id"] for i in items}),
                  "task_ids": sorted({i["task_id"] for i in items if not i["fault_id"]}),
                  "fault_ids": sorted({i["fault_id"] for i in items if i["fault_id"]})}
-    benchmark_id = store.create_benchmark(trials, live_mode, len(items), selection)
+    benchmark_id = store.create_benchmark(trials, live_mode, len(items), selection, workspace)
     model = prefs.agent_model()  # chosen now; a later change in Settings does not touch this benchmark
-    task = asyncio.create_task(_run_benchmark(benchmark_id, items, live_mode, model))
+    task = asyncio.create_task(_run_benchmark(benchmark_id, items, live_mode, model, vk))
     _background.add(task)
     task.add_done_callback(_background.discard)
     return benchmark_id
@@ -59,7 +59,8 @@ def cancel_benchmark(benchmark_id: int) -> None:
     _cancelled.add(benchmark_id)
 
 
-async def _run_benchmark(benchmark_id: int, items: list[dict], live_mode: bool, model: str) -> None:
+async def _run_benchmark(benchmark_id: int, items: list[dict], live_mode: bool, model: str,
+                         vk: str | None = None) -> None:
     semaphore = asyncio.Semaphore(config.MAX_PARALLEL)
 
     async def guarded(item: dict) -> None:
@@ -67,7 +68,7 @@ async def _run_benchmark(benchmark_id: int, items: list[dict], live_mode: bool, 
             if benchmark_id in _cancelled:
                 return
             try:
-                await _run_with_retry(benchmark_id, item, live_mode, model)
+                await _run_with_retry(benchmark_id, item, live_mode, model, vk)
             except Exception as exc:  # a bug in Evalix must not stop the other runs
                 print(f"run failed inside Evalix: {type(exc).__name__}: {exc}")
 
@@ -89,10 +90,11 @@ def _send_to_maxim_if_on(benchmark_id: int) -> None:
     threading.Thread(target=export_benchmark, args=(benchmark_id,), daemon=True).start()
 
 
-async def _run_with_retry(benchmark_id: int, item: dict, live_mode: bool, model: str) -> None:
+async def _run_with_retry(benchmark_id: int, item: dict, live_mode: bool, model: str,
+                          vk: str | None = None) -> None:
     # A setup problem is not the agent's fault: try once more as a new run.
     for _ in range(2):
-        ending = await _execute(benchmark_id, item, live_mode, model)
+        ending = await _execute(benchmark_id, item, live_mode, model, vk)
         if ending != "setup_problem":
             break
     store.add_done_run(benchmark_id)
@@ -130,7 +132,7 @@ async def _call_agent(state: RunState, agent: dict) -> tuple[dict | None, str, i
         return None, "reply in the wrong shape", 200
 
 
-async def _execute(benchmark_id: int, item: dict, live_mode: bool, model: str) -> str:
+async def _execute(benchmark_id: int, item: dict, live_mode: bool, model: str, vk: str | None = None) -> str:
     """One run from start to finish. Returns its ending."""
     agent, task_id, fault_id = item["agent"], item["task_id"], item["fault_id"]
     task = load_tasks()[task_id]
@@ -138,7 +140,7 @@ async def _execute(benchmark_id: int, item: dict, live_mode: bool, model: str) -
     run_id = "r_" + uuid.uuid4().hex[:8]
     state = RunState(run_id=run_id, benchmark_id=benchmark_id, agent_id=agent["id"], task=task,
                      fault=fault, engine=FaultEngine(fault, task), live_mode=live_mode,
-                     limits=dict(config.RUN_LIMITS), model=model)
+                     limits=dict(config.RUN_LIMITS), model=model, vk=vk)
     store.create_run(run_id, benchmark_id, agent["id"], task_id, fault_id, item["trial"],
                      item["expect"], model)
     publish(benchmark_id, "run_started", {"run_id": run_id, "agent_id": agent["id"], "agent": agent["name"],

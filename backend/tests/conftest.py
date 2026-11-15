@@ -15,6 +15,7 @@ os.environ["EVALIX_DB"] = os.path.join(_tmp, "test.db")
 # Sign-in is off, so every request counts as the owner (spec section 2).
 os.environ["GOOGLE_CLIENT_ID"] = ""
 os.environ["EVALIX_ALLOWED_EMAILS"] = ""
+os.environ["EVALIX_OWNER_EMAILS"] = ""  # never the real owner list from .env
 os.environ["EVALIX_SECRET"] = "test-secret"
 
 # Saving a key must never touch the real .env or the real Bifrost config.

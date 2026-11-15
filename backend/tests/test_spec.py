@@ -1,11 +1,11 @@
-"""Checks that every route in spec/api.md exists in the app, and that every owner-only one is guarded."""
+"""Checks that every route in spec/api.md exists in the app, and that marked ones have the right guard."""
 import re
 from pathlib import Path
 
 import pytest
 
 SPEC = Path(__file__).resolve().parents[2] / "spec" / "api.md"
-ROUTE = re.compile(r"^(✍️\s*)?`?(GET|POST|PUT|PATCH|DELETE)\s+(/[^\s`]*)`?\s*$")
+ROUTE = re.compile(r"^(✍️|🔑)?\s*`?(GET|POST|PUT|PATCH|DELETE)\s+(/[^\s`]*)`?\s*$")
 
 
 def _normal(path: str) -> str:
@@ -13,15 +13,15 @@ def _normal(path: str) -> str:
     return re.sub(r"\{[^}]*\}", "{}", path.split("?", 1)[0])
 
 
-def spec_routes() -> list[tuple[str, str, bool]]:
-    """(method, path, owner_only) for each route in the tables of the spec."""
+def spec_routes() -> list[tuple[str, str, str]]:
+    """(method, path, mark) for each route in the tables of the spec. mark is "", "✍️" or "🔑"."""
     found = []
     for line in SPEC.read_text(encoding="utf-8").splitlines():
         if not line.startswith("|"):
             continue
         match = ROUTE.match(line.split("|")[1].strip())
         if match:
-            found.append((match.group(2), _normal(match.group(3)), bool(match.group(1))))
+            found.append((match.group(2), _normal(match.group(3)), match.group(1) or ""))
     return found
 
 
@@ -48,19 +48,21 @@ def app_routes() -> dict[tuple[str, str], tuple]:
 def test_the_spec_was_read():
     routes = spec_routes()
     assert len(routes) >= 30
-    assert ("GET", "/api/compare", False) in routes
-    assert ("POST", "/api/benchmarks/{}/cancel", True) in routes
+    assert ("GET", "/api/compare", "") in routes
+    assert ("POST", "/api/benchmarks/{}/cancel", "✍️") in routes
+    assert ("PUT", "/api/settings", "🔑") in routes
 
 
-@pytest.mark.parametrize("method, path, owner_only", spec_routes())
-def test_route_exists(method, path, owner_only):
+@pytest.mark.parametrize("method, path, mark", spec_routes())
+def test_route_exists(method, path, mark):
     assert (method, path) in app_routes(), f"{method} {path} is in the spec but not in the app"
 
 
-@pytest.mark.parametrize("method, path, owner_only", [r for r in spec_routes() if r[2]])
-def test_owner_routes_are_guarded(method, path, owner_only):
-    from app.auth import require_owner
+@pytest.mark.parametrize("method, path, mark", [r for r in spec_routes() if r[2]])
+def test_marked_routes_are_guarded(method, path, mark):
+    from app.auth import require_member, require_owner
 
+    guard = require_owner if mark == "🔑" else require_member
     routes = app_routes()
     assert (method, path) in routes, f"{method} {path} is missing"
-    assert require_owner in routes[(method, path)], f"{method} {path} is marked for owners but is not guarded"
+    assert guard in routes[(method, path)], f"{method} {path} is marked {mark} but is not guarded that way"
