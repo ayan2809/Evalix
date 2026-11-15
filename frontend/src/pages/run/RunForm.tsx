@@ -6,6 +6,7 @@ import { useAsync } from '../../hooks'
 import { useModelLabel, useShell } from '../../shell/ShellContext'
 import { Button, EmptyState, ErrorState, Loading, Notice, PageHeader, Segmented, SectionBar, Switch, TitleBlock } from '../../ui'
 import { OnlineStatus } from '../agents/OnlineStatus'
+import { EngineNotice } from './EngineNotice'
 import '../sheet.css'
 import './run.css'
 
@@ -156,6 +157,8 @@ export default function RunForm() {
         title="Who do you want to put to the test?"
         answer="Same questions for everyone, then we break things."
       />
+
+      <EngineNotice onReady={agents.reload} />
 
       <section className="ds-block" aria-label="Who's being tested">
         <SectionBar title="Agents" hint={`${pickedAgentCount} of ${agentList.length} picked`} />

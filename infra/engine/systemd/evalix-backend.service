@@ -1,0 +1,20 @@
+[Unit]
+Description=Evalix: backend (port 8000; refuses calls without the shared secret)
+Requires=evalix-update.service
+After=evalix-update.service evalix-bifrost.service
+
+[Service]
+User=evalix
+WorkingDirectory=/opt/evalix/app/backend
+EnvironmentFile=/opt/evalix/engine.conf
+EnvironmentFile=/opt/evalix/data/.env
+Environment=EVALIX_ROLE=engine
+Environment=EVALIX_DB=/opt/evalix/data/evalix.db
+Environment=EVALIX_ENV_FILE=/opt/evalix/data/.env
+Environment=EVALIX_BIFROST_CONFIG=/opt/evalix/data/bifrost/config.json
+Environment=EVALIX_PUBLIC_URL=http://localhost:8000
+ExecStart=/opt/evalix/venvs/backend/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=3
+# Time to save the database to S3 when the machine is switched off from outside.
+TimeoutStopSec=60

@@ -1,0 +1,170 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SessionReads",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:DescribeInstanceInformation",
+        "ssm:DescribeSessions",
+        "ssm:GetConnectionStatus",
+        "ssm:GetCommandInvocation",
+        "ssm:ListCommandInvocations"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Ec2Reads",
+      "Effect": "Allow",
+      "Action": "ec2:Describe*",
+      "Resource": "*"
+    },
+    {
+      "Sid": "EngineSecurityGroup",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:CreateSecurityGroup",
+        "ec2:DeleteSecurityGroup",
+        "ec2:AuthorizeSecurityGroupIngress",
+        "ec2:AuthorizeSecurityGroupEgress",
+        "ec2:RevokeSecurityGroupIngress",
+        "ec2:RevokeSecurityGroupEgress",
+        "ec2:ModifySecurityGroupRules",
+        "ec2:CreateTags",
+        "ec2:DeleteTags"
+      ],
+      "Resource": [
+        "arn:aws:ec2:ap-south-1:355426657170:security-group/*",
+        "arn:aws:ec2:ap-south-1:355426657170:security-group-rule/*",
+        "arn:aws:ec2:ap-south-1:355426657170:vpc/*"
+      ]
+    },
+    {
+      "Sid": "LaunchOnlySmallTaggedEngine",
+      "Effect": "Allow",
+      "Action": "ec2:RunInstances",
+      "Resource": "arn:aws:ec2:ap-south-1:355426657170:instance/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/Project": "evalix"
+        },
+        "StringLike": {
+          "ec2:InstanceType": [
+            "t4g.micro",
+            "t4g.small",
+            "t4g.medium"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "LaunchEngineParts",
+      "Effect": "Allow",
+      "Action": "ec2:RunInstances",
+      "Resource": [
+        "arn:aws:ec2:ap-south-1::image/*",
+        "arn:aws:ec2:ap-south-1:355426657170:subnet/*",
+        "arn:aws:ec2:ap-south-1:355426657170:network-interface/*",
+        "arn:aws:ec2:ap-south-1:355426657170:security-group/*",
+        "arn:aws:ec2:ap-south-1:355426657170:volume/*",
+        "arn:aws:ec2:ap-south-1:355426657170:key-pair/*"
+      ]
+    },
+    {
+      "Sid": "TagOnLaunch",
+      "Effect": "Allow",
+      "Action": "ec2:CreateTags",
+      "Resource": [
+        "arn:aws:ec2:ap-south-1:355426657170:instance/*",
+        "arn:aws:ec2:ap-south-1:355426657170:volume/*",
+        "arn:aws:ec2:ap-south-1:355426657170:network-interface/*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "ec2:CreateAction": "RunInstances"
+        }
+      }
+    },
+    {
+      "Sid": "ManageEvalixEngineOnly",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:StartInstances",
+        "ec2:StopInstances",
+        "ec2:RebootInstances",
+        "ec2:TerminateInstances",
+        "ec2:ModifyInstanceAttribute",
+        "ec2:ModifyInstanceMetadataOptions",
+        "ec2:GetConsoleOutput",
+        "ec2:AssociateIamInstanceProfile",
+        "ec2:ReplaceIamInstanceProfileAssociation",
+        "ec2:DisassociateIamInstanceProfile",
+        "ec2:CreateTags",
+        "ec2:DeleteTags"
+      ],
+      "Resource": [
+        "arn:aws:ec2:ap-south-1:355426657170:instance/*",
+        "arn:aws:ec2:ap-south-1:355426657170:volume/*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/Project": "evalix"
+        }
+      }
+    },
+    {
+      "Sid": "NeverResizeToABigInstance",
+      "Effect": "Deny",
+      "Action": "ec2:ModifyInstanceAttribute",
+      "Resource": "*",
+      "Condition": {
+        "Null": {
+          "ec2:Attribute/InstanceType": "false"
+        },
+        "StringNotLike": {
+          "ec2:Attribute/InstanceType": [
+            "t4g.micro",
+            "t4g.small",
+            "t4g.medium"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "ShellAndCommandsOnEngine",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:StartSession",
+        "ssm:SendCommand"
+      ],
+      "Resource": "arn:aws:ec2:ap-south-1:355426657170:instance/*",
+      "Condition": {
+        "StringEquals": {
+          "ssm:resourceTag/Project": "evalix"
+        }
+      }
+    },
+    {
+      "Sid": "SessionDocuments",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:StartSession",
+        "ssm:SendCommand"
+      ],
+      "Resource": [
+        "arn:aws:ssm:ap-south-1:355426657170:document/SSM-SessionManagerRunShell",
+        "arn:aws:ssm:ap-south-1::document/AWS-StartPortForwardingSession",
+        "arn:aws:ssm:ap-south-1::document/AWS-RunShellScript"
+      ]
+    },
+    {
+      "Sid": "OwnSessions",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:TerminateSession",
+        "ssm:ResumeSession"
+      ],
+      "Resource": "arn:aws:ssm:ap-south-1:355426657170:session/${aws:username}-*"
+    }
+  ]
+}

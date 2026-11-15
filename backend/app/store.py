@@ -276,6 +276,22 @@ def get_step(step_id: int) -> dict | None:
     return _one("SELECT * FROM steps WHERE id=?", (step_id,))
 
 
+def count_running() -> int:
+    """How many benchmarks are still going (the engine stays on while any are)."""
+    row = _one("SELECT COUNT(*) AS n FROM benchmarks WHERE status='running'")
+    return row["n"] if row else 0
+
+
+def backup_to(path: str) -> None:
+    """Copy the whole database into a new file, safely, even while runs are writing."""
+    with _lock:
+        dest = sqlite3.connect(path)
+        try:
+            _conn.backup(dest)
+        finally:
+            dest.close()
+
+
 def mark_orphans() -> None:
     # After a restart, anything still marked as running can never finish.
     _run("UPDATE runs SET ending='setup_problem', fail_reason='server restarted' WHERE ending IS NULL")

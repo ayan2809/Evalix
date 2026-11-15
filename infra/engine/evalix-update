@@ -1,0 +1,76 @@
+#!/bin/bash
+# Get the run engine ready to start. Runs as root before the services, on every boot
+# (evalix-update.service), and again from infra/deploy.sh when new code is deployed to a running engine.
+#   1. fetch the newest code from S3 if it changed, and install the Python packages
+#   2. write the keys from SSM (/evalix/*) into /opt/evalix/data/.env (never printed)
+#   3. give Bifrost its config.json
+#   evalix-update [--install-units] [--restart]
+set -euo pipefail
+HOME_DIR=/opt/evalix
+source "$HOME_DIR/engine.conf"   # AWS_REGION, EVALIX_BUCKET
+INSTALL_UNITS=0
+RESTART=0
+for arg in "$@"; do
+  case "$arg" in
+    --install-units) INSTALL_UNITS=1 ;;
+    --restart) RESTART=1 ;;
+  esac
+done
+
+RELEASE="s3://$EVALIX_BUCKET/artifacts/engine/release.tar.gz"
+etag="$(aws s3api head-object --region "$AWS_REGION" --bucket "$EVALIX_BUCKET" \
+  --key artifacts/engine/release.tar.gz --query ETag --output text)"
+if [ "$etag" != "$(cat "$HOME_DIR/release.etag" 2>/dev/null || true)" ]; then
+  echo "new code: $etag"
+  tmp="$(mktemp -d)"
+  aws s3 cp --region "$AWS_REGION" --only-show-errors "$RELEASE" "$tmp/release.tar.gz"
+  mkdir -p "$tmp/app"
+  tar xzf "$tmp/release.tar.gz" -C "$tmp/app"
+  rm -rf "$HOME_DIR/app.old"
+  [ -d "$HOME_DIR/app" ] && mv "$HOME_DIR/app" "$HOME_DIR/app.old"
+  mv "$tmp/app" "$HOME_DIR/app"
+  rm -rf "$tmp" "$HOME_DIR/app.old"
+  INSTALL_UNITS=1
+  # This script itself may have changed; replace it without touching the running copy.
+  install -m 755 "$HOME_DIR/app/infra/engine/evalix-update" /usr/local/bin/evalix-update.new
+  mv /usr/local/bin/evalix-update.new /usr/local/bin/evalix-update
+  echo "$etag" > "$HOME_DIR/release.etag"
+fi
+
+if [ "$INSTALL_UNITS" = 1 ]; then
+  install -m 644 "$HOME_DIR"/app/infra/engine/systemd/* /etc/systemd/system/
+  systemctl daemon-reload
+fi
+
+# Python packages. The environments live outside app/, so new code reuses them.
+chown -R evalix:evalix "$HOME_DIR"
+for project in backend agents; do
+  runuser -u evalix -- env HOME="$HOME_DIR" UV_CACHE_DIR="$HOME_DIR/.cache/uv" \
+    UV_PYTHON_INSTALL_DIR="$HOME_DIR/python" UV_PROJECT_ENVIRONMENT="$HOME_DIR/venvs/$project" \
+    /usr/local/bin/uv sync --quiet --frozen --no-dev --python 3.12 --project "$HOME_DIR/app/$project"
+done
+
+# A new disk (the machine was replaced) starts from the last copy saved in S3, if there is one.
+if [ ! -f "$HOME_DIR/data/evalix.db" ]; then
+  aws s3 cp --region "$AWS_REGION" --only-show-errors "s3://$EVALIX_BUCKET/db/evalix.db" \
+    "$HOME_DIR/data/evalix.db" 2>/dev/null && echo "restored the database from S3" || true
+fi
+
+# Keys: /evalix/NAME becomes NAME=value. Written with owner-only access.
+umask 077
+aws ssm get-parameters-by-path --region "$AWS_REGION" --path /evalix --with-decryption \
+  --query 'Parameters[].[Name,Value]' --output text \
+  | awk -F'\t' '{ n = $1; sub(/^.*\//, "", n); print n "=" $2 }' > "$HOME_DIR/data/.env.new"
+mv "$HOME_DIR/data/.env.new" "$HOME_DIR/data/.env"
+umask 022
+
+# Bifrost reads its providers from config.json; its own databases stay in data/bifrost/.
+install -m 644 "$HOME_DIR/app/bifrost/config.json" "$HOME_DIR/data/bifrost/config.json"
+chown -R evalix:evalix "$HOME_DIR"
+
+if [ "$RESTART" = 1 ]; then
+  systemctl restart evalix-bifrost.service evalix-backend.service \
+    evalix-agent@careful.service evalix-agent@careless.service \
+    evalix-agent@langchain.service evalix-agent@adk.service
+fi
+echo "ready"

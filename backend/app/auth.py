@@ -148,7 +148,9 @@ def _me(session: dict | None) -> dict:
 
 def _secure(request: Request) -> bool:
     """Mark the cookie Secure when the page came over https (directly or through a proxy)."""
-    return request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+    # Hosted Evalix is only ever reached over https (CloudFront), even though the Lambda sees plain http.
+    return (request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+            or config.ROLE != "local")
 
 
 def _sign_in(request: Request, response: Response, session: dict) -> dict:
@@ -163,10 +165,20 @@ SIGN_IN_TRIES = 10  # per address, per minute
 _tries: dict[str, deque] = defaultdict(deque)
 
 
+def _visitor(request: Request) -> str:
+    """Who is asking. Hosted, every request comes through CloudFront, which writes the real address first
+    in X-Forwarded-For (only calls that carry the shared secret get this far)."""
+    if config.ROLE != "local":
+        first = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        if first:
+            return first
+    return request.client.host if request.client else "?"
+
+
 def sign_in_limit(request: Request) -> None:
     """FastAPI dependency: at most SIGN_IN_TRIES sign-ins a minute from one address."""
     now = time.monotonic()
-    seen = _tries[request.client.host if request.client else "?"]
+    seen = _tries[_visitor(request)]
     while seen and now - seen[0] > 60:
         seen.popleft()
     if len(seen) >= SIGN_IN_TRIES:
