@@ -6,7 +6,7 @@ import uuid
 
 import httpx
 
-from app import config, prefs, store
+from app import config, hosting, prefs, store
 from app.data import load_faults, load_prices, load_tasks
 from app.events import publish, record_step
 from app.faults import FaultEngine
@@ -77,6 +77,7 @@ async def _run_benchmark(benchmark_id: int, items: list[dict], live_mode: bool, 
     _cancelled.discard(benchmark_id)
     store.set_benchmark_status(benchmark_id, status)
     publish(benchmark_id, "benchmark_finished", {"benchmark_id": benchmark_id, "status": status})
+    hosting.after_benchmark()  # in AWS: save a copy of the database for the front desk
     if status == "done":
         _send_to_maxim_if_on(benchmark_id)
 

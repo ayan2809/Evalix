@@ -1,0 +1,69 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Evalix storage. Kept apart from the app stack so deleting the app never deletes results.
+  The data bucket holds the saved copy of the database (db/) and deploy files (artifacts/), and is
+  kept even if this stack is deleted. The web bucket holds the built React app.
+
+Resources:
+  DataBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub evalix-data-${AWS::AccountId}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      VersioningConfiguration: { Status: Enabled }
+      OwnershipControls:
+        Rules: [{ ObjectOwnership: BucketOwnerEnforced }]
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: old-desk-zips
+            Status: Enabled
+            Prefix: artifacts/desk/
+            ExpirationInDays: 30
+          - Id: old-versions  # the database copy is rewritten after every benchmark
+            Status: Enabled
+            NoncurrentVersionExpiration: { NoncurrentDays: 7 }
+            AbortIncompleteMultipartUpload: { DaysAfterInitiation: 1 }
+          - Id: delete-markers
+            Status: Enabled
+            ExpiredObjectDeleteMarker: true
+
+  WebBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub evalix-web-${AWS::AccountId}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      OwnershipControls:
+        Rules: [{ ObjectOwnership: BucketOwnerEnforced }]
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+Outputs:
+  DataBucketName:
+    Value: !Ref DataBucket
+    Export: { Name: evalix-data-bucket }
+  DataBucketArn:
+    Value: !GetAtt DataBucket.Arn
+    Export: { Name: evalix-data-bucket-arn }
+  WebBucketName:
+    Value: !Ref WebBucket
+    Export: { Name: evalix-web-bucket }
+  WebBucketArn:
+    Value: !GetAtt WebBucket.Arn
+    Export: { Name: evalix-web-bucket-arn }
+  WebBucketDomain:
+    Value: !GetAtt WebBucket.RegionalDomainName
+    Export: { Name: evalix-web-bucket-domain }

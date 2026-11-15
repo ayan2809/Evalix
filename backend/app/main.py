@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
-from app import allowance, config, events, judge, prefs, runner, store
+from app import allowance, config, events, hosting, judge, prefs, runner, store
 from app.data import load_faults, load_tasks, public_task
 from app.auth import Who, require_member, router as auth_router, who
 from app.extras import router as extras_router
@@ -44,7 +44,9 @@ async def lifespan(app: FastAPI):
         add_samples(store.MAIN)
     for name, _, tag, description in BUILT_IN_AGENTS:  # an older database has none of these words yet
         store.fill_agent_words(name, tag, description)
+    hosting.on_start()
     yield
+    hosting.on_stop()
 
 
 def add_samples(workspace: str) -> None:
@@ -65,6 +67,7 @@ app.include_router(extras_router)
 app.include_router(auth_router)
 app.include_router(gateway_router)
 app.include_router(settings_router)
+hosting.install(app)  # AWS only: the front desk or run engine gate (nothing when running locally)
 
 
 @app.exception_handler(RequestValidationError)
@@ -145,7 +148,8 @@ def _or_404(value, what: str):
 @app.get("/api/health")
 async def health():
     return {"ok": True, "mock": config.MOCK, "agent_model": prefs.agent_model(),
-            "judge_model": prefs.judge_model(), "bifrost_up": await bifrost_up(),
+            # The desk has no Bifrost next to it; null means "not checked here".
+            "judge_model": prefs.judge_model(), "bifrost_up": None if config.ROLE == "desk" else await bifrost_up(),
             "search_mode": prefs.search_default()}
 
 

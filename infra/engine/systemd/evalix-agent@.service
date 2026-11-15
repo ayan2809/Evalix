@@ -1,0 +1,12 @@
+[Unit]
+Description=Evalix: sample agent %i (localhost only)
+Requires=evalix-update.service
+After=evalix-update.service
+
+[Service]
+User=evalix
+WorkingDirectory=/opt/evalix/app/agents
+EnvironmentFile=/opt/evalix/app/infra/engine/agents/%i.env
+ExecStart=/opt/evalix/venvs/agents/bin/uvicorn ${MODULE} --host 127.0.0.1 --port ${PORT}
+Restart=on-failure
+RestartSec=3

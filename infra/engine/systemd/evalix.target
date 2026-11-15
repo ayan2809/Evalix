@@ -1,0 +1,6 @@
+[Unit]
+Description=Evalix run engine (backend, Bifrost, four sample agents)
+Wants=evalix-update.service evalix-bifrost.service evalix-backend.service evalix-agent@careful.service evalix-agent@careless.service evalix-agent@langchain.service evalix-agent@adk.service
+
+[Install]
+WantedBy=multi-user.target

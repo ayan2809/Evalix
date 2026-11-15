@@ -36,6 +36,13 @@ export interface Health {
   search_mode: 'saved' | 'live'
 }
 
+/** The run engine. On your own computer it is always ready; hosted, it is switched on when needed. */
+export interface EngineStatus {
+  hosted: boolean
+  state: string // running | stopped | pending | stopping
+  ready: boolean
+}
+
 // ---------- Agents, tasks, faults ----------
 
 export interface Agent {
@@ -469,6 +476,8 @@ export const api = {
 
   // health, agents, tasks, faults
   health: () => request<Health>('/api/health'),
+  engine: () => request<EngineStatus>('/api/engine'),
+  wakeEngine: () => post<EngineStatus>('/api/engine/wake'),
   listAgents: () => request<Agent[]>('/api/agents'),
   addAgent: (body: { name: string; url: string; tag?: string; description?: string }) =>
     post<Agent>('/api/agents', body),

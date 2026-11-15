@@ -12,6 +12,7 @@ dependencies = [
   "maxim-py>=3.14.20",
   "google-auth>=2.35",
   "requests>=2.32",
+  "boto3>=1.35",
 ]
 
 [dependency-groups]
