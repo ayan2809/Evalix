@@ -394,3 +394,9 @@
     width: auto;
   }
 }
+/* What the current tour step points at, on its page. */
+.tour-target {
+  outline: 3px solid var(--solder, #1f4d3a);
+  outline-offset: 6px;
+  scroll-margin: 96px;
+}
