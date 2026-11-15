@@ -1337,6 +1337,16 @@ Timeline of Collaboration
 
 ---
 
+### Phase 72: Clarifying Subtitle Upload Target
+
+#### User Prompt 108
+> *"which srt file to upload?"*
+
+* **Upload Guidance:**
+  - Confirmed that both `Evalix-demo.srt` and `Evalix-demo-draft.srt` contain identical calibrated content. Recommended uploading `docs/submission/video/Evalix-demo.srt` as the primary production caption file.
+
+---
+
 ## Pending Items (as of Nov 15, 2026)
 
 **For the author**
