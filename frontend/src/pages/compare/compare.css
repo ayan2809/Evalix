@@ -1,0 +1,180 @@
+/* Compare: title block, shared-scale timing diagram, side-by-side step table. */
+
+.cp {
+  gap: 20px;
+}
+.cp .page-head {
+  margin-top: 10px;
+}
+.cp-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.cp-block > .tag {
+  margin: 0;
+}
+.cp-end-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+}
+.cp-ends th[scope='row'] {
+  font-weight: 700;
+}
+.cp-banner {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 15px;
+}
+.cp-banner strong {
+  color: var(--solder);
+}
+
+/* ---- side-by-side steps ---- */
+.cp-table td,
+.cp-table tbody th {
+  vertical-align: top;
+}
+.cp-table th:nth-child(2),
+.cp-table th:nth-child(3),
+.cp-table td {
+  width: 44%;
+}
+.cp-pos {
+  width: 1%;
+  white-space: nowrap;
+  font-weight: 700;
+}
+.cp-splitnote {
+  display: block;
+  white-space: nowrap;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--solder);
+}
+.cp-row.split td,
+.cp-row.split th {
+  background: var(--solder-tint);
+  border-bottom-color: var(--solder);
+}
+.cp-fold td {
+  display: table-cell;
+  background: var(--surface-2);
+  font-size: 14.5px;
+}
+.cp-fold td > span {
+  margin-right: 16px;
+}
+.cp-fold .link-btn {
+  white-space: nowrap;
+  font-size: 14px;
+}
+.cp-step {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.cp-step.fault {
+  color: var(--ink);
+}
+.cp-step.empty {
+  color: var(--ink-2);
+  font-size: 13.5px;
+}
+.cp-step-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.cp-step-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 14.5px;
+  font-weight: 700;
+}
+.cp-step-line {
+  font-size: 13.5px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+.cp-step-text .cp-end-mark {
+  margin-top: 4px;
+}
+.cp-step-meta {
+  flex: none;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.cp-step-meta.bad {
+  color: var(--fail);
+  font-weight: 700;
+}
+/* Only shown when the two sides stack, so you can tell whose step it is. */
+.cp-who {
+  display: none;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+@media (max-width: 720px) {
+  .cp-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .cp-table,
+  .cp-table tbody,
+  .cp-table tr,
+  .cp-table td,
+  .cp-table th {
+    display: block;
+    width: auto;
+  }
+  .cp-table .cp-row {
+    border-bottom: 1px solid var(--line);
+    padding: 6px 0 10px;
+  }
+  .cp-table .cp-row > * {
+    border: 0;
+    padding: 2px 10px;
+    width: auto;
+  }
+  .cp-pos {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .cp-splitnote {
+    margin: 0;
+  }
+  .cp-who {
+    display: block;
+    flex: 0 0 100%;
+  }
+  .cp-step {
+    flex-wrap: wrap;
+  }
+  .cp-step.empty {
+    display: none;
+  }
+  .cp-fold td {
+    padding: 8px 10px;
+  }
+}
+
+/* Fields in a column should be as tall as their content, not 200px. */
+.cp-pick > .field {
+  flex: 0 0 auto;
+}

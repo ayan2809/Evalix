@@ -1,0 +1,53 @@
+/* Make an agent. Tables, sheets and the section-bar disclosure live in ../sheet.css. */
+
+.studio-form {
+  max-width: 760px;
+}
+.studio-form label.lbl-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.studio-form .textarea {
+  min-height: 96px;
+}
+.q-list {
+  display: flex;
+  flex-direction: column;
+}
+.q-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 11px 0;
+  border-top: 1px solid var(--line, #d6d9db);
+}
+.q-row:last-child {
+  border-bottom: 1px solid var(--line, #d6d9db);
+}
+.q-row > span {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.studio-from {
+  font-weight: 400;
+  font-size: 14.5px;
+  line-height: 1.4;
+  display: block;
+}
+.studio-trait {
+  width: 30%;
+  min-width: 190px;
+  font-weight: 650;
+}
+
+/* The buttons sit on their own ruled row under the cells, whatever the width. */
+.studio-made .tb-action {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+  border-left: 0;
+  border-top: 1px solid var(--ink, #15181a);
+}

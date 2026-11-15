@@ -1,0 +1,377 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-15T01:14:23+00:00",
+  "title": "Design System: Evalix",
+  "extensions": {
+    "colorMeta": {
+      "solder-mask": {
+        "role": "primary",
+        "displayName": "Solder-Mask Green",
+        "canonical": "oklch(38% 0.061 164)",
+        "tonalRamp": [
+          "#001d10",
+          "#0b3c2a",
+          "#305d49",
+          "#52806b",
+          "#75a58e",
+          "#a1c9b5",
+          "#c7e7d7",
+          "#defaec"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(21% 0.006 237)",
+        "tonalRamp": [
+          "#141618",
+          "#303336",
+          "#4f5355",
+          "#717578",
+          "#95999c",
+          "#babec1",
+          "#dadfe1",
+          "#eef2f5"
+        ]
+      },
+      "graphite": {
+        "role": "neutral",
+        "displayName": "Graphite",
+        "canonical": "oklch(46% 0.013 235)",
+        "tonalRamp": [
+          "#10171b",
+          "#2d3439",
+          "#4c5459",
+          "#6d767b",
+          "#919a9f",
+          "#b6bfc5",
+          "#d6e0e6",
+          "#eaf3f9"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule Grey",
+        "canonical": "oklch(88% 0.004 237)",
+        "tonalRamp": [
+          "#141618",
+          "#313335",
+          "#505355",
+          "#727577",
+          "#96999b",
+          "#bbbec0",
+          "#dbdee0",
+          "#eff2f4"
+        ]
+      },
+      "slipped": {
+        "role": "trouble",
+        "displayName": "Slipped Red",
+        "canonical": "oklch(50% 0.178 29)",
+        "tonalRamp": [
+          "#440000",
+          "#740000",
+          "#9e0405",
+          "#c83c31",
+          "#f26455",
+          "#ff9686",
+          "#ffc0b1",
+          "#ffd8cb"
+        ]
+      },
+      "fault-caused": {
+        "role": "trouble",
+        "displayName": "Fault-Caused Amber",
+        "canonical": "oklch(53% 0.119 65)",
+        "tonalRamp": [
+          "#310300",
+          "#591f00",
+          "#7d4100",
+          "#a36413",
+          "#ca8840",
+          "#eab178",
+          "#ffd4a7",
+          "#ffe9c3"
+        ]
+      },
+      "recovered": {
+        "role": "trouble",
+        "displayName": "Recovered Blue",
+        "canonical": "oklch(45% 0.146 261)",
+        "tonalRamp": [
+          "#00094b",
+          "#002a7b",
+          "#1d4da1",
+          "#4072c9",
+          "#6297f1",
+          "#91beff",
+          "#b9dfff",
+          "#d2f3ff"
+        ]
+      },
+      "sheet-white": {
+        "role": "neutral",
+        "displayName": "Sheet White",
+        "canonical": "#ffffff"
+      },
+      "quiet-fill": {
+        "role": "neutral",
+        "displayName": "Quiet Fill",
+        "canonical": "#f1f3f3"
+      },
+      "pencil": {
+        "role": "neutral",
+        "displayName": "Pencil",
+        "canonical": "#80878b"
+      },
+      "solder-tint": {
+        "role": "primary",
+        "displayName": "Solder Tint",
+        "canonical": "#e6efea"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display, the page question",
+        "purpose": "The one question a page answers. Width 70%, weight 800."
+      },
+      "headline": {
+        "displayName": "Section bar title",
+        "purpose": "Reversed white on a solder-mask bar. Width 70%, weight 700."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "h3 and small headings. Width 78%."
+      },
+      "answer": {
+        "displayName": "Answer sentence",
+        "purpose": "The one-sentence result under the page question."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "All reading text, normal width, tabular figures."
+      },
+      "label": {
+        "displayName": "Column head",
+        "purpose": "Table heads, ink with a 1.5px ink rule below."
+      },
+      "note": {
+        "displayName": "Note",
+        "purpose": "Test conditions, hints, legends, tick labels, in Graphite."
+      },
+      "raw": {
+        "displayName": "Raw",
+        "purpose": "Raw request and response bodies only."
+      }
+    },
+    "shadows": [
+      {
+        "name": "dialog",
+        "value": "0 18px 48px rgb(21 24 26 / 24%)",
+        "purpose": "The only shadow. Lifts a dialog or a toast off the page."
+      },
+      {
+        "name": "hot-cell-line",
+        "value": "inset 0 0 0 1.5px #1f4d3a",
+        "purpose": "Inset outline on the hovered or focused cell of the characteristics table (a line, not a shadow)."
+      }
+    ],
+    "motion": [
+      {
+        "name": "mark-ink",
+        "value": "260ms cubic-bezier(0.16, 1, 0.3, 1), 30ms stagger per mark",
+        "purpose": "The one authored motion: a filled mark wipes in from the left, in reading order."
+      },
+      {
+        "name": "dialog-pop",
+        "value": "160ms ease-out, 6px rise and fade",
+        "purpose": "Dialogs and disclosures open in answer to a click."
+      },
+      {
+        "name": "state",
+        "value": "120ms linear",
+        "purpose": "Button hover fills. Switch knob and scroll cue use 160ms."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation and transition off",
+        "purpose": "Marks show their final state."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide-sheet",
+        "value": "1180px"
+      },
+      {
+        "name": "run-details",
+        "value": "1100px"
+      },
+      {
+        "name": "rail-to-topbar",
+        "value": "860px"
+      },
+      {
+        "name": "phone",
+        "value": "720px"
+      },
+      {
+        "name": "narrow-table",
+        "value": "560px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one main action in an area, solder-mask green.",
+      "html": "<button class=\"ds-btn-primary\">Start a run</button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;height:36px;padding:0 16px;border-radius:3px;border:1.5px solid #1f4d3a;background:#1f4d3a;color:#fff;font:600 14.5px 'Archivo',system-ui,sans-serif;cursor:pointer;transition:background .12s}.ds-btn-primary:hover{background:#163a2b;border-color:#163a2b}.ds-btn-primary:focus-visible{outline:2px solid #1f4d3a;outline-offset:2px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "White with a 1.5px ink border.",
+      "html": "<button class=\"ds-btn-secondary\">Look around first</button>",
+      "css": ".ds-btn-secondary{display:inline-flex;align-items:center;justify-content:center;height:36px;padding:0 16px;border-radius:3px;border:1.5px solid #15181a;background:#fff;color:#15181a;font:600 14.5px 'Archivo',system-ui,sans-serif;cursor:pointer;transition:background .12s}.ds-btn-secondary:hover{background:#f1f3f3}.ds-btn-secondary:focus-visible{outline:2px solid #1f4d3a;outline-offset:2px}"
+    },
+    {
+      "name": "Section Bar",
+      "kind": "custom",
+      "refersTo": "section-bar",
+      "description": "The heading of every named block: solder green with reversed white condensed type.",
+      "html": "<div class=\"ds-bar\"><h2>Behaviour under fault conditions</h2><span>Only the slips are coloured</span></div>",
+      "css": ".ds-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#1f4d3a;color:#fff;padding:7px 12px;min-height:36px}.ds-bar h2{margin:0;font:700 17px/1.2 'Archivo',system-ui,sans-serif;font-stretch:70%}.ds-bar span{font-size:13px;color:#cfe0d7}"
+    },
+    {
+      "name": "Title Block",
+      "kind": "custom",
+      "refersTo": "title-block",
+      "description": "The ruled box at the top of a sheet: label over value, action at the right end.",
+      "html": "<dl class=\"ds-tb\"><div><dt>Benchmark</dt><dd>Five agents, seven problems</dd></div><div><dt>Runs</dt><dd>65, one try each</dd></div><div><dt>Spent</dt><dd>$0.17</dd></div></dl>",
+      "css": ".ds-tb{margin:0;display:grid;grid-template-columns:repeat(3,1fr);border:1.5px solid #15181a;background:#fff;font-family:'Archivo',system-ui,sans-serif}.ds-tb div{padding:9px 14px 10px;border-left:1px solid #15181a}.ds-tb div:first-child{border-left:0}.ds-tb dt{font-size:12px;color:#50585d;margin:0 0 2px}.ds-tb dd{margin:0;font-size:16px;font-weight:650;font-variant-numeric:tabular-nums}"
+    },
+    {
+      "name": "Result Marks",
+      "kind": "custom",
+      "refersTo": "chip",
+      "description": "The signature: a 14px square in a fixed cell. Filled ink got through, hollow red slipped, struck red crashed, dashed grey setup problem.",
+      "html": "<ul class=\"ds-marks\"><li><svg class=\"ds-mark ds-through\" viewBox=\"0 0 14 14\" width=\"14\" height=\"14\" aria-hidden=\"true\"><rect x=\"1\" y=\"1\" width=\"12\" height=\"12\" class=\"b\"/><rect x=\"1\" y=\"1\" width=\"12\" height=\"12\" class=\"f\"/></svg> Got through</li><li><svg class=\"ds-mark ds-slipped\" viewBox=\"0 0 14 14\" width=\"14\" height=\"14\" aria-hidden=\"true\"><rect x=\"1\" y=\"1\" width=\"12\" height=\"12\" class=\"b\"/></svg> Slipped</li><li><svg class=\"ds-mark ds-crashed\" viewBox=\"0 0 14 14\" width=\"14\" height=\"14\" aria-hidden=\"true\"><rect x=\"1\" y=\"1\" width=\"12\" height=\"12\" class=\"b\"/><line x1=\"1.5\" y1=\"12.5\" x2=\"12.5\" y2=\"1.5\" class=\"s\"/></svg> Crashed</li><li><svg class=\"ds-mark ds-setup\" viewBox=\"0 0 14 14\" width=\"14\" height=\"14\" aria-hidden=\"true\"><rect x=\"1\" y=\"1\" width=\"12\" height=\"12\" class=\"b\"/></svg> Setup problem</li></ul>",
+      "css": ".ds-marks{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px 20px;font:13px 'Archivo',system-ui,sans-serif;color:#50585d}.ds-marks li{display:inline-flex;align-items:center;gap:6px}.ds-mark .b{fill:none;stroke:#15181a;stroke-width:2}.ds-mark .f{fill:#15181a}.ds-slipped .b,.ds-crashed .b{stroke:#b3261e}.ds-crashed .s{stroke:#b3261e;stroke-width:2}.ds-setup .b{stroke:#80878b;stroke-dasharray:3 2}"
+    },
+    {
+      "name": "Characteristics Row",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "A row of the characteristics table: problem and condition, then a mark per agent with a short red reason on a slip.",
+      "html": "<table class=\"ds-grid\"><thead><tr><th>Problem we caused</th><th>Careful</th><th>Careless</th></tr></thead><tbody><tr><th scope=\"row\"><strong>Lying search result</strong><span>An old blog with wrong numbers comes first</span></th><td class=\"cell\"><svg class=\"ds-mark ds-through\" viewBox=\"0 0 14 14\" width=\"14\" height=\"14\" aria-hidden=\"true\"><rect x=\"1\" y=\"1\" width=\"12\" height=\"12\" class=\"b\"/><rect x=\"1\" y=\"1\" width=\"12\" height=\"12\" class=\"f\"/></svg></td><td class=\"cell bad\"><svg class=\"ds-mark ds-slipped\" viewBox=\"0 0 14 14\" width=\"14\" height=\"14\" aria-hidden=\"true\"><rect x=\"1\" y=\"1\" width=\"12\" height=\"12\" class=\"b\"/></svg> Quoted a page it never opened</td></tr></tbody></table>",
+      "css": ".ds-grid{width:100%;border-collapse:collapse;font:14.5px 'Archivo',system-ui,sans-serif;color:#15181a}.ds-grid thead th{font-weight:700;font-stretch:70%;font-size:13.5px;text-align:left;padding:8px 10px;border-bottom:1.5px solid #15181a}.ds-grid tbody th,.ds-grid td{padding:10px;border-bottom:1px solid #d6d9db;vertical-align:top;text-align:left}.ds-grid tbody th strong{display:block}.ds-grid tbody th span{display:block;font-size:13px;font-weight:400;color:#50585d}.ds-grid .cell{display:flex;gap:6px;align-items:flex-start;font-size:13px}.ds-grid .bad{color:#b3261e}.ds-grid .cell svg{margin-top:2px;flex:none}.ds-grid td.cell:hover{background:#e6efea;box-shadow:inset 0 0 0 1.5px #1f4d3a}.ds-mark .b{fill:none;stroke:#15181a;stroke-width:2}.ds-mark .f{fill:#15181a}.ds-slipped .b{stroke:#b3261e}"
+    },
+    {
+      "name": "Timing Diagram",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "Lanes on one shared ruler. Green model calls, outlined tool calls, ink answer, amber fault tick.",
+      "html": "<div class=\"ds-td\"><div class=\"ruler\"><i style=\"left:0\">0 s</i><i style=\"left:33%\">1 s</i><i style=\"left:66%\">2 s</i></div><div class=\"track\"><b class=\"model\" style=\"left:0;width:33%\">Model</b><b class=\"tool\" style=\"left:33%;width:20%\">Search</b><b class=\"model\" style=\"left:55%;width:30%\">Model</b><u class=\"tick\" style=\"left:33%\"></u></div></div>",
+      "css": ".ds-td{font:12px 'Archivo',system-ui,sans-serif;color:#50585d}.ds-td .ruler{position:relative;height:18px;border-bottom:1.5px solid #15181a}.ds-td .ruler i{position:absolute;bottom:3px;font-style:normal}.ds-td .track{position:relative;height:44px;border-bottom:1px solid #d6d9db}.ds-td b{position:absolute;top:10px;height:24px;padding:3px 6px;box-sizing:border-box;font-weight:400;line-height:18px;white-space:nowrap;overflow:hidden}.ds-td .model{background:#1f4d3a;color:#fff}.ds-td .tool{background:#fff;border:1.5px solid #15181a;color:#15181a}.ds-td .tick{position:absolute;top:-4px;bottom:-4px;border-left:2px solid #9a5b00;z-index:2}"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "38px field with a 1px control rule; border turns green on focus.",
+      "html": "<input class=\"ds-input\" placeholder=\"Agent address\" />",
+      "css": ".ds-input{width:240px;height:38px;border:1px solid #8c9397;border-radius:3px;padding:0 12px;background:#fff;font:500 15px 'Archivo',system-ui,sans-serif;color:#15181a}.ds-input::placeholder{color:#50585d}.ds-input:focus{border-color:#1f4d3a;outline:2px solid #1f4d3a;outline-offset:2px}"
+    },
+    {
+      "name": "Chip",
+      "kind": "chip",
+      "refersTo": "chip-slipped",
+      "description": "Small status label. Slipped is red on a red wash; neutral is graphite on quiet grey.",
+      "html": "<span class=\"ds-chip ds-chip-n\">Rule checks</span> <span class=\"ds-chip ds-chip-r\">Slipped</span>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:2px;font:600 12.5px 'Archivo',system-ui,sans-serif}.ds-chip-n{background:#f1f3f3;color:#50585d}.ds-chip-r{background:#fbe9e7;color:#b3261e}"
+    },
+    {
+      "name": "Rail Navigation",
+      "kind": "nav",
+      "refersTo": "nav-item-current",
+      "description": "The green rail's nav list: pale text on green, current page a white pill.",
+      "html": "<nav class=\"ds-rail\"><a href=\"#\" class=\"on\">Results</a><a href=\"#\">Start a run</a><a href=\"#\">Compare</a></nav>",
+      "css": ".ds-rail{display:flex;flex-direction:column;gap:2px;width:196px;padding:18px;background:#1f4d3a;font-family:'Archivo',system-ui,sans-serif}.ds-rail a{display:block;padding:9px 12px;border-radius:3px;color:#d5e3db;font-size:15px;text-decoration:none}.ds-rail a:hover{background:rgb(255 255 255/10%);color:#fff}.ds-rail a.on{background:#fff;color:#1f4d3a;font-weight:700}.ds-rail a:focus-visible{outline:2px solid #fff;outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Agent Datasheet",
+    "overview": "**Creative North Star: \"The Agent Datasheet\"**\n\nEvery agent gets a datasheet, like the one that comes with an electronic part: what it did under stated fault conditions, written as a table of fixed cells and a timing diagram, not a board of number tiles. The page is a white sheet. A solder-mask green rail runs down the left edge and the same green fills every section bar. Everything else is ink on white, ruled with thin lines.\n\nThe look is plain and exact. Corners are square (2 to 4 px). Structure comes from borders, not shadows. Numbers use tabular figures so columns line up. One typeface does all the work: the page question and the table heads are set narrow and heavy, and body text is set at normal width. Colour is kept for trouble. The only colours besides ink and green say that something slipped, that we caused a fault, or that a run recovered. Getting through is ink, never green.\n\nThe system is built for an Operate mode: a builder scanning for hollow marks and a judge reading a live run. It must stay quiet so the marks and the timing diagrams carry the meaning.",
+    "keyCharacteristics": [
+      "White sheet, ink text, 1.5px ink rules under table heads and around title blocks.",
+      "Solder-mask green only on the rail, section bars, primary actions and the current-item state.",
+      "Results are SVG marks in fixed cells, not coloured pills or badges.",
+      "Time is drawn as timing diagrams on one shared scale.",
+      "One family, Archivo (variable), ranked by width and weight.",
+      "Borders instead of shadows; the only shadow is under a dialog or a toast.",
+      "Light only. There is no dark theme."
+    ],
+    "rules": [
+      {
+        "name": "The Trouble-Only Rule",
+        "body": "Red, amber and blue appear only to say something went wrong, was caused, or was recovered from. A screen where everything passed is ink and green only. Never use green for \"got through\".",
+        "section": "colors"
+      },
+      {
+        "name": "The Pencil Rule",
+        "body": "Pencil (#80878b) is for strokes. Any text a person must read is Ink or Graphite.",
+        "section": "colors"
+      },
+      {
+        "name": "The Rare Green Rule",
+        "body": "Green is structure and action, not decoration. If a new element is not a bar, the rail, a primary action, a link or a current state, it is not green.",
+        "section": "colors"
+      },
+      {
+        "name": "The Width-Is-Rank Rule",
+        "body": "Narrow and heavy means \"this is a heading, head or question\". Normal width means \"read this\". Do not add a second typeface and do not use width for decoration.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Tabular figures are on for the whole page. Numbers in tables are right-aligned so they compare by eye.",
+        "section": "typography"
+      },
+      {
+        "name": "The Raw-Only Mono Rule",
+        "body": "Monospace is only for raw request and response text. Names, numbers and timings stay in Archivo.",
+        "section": "typography"
+      },
+      {
+        "name": "The Borders-Not-Shadows Rule",
+        "body": "Surfaces are separated by 1px rules, 1.5px ink rules or a green bar. A drop shadow on a card, button or panel is wrong here.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** answer in marks and timing diagrams first: a mark in a fixed cell, a bar on a shared scale. Add words beside them.",
+      "**Do** put every named block under a Solder-Mask Green section bar with reversed white condensed type.",
+      "**Do** rule tables with a 1.5px ink line under the head and 1px Rule lines between rows, with no card around them.",
+      "**Do** keep colour for trouble: Slipped Red, Fault-Caused Amber, Recovered Blue. Got through is ink.",
+      "**Do** keep corners at 2 to 4px (or 0 on bars and tables) and separate surfaces with borders.",
+      "**Do** use Graphite (#50585d) for all secondary text and keep Pencil (#80878b) to strokes.",
+      "**Do** give the one authored motion to marks (clip wipe, 260ms, 30ms apart). Everything else moves only in answer to a click, in 120 to 160ms ease-out. Under reduced motion, show the final state.",
+      "**Do** write plain words in the UI: \"run\", \"problem\" (a fault we cause), \"everyday question\", \"got through\", \"slipped\", \"crashed\", \"second opinion\".",
+      "**Do** keep the brand commitments in all copy and labels: never use the word \"demo\" (say \"example\" or \"sample\"), never name the author's employer, and only use the bank and card examples already approved."
+    ],
+    "donts": [
+      "**Don't** build a dark dashboard of KPI tiles, line charts and a leaderboard. This system exists to refuse that.",
+      "**Don't** colour \"got through\" green or any other colour. It is a filled ink square.",
+      "**Don't** use drop shadows on cards, buttons or panels. The only shadow is under a dialog or toast.",
+      "**Don't** add a second typeface, or use monospace outside raw request and response bodies.",
+      "**Don't** use pill shapes, large radii or soft rounded cards.",
+      "**Don't** replace a mark with a coloured badge or a coloured dot, and don't move a mark out of its fixed cell.",
+      "**Don't** invent testimonials, customers, logos or press quotes. None exist yet.",
+      "**Don't** add a dark theme without a new decision. The system is light only (`color-scheme: light`)."
+    ]
+  }
+}

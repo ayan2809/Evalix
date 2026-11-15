@@ -1,0 +1,424 @@
+/* Results: title block, the characteristics table, the plot column. */
+
+.rs {
+  gap: 20px;
+}
+.rs .page-head {
+  margin-top: 10px;
+}
+.rs-picker {
+  display: block;
+  max-width: 100%;
+}
+.rs-picker .sel {
+  width: 100%;
+  min-width: 0;
+}
+.rs-picker .sel select {
+  max-width: 100%;
+  height: 28px;
+  font-weight: 650;
+  font-size: 15px;
+  padding-left: 8px;
+}
+
+@media (min-width: 1101px) {
+  .titleblock.rs-tb {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.45fr) repeat(3, minmax(0, 0.8fr)) auto;
+  }
+}
+
+/* Two columns: the characteristics table, then a 330px column of plot and limits. */
+.rs-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 24px 28px;
+  align-items: start;
+  margin-top: 4px;
+}
+.rs-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.rs-side {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.rs-side > section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ---- the characteristics table ---- */
+.rs-grid th.rs-first,
+.rs-grid td.rs-first {
+  min-width: 150px;
+  width: 26%;
+}
+.rs-grid tbody th.rs-first {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+  padding: 9px 12px 9px 10px;
+  vertical-align: top;
+}
+.rs-grid thead th.rs-first {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+}
+.rs-first strong {
+  display: block;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.rs-cond {
+  display: block;
+  margin-top: 1px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--ink-2);
+}
+.rs-grid td {
+  padding: 0;
+  vertical-align: top;
+  min-width: 84px;
+}
+.rs-grid thead th:not(.rs-first) {
+  padding: 8px 8px 8px 10px;
+  min-width: 84px;
+  line-height: 1.2;
+}
+.rs-grid tbody tr:hover td {
+  background: transparent;
+}
+.rs-grid th {
+  white-space: normal;
+}
+.rs-cell-link {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 10px 6px 10px 10px;
+  min-height: 100%;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.rs-cell-link:hover {
+  color: var(--ink);
+  text-decoration: none;
+}
+.rs-cell-link .mark {
+  margin-top: 2px;
+}
+.rs-cell-link:focus-visible {
+  outline-offset: -3px;
+}
+.rs-word {
+  color: var(--ink);
+  white-space: nowrap;
+}
+.rs-why {
+  color: var(--fail);
+  font-size: 13px;
+  line-height: 1.3;
+  max-width: 112px;
+}
+.rs-none {
+  display: block;
+  padding: 10px 12px;
+  color: var(--ink-2);
+}
+.rs-tries {
+  display: flex;
+  gap: 8px;
+  padding: 0 12px 8px 33px;
+  font-size: 12.5px;
+}
+.rs-tries a {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.rs-tries a.bad {
+  color: var(--fail);
+}
+
+/* Signature interaction: hover or focus a cell and its row and column light up. */
+.rs-grid th.hot-col,
+.rs-grid td.hot-col,
+.rs-grid th.hot-row,
+.rs-grid td.hot-row {
+  background: var(--surface-2);
+}
+.rs-grid td.hot {
+  background: var(--solder-tint);
+  box-shadow: inset 0 0 0 1.5px var(--solder);
+}
+
+.rs-legend {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.rs-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ---- plot ---- */
+.plot {
+  margin: 0;
+}
+.plot svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-family: var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+.plot-grid {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+.plot-frame {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+.plot-tick {
+  font-size: 11.5px;
+  fill: var(--ink-2);
+}
+.plot-title {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+.plot-pt {
+  fill: var(--ink);
+  stroke: #fff;
+  stroke-width: 1.5;
+}
+.plot-pt.bad {
+  fill: var(--fail);
+}
+.plot-leader {
+  stroke: var(--ink-3, #80878b);
+  stroke-width: 1;
+}
+.plot-label {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+.plot-label.bad {
+  fill: var(--fail);
+}
+
+.rs-everyday {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 24px;
+  padding: 0 2px;
+}
+.rs-everyday p {
+  margin: 0;
+  font-size: 15px;
+  max-width: 46em;
+}
+.rs-foot {
+  margin: 0;
+  max-width: 44em;
+}
+
+@media (max-width: 1180px) {
+  .rs-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rs-side {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 18px 24px;
+  }
+}
+/* Scroll cue: a fading right edge and a hint, only while there are agents out of view. */
+.rs-scroller {
+  position: relative;
+}
+.rs-scroller::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 36px;
+  pointer-events: none;
+  background: linear-gradient(to right, rgb(255 255 255 / 0%), var(--surface, #fff));
+  opacity: 0;
+  transition: opacity 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.rs-scroller.more::after {
+  opacity: 1;
+}
+.rs-edge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  padding: 9px 8px 9px 14px;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--solder);
+  background: linear-gradient(to right, rgb(255 255 255 / 0%), var(--surface, #fff) 40%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.rs-scroller.more .rs-edge {
+  opacity: 1;
+}
+.rs-grid .hd-short {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .rs-grid th.rs-first,
+  .rs-grid td.rs-first {
+    min-width: 116px;
+    width: 116px;
+  }
+  .rs-grid tbody th.rs-first {
+    padding-right: 8px;
+  }
+  .rs-cond {
+    font-size: 12.5px;
+  }
+  .rs-grid tbody th.rs-first {
+    box-shadow: 1px 0 0 var(--line);
+  }
+}
+
+/* ---- who passed, and what it cost: columns sized to their content, figures right-aligned ---- */
+.tbl.rs-agents {
+  width: auto;
+  min-width: 0;
+}
+.rs-agents th:first-child {
+  min-width: 220px;
+}
+.rs-agents th.num,
+.rs-agents td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  padding-left: 28px;
+  padding-right: 12px;
+}
+.rs-agents th.num {
+  white-space: normal;
+  min-width: 104px;
+  max-width: 150px;
+  line-height: 1.2;
+}
+@media (max-width: 560px) {
+  .rs-agents th:first-child {
+    min-width: 0;
+    width: 112px;
+  }
+  .rs-agents th.num,
+  .rs-agents td.num {
+    min-width: 0;
+    max-width: none;
+    width: 76px;
+    padding-left: 6px;
+    padding-right: 8px;
+  }
+  .rs-agents tbody th {
+    padding-right: 6px;
+  }
+  .rs-agents .plate-tag {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+}
+
+/* Phones: all five agents in one screen. Table runs edge to edge; heads are abbreviated, reasons wrap tight. */
+@media (max-width: 560px) {
+  .rs-scroller {
+    margin: 0 calc(var(--gutter) * -1);
+  }
+  .rs-grid .hd-full {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .rs-grid .hd-short {
+    display: inline;
+  }
+  .rs-grid th.rs-first,
+  .rs-grid td.rs-first {
+    min-width: 98px;
+    width: 98px;
+  }
+  .rs-grid thead th.rs-first,
+  .rs-grid tbody th.rs-first {
+    padding-left: 12px;
+    padding-right: 6px;
+  }
+  .rs-grid td,
+  .rs-grid thead th:not(.rs-first) {
+    min-width: 58px;
+    width: 58px;
+  }
+  .rs-grid thead th:not(.rs-first) {
+    padding: 8px 4px 8px 8px;
+    font-size: 13px;
+  }
+  .rs-cond {
+    font-size: 12px;
+  }
+  .rs-cell-link {
+    flex-direction: column;
+    gap: 5px;
+    padding: 10px 2px 10px 7px;
+  }
+  .rs-why {
+    max-width: none;
+    font-size: 11px;
+    line-height: 1.25;
+    overflow-wrap: break-word;
+  }
+  .rs-word {
+    font-size: 12px;
+  }
+  .rs-tries {
+    padding-left: 8px;
+  }
+}
+
+/* The bar, hint and table share one width: the table's own, never wider than the page. */
+.section.rs-fit {
+  width: fit-content;
+  min-width: min(100%, 560px);
+  max-width: 100%;
+}
