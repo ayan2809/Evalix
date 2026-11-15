@@ -1,13 +1,14 @@
-"""Gateway tests: fallback, retry, budget (spec/api.md section 4).
+"""The gateway page: one call followed through Bifrost, Bifrost's log, and live tests (spec/api.md section 4).
 
 Evalix only causes the problem. Bifrost is the thing being tested, so every test call goes through it.
 
 * fallback: a stand-in main model (`/fake-model`) that can be switched off.
 * retry:    a busy model (`/fake-busy`) that says "too busy" twice, then answers.
 * budget:   a Bifrost virtual key with a small dollar limit. Each test makes a fresh one.
+* rate:     a fresh virtual key allowed 3 calls an hour.
+* access:   a fresh virtual key allowed only the agent model.
 """
 import asyncio
-import os
 import time
 from datetime import datetime, timezone
 
@@ -16,13 +17,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app import config, prefs
-from app.auth import require_owner
+from app import allowance, config, prefs, store
+from app.auth import Who, require_member, who
 from app.data import load_prices
 
 router = APIRouter()
 
-NAMES = ("fallback", "retry", "budget")
+NAMES = ("fallback", "retry", "budget", "rate", "access")
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 
 # ---------------------------------------------------------------------------
@@ -277,8 +278,7 @@ async def run_retry() -> dict:
 
 BUDGET_MAX_CALLS = 40
 BUDGET_PROMPT = "Write about 300 words explaining how a retry with exponential backoff works, with an example."
-# Bifrost's management API is closed to scripts until you send this. It matches `setup_token` in bifrost/config.json.
-BIFROST_SETUP_TOKEN = os.environ.get("BIFROST_SETUP_TOKEN", "evalix-local-setup")
+BIFROST_SETUP_TOKEN = config.BIFROST_SETUP_TOKEN
 
 
 def _call_cost(model: str, usage: dict) -> float | None:
@@ -324,7 +324,7 @@ async def _bifrost_spent(client: httpx.AsyncClient, key_id: str) -> float | None
         return None
 
 
-async def _budget_once(kind: str, value: float) -> dict:
+async def _budget_once(kind: str, value: float, name: str = "budget") -> dict:
     started = time.monotonic()
     model = prefs.agent_model()
     calls: list[dict] = []
@@ -333,9 +333,9 @@ async def _budget_once(kind: str, value: float) -> dict:
         try:
             key_id, key_value = await _make_key(client, kind, value)
         except httpx.HTTPError as exc:
-            return _unreachable("budget", started, exc)
+            return _unreachable(name, started, exc)
         except RuntimeError as exc:
-            return _result("budget", False, str(exc), started)
+            return _result(name, False, str(exc), started)
         try:
             for n in range(1, BUDGET_MAX_CALLS + 1):
                 payload = {"model": f"gemini/{model}", "stream": False, "max_tokens": 600,
@@ -344,7 +344,7 @@ async def _budget_once(kind: str, value: float) -> dict:
                 try:
                     resp = await _post(client, payload, {"x-bf-vk": key_value})
                 except httpx.HTTPError as exc:
-                    return _unreachable("budget", started, exc, {"limit_kind": kind, "limit_value": value})
+                    return _unreachable(name, started, exc, {"limit_kind": kind, "limit_value": value})
                 call = {"n": n, "at_s": round(sent - started, 1), "status": resp.status_code, "answered_by": "",
                         "note": "", "cost_usd": None, "total_usd": None}
                 calls.append(call)
@@ -388,7 +388,7 @@ async def _budget_once(kind: str, value: float) -> dict:
         headline = (f"Stopped after {passed_calls} calls against a limit of {int(value)} calls." if ok else
                     f"Bifrost let {passed_calls} calls through against a limit of {int(value)} calls.")
     numbers = {"limit_kind": kind, "limit_value": value, "spent_usd": spent, "blocked_at": blocked_at}
-    return _result("budget", ok, headline, started, calls=calls, numbers=numbers)
+    return _result(name, ok, headline, started, calls=calls, numbers=numbers)
 
 
 def limit_reached(total: float, limit: float) -> bool:
@@ -408,6 +408,199 @@ async def run_budget() -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Test 4: too many calls (a calls-per-hour limit on a key)
+# ---------------------------------------------------------------------------
+
+RATE_LIMIT_CALLS = 3
+
+
+async def run_rate() -> dict:
+    result = await _budget_once("calls", RATE_LIMIT_CALLS, name="rate")
+    if result["ok"]:
+        result["headline"] = (f"Calls 1 to {RATE_LIMIT_CALLS} answered. Call {RATE_LIMIT_CALLS + 1} was refused "
+                              "before it reached the model.")
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Test 5: a key that may only use one model
+# ---------------------------------------------------------------------------
+
+def _models_for_access() -> tuple[str, str]:
+    allowed, blocked = prefs.agent_model(), prefs.judge_model()
+    if blocked == allowed:
+        blocked = "gemini-3.8-flash" if allowed != "gemini-3.8-flash" else "gemini-3.5-flash-lite"
+    return allowed, blocked
+
+
+async def run_access() -> dict:
+    started = time.monotonic()
+    allowed, blocked = _models_for_access()
+    numbers = {"allowed_model": f"gemini/{allowed}", "blocked_model": f"gemini/{blocked}"}
+    body = {"name": f"evalix-access-test-{int(time.time() * 1000)}", "is_active": True,
+            "provider_configs": [{"provider": "gemini", "weight": 1.0, "allowed_models": [allowed], "key_ids": ["*"]}]}
+    calls: list[dict] = []
+    async with httpx.AsyncClient(timeout=60) as client:
+        try:
+            resp = await client.post(f"{config.BIFROST_URL}/api/governance/virtual-keys", json=body,
+                                     headers={"X-Bifrost-Setup-Token": BIFROST_SETUP_TOKEN})
+            if resp.status_code != 200:
+                return _result("access", False, f"Bifrost would not make a test key: {_error_text(resp)}",
+                               started, numbers=numbers)
+            key = resp.json()["virtual_key"]
+        except httpx.HTTPError as exc:
+            return _unreachable("access", started, exc, numbers)
+        try:
+            for n, model in enumerate((allowed, blocked), start=1):
+                payload = {"model": f"gemini/{model}", "stream": False, "max_tokens": 20,
+                           "messages": [{"role": "user", "content": "Reply with the word OK."}]}
+                sent = time.monotonic()
+                try:
+                    resp = await _post(client, payload, {"x-bf-vk": key["value"]})
+                except httpx.HTTPError as exc:
+                    return _unreachable("access", started, exc, numbers)
+                ok_call = resp.status_code == 200
+                note = (f"Allowed: gemini/{model} is on the key's list" if ok_call else
+                        f"Blocked: gemini/{model} is not on the key's list" if resp.status_code == 403 else
+                        f"Failed: {_error_text(resp)}")
+                calls.append({"n": n, "at_s": round(sent - started, 1), "status": resp.status_code,
+                              "answered_by": answered_by(resp.json()) if ok_call else "", "note": note,
+                              "cost_usd": None, "total_usd": None})
+        finally:
+            await _drop_key(client, key["id"])
+    ok = [c["status"] for c in calls] == [200, 403]
+    headline = ("The allowed model answered. The other one was refused with 403 before any money was spent."
+                if ok else "Bifrost did not refuse the model that isn't on the key's list.")
+    return _result("access", ok, headline, started, calls=calls, numbers=numbers)
+
+
+# ---------------------------------------------------------------------------
+# One call, followed through Bifrost
+# ---------------------------------------------------------------------------
+
+TRACE_PROMPT = "In one short sentence, what does an AI gateway do?"
+
+
+async def _bifrost_logs(client: httpx.AsyncClient, limit: int = 50) -> list[dict]:
+    resp = await client.get(f"{config.BIFROST_URL}/api/logs", params={"limit": limit},
+                            headers={"X-Bifrost-Setup-Token": BIFROST_SETUP_TOKEN})
+    resp.raise_for_status()
+    return resp.json().get("logs") or []
+
+
+def _log_view(log: dict) -> dict:
+    def num(key):
+        value = log.get(key)
+        return round(float(value), 2) if isinstance(value, (int, float)) else None
+    cost = log.get("cost")
+    return {"at": log.get("timestamp") or "", "model": f"{log.get('provider', '')}/{log.get('model', '')}".strip("/"),
+            "ok": log.get("status", "success") == "success", "latency_ms": num("latency"),
+            "overhead_ms": num("overhead_latency"), "cost_usd": round(cost, 6) if isinstance(cost, (int, float)) else None,
+            "retries": int(log.get("number_of_retries") or 0), "used_backup": int(log.get("fallback_index") or 0) > 0,
+            "key": log.get("selected_key_name"), "virtual_key": log.get("virtual_key_name")}
+
+
+async def _find_log(client: httpx.AsyncClient, key_id: str | None, after_iso: str) -> dict | None:
+    """Bifrost writes its log a moment after the reply, so look a few times."""
+    for _ in range(12):  # up to about 6 s; a brand-new key's first entry can take a few seconds
+        await asyncio.sleep(0.5)
+        try:
+            for log in await _bifrost_logs(client, 20):
+                if (key_id is None or log.get("virtual_key_id") == key_id) and (log.get("timestamp") or "") >= after_iso:
+                    return log
+        except (httpx.HTTPError, ValueError):
+            return None
+    return None
+
+
+def _trace_stops(me: Who, key: dict | None, log: dict | None, status: int) -> list[dict]:
+    view = _log_view(log) if log else None
+    if key:
+        key_line = f"Checked the key “{key['name']}”. It may use Gemini models, so the call went on."
+    else:
+        key_line = "No key was sent, so Bifrost used its open default access."
+    if me.role == "member":
+        a = allowance.status(me.role, me.workspace)
+        limits_line = (f"Your key has a ${a['daily_usd']:g} daily budget. ${a['spent_today_usd']:.4f} is used "
+                       "today, so the call was allowed.")
+    else:
+        limits_line = "This key has no budget or rate limit, so nothing held the call back."
+    slot = (view or {}).get("key") or "the only key slot"
+    route_line = f"Sent to Gemini using key slot “{slot}”. Only one slot is set up here, so it gets every call."
+    retries = (view or {}).get("retries", 0)
+    retry_line = "The model answered first time, so no retry was needed." if not retries else         f"Bifrost retried {retries} {'time' if retries == 1 else 'times'} before the model answered."
+    backup = (view or {}).get("used_backup")
+    fallback_line = "A backup model answered instead." if backup else "The main model answered, so no backup was needed."
+    if view and view["latency_ms"] is not None:
+        overhead = f"Bifrost itself added {view['overhead_ms']:.1f} ms. " if view["overhead_ms"] is not None else ""
+        cost = f"Cost ${view['cost_usd']:.6f}." if view["cost_usd"] is not None else ""
+        log_line = f"Written to the log: {view['latency_ms']:.0f} ms in all. {overhead}{cost}".strip()
+    else:
+        log_line = "Bifrost's log entry for this call didn't show up in time."
+    if status != 200:
+        retry_line = f"The call failed with status {status}."
+    return [{"id": "key", "result": key_line}, {"id": "limits", "result": limits_line},
+            {"id": "route", "result": route_line},
+            {"id": "cache", "result": "No cache is set up here, so the call went to the model."},
+            {"id": "retry", "result": retry_line}, {"id": "fallback", "result": fallback_line},
+            {"id": "log", "result": log_line}]
+
+
+async def run_trace(me: Who) -> dict:
+    model = "gemini/" + prefs.agent_model()
+    if config.MOCK:
+        fake_log = {"selected_key_name": "gemini-key-1", "number_of_retries": 0, "fallback_index": 0,
+                    "latency": 840.0, "overhead_latency": 2.1, "cost": 0.000041}
+        return {"ok": True, "simulated": True, "model": model,
+                "answer": "It sits between your app and AI models, routing, limiting and logging every call.",
+                "stops": _trace_stops(me, {"name": "evalix-walkthrough"}, fake_log, 200),
+                "latency_ms": 840, "overhead_ms": 2.1, "cost_usd": 0.000041}
+    key = await (allowance.workspace_key(me.workspace, me.role) if me.role == "member" else allowance.trace_key())
+    payload = {"model": model, "stream": False, "max_tokens": 60,
+               "messages": [{"role": "user", "content": TRACE_PROMPT}]}
+    after = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    async with httpx.AsyncClient(timeout=60) as client:
+        sent = time.monotonic()
+        try:
+            resp = await _post(client, payload, {"x-bf-vk": key["value"]} if key else {})
+        except httpx.HTTPError as exc:
+            raise HTTPException(status_code=502, detail=f"Could not reach Bifrost at {config.BIFROST_URL} "
+                                                        f"({type(exc).__name__}).")
+        latency = int((time.monotonic() - sent) * 1000)
+        answer = ""
+        if resp.status_code == 200:
+            try:
+                answer = str(resp.json()["choices"][0]["message"].get("content") or "")[:200]
+            except (ValueError, KeyError, IndexError):
+                answer = ""
+        log = await _find_log(client, key and key["id"], after)
+    view = _log_view(log) if log else {}
+    return {"ok": resp.status_code == 200, "simulated": False, "model": model,
+            "answer": answer if resp.status_code == 200 else _error_text(resp),
+            "stops": _trace_stops(me, key, log, resp.status_code), "latency_ms": latency,
+            "overhead_ms": view.get("overhead_ms"), "cost_usd": view.get("cost_usd")}
+
+
+async def recent_logs(me: Who, limit: int) -> list[dict]:
+    if config.MOCK:
+        return []
+    mine = None
+    if me.role == "member":
+        key = store.get_setting(f"vk:{me.workspace}")
+        if not key:
+            return []
+        mine = key["id"]
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            logs = await _bifrost_logs(client, 100 if mine else limit)
+    except (httpx.HTTPError, ValueError):
+        raise HTTPException(status_code=502, detail="Could not read Bifrost's log. Is Bifrost running?")
+    if mine:
+        logs = [log for log in logs if log.get("virtual_key_id") == mine]
+    return [_log_view(log) for log in logs[:limit]]
+
+
+# ---------------------------------------------------------------------------
 # Test mode: fixed results, nothing is sent
 # ---------------------------------------------------------------------------
 
@@ -424,6 +617,24 @@ def _simulated(name: str) -> dict:
                          for n in range(1, FALLBACK_CALLS + 1)]
         base["numbers"] = {"main_hits": FALLBACK_CALLS, "backup_hits": FALLBACK_CALLS, "errors_seen": 0,
                            "added_s_per_call": 0.4}
+    elif name == "access":
+        allowed, blocked = _models_for_access()
+        base["headline"] = "The allowed model answered. The other one was refused with 403 before any money was spent."
+        base["seconds"] = 1.4
+        base["calls"] = [{"n": 1, "at_s": 0.0, "status": 200, "answered_by": f"gemini/{allowed}",
+                          "note": f"Allowed: gemini/{allowed} is on the key's list", "cost_usd": None, "total_usd": None},
+                         {"n": 2, "at_s": 0.9, "status": 403, "answered_by": "",
+                          "note": f"Blocked: gemini/{blocked} is not on the key's list", "cost_usd": None, "total_usd": None}]
+        base["numbers"] = {"allowed_model": f"gemini/{allowed}", "blocked_model": f"gemini/{blocked}"}
+    elif name == "rate":
+        n = RATE_LIMIT_CALLS
+        base["headline"] = f"Calls 1 to {n} answered. Call {n + 1} was refused before it reached the model."
+        base["seconds"] = 3.6
+        base["calls"] = [{"n": i, "at_s": round((i - 1) * 0.9, 1), "status": 200 if i <= n else 429,
+                          "answered_by": backup if i <= n else "",
+                          "note": "Let it through" if i <= n else "Blocked: over its limit",
+                          "cost_usd": None, "total_usd": None} for i in range(1, n + 2)]
+        base["numbers"] = {"limit_kind": "calls", "limit_value": n, "spent_usd": 0.0, "blocked_at": n + 1}
     elif name == "retry":
         base["headline"] = "Answered on the 3rd try after 3.2 s. The caller just saw a slower reply."
         base["seconds"] = 3.2
@@ -459,7 +670,8 @@ def _simulated(name: str) -> dict:
 # Routes
 # ---------------------------------------------------------------------------
 
-RUNNERS = {"fallback": run_fallback, "retry": run_retry, "budget": run_budget}
+RUNNERS = {"fallback": run_fallback, "retry": run_retry, "budget": run_budget, "rate": run_rate,
+           "access": run_access}
 
 
 async def _bifrost_up() -> bool | None:
@@ -507,11 +719,21 @@ async def gateway_status():
     return await _status()
 
 
+@router.post("/api/gateway/trace", dependencies=[Depends(require_member)])
+async def gateway_trace(me: Who = Depends(who)):
+    return await run_trace(me)
+
+
+@router.get("/api/gateway/logs")
+async def gateway_logs(limit: int = 8, me: Who = Depends(who)):
+    return await recent_logs(me, max(1, min(limit, 20)))
+
+
 class MainModelBody(BaseModel):
     down: bool
 
 
-@router.put("/api/gateway/main-model", dependencies=[Depends(require_owner)])
+@router.put("/api/gateway/main-model", dependencies=[Depends(require_member)])
 async def set_main_model(body: MainModelBody):
     global main_model_down
     if running == "fallback":
@@ -521,7 +743,7 @@ async def set_main_model(body: MainModelBody):
 
 
 # "all" must be listed before "{name}" so it is not read as a test name.
-@router.post("/api/gateway/tests/all", dependencies=[Depends(require_owner)])
+@router.post("/api/gateway/tests/all", dependencies=[Depends(require_member)])
 async def run_all():
     global running
     _claim("fallback")
@@ -535,11 +757,11 @@ async def run_all():
         running = None
 
 
-@router.post("/api/gateway/tests/{name}", dependencies=[Depends(require_owner)])
+@router.post("/api/gateway/tests/{name}", dependencies=[Depends(require_member)])
 async def run_test(name: str):
     global running
     if name not in NAMES:
-        raise HTTPException(status_code=404, detail="No such test. Use fallback, retry or budget.")
+        raise HTTPException(status_code=404, detail="No such test. Use fallback, retry, budget, rate or access.")
     _claim(name)
     try:
         return await _run_one(name)

@@ -4,7 +4,7 @@ This is the deal between the backend (`backend/`, FastAPI) and the web app (`fro
 If the two disagree, this file wins. Change this file first, then the code.
 
 Marks used below: **[same]** already works this way, **[changed]** works but gets new fields or rules,
-**[new]** not built before this spec.
+**[new]** not built before this spec, **[v2]** added on 2026-11-15 (workspaces, follow-up questions, the gateway walk-through).
 
 ---
 
@@ -22,6 +22,7 @@ Marks used below: **[same]** already works this way, **[changed]** works but get
   | :--- | :--- |
   | 400 | The request is wrong (missing field, bad value) |
   | 401 | Sign-in failed (bad Google token) |
+  | 402 | Over a daily limit (a member's spending or live-search allowance for today) |
   | 403 | Not allowed (a guest tried to change something) |
   | 404 | No such thing |
   | 409 | Can't do it right now (for example, a gateway test is already running) |
@@ -30,25 +31,49 @@ Marks used below: **[same]** already works this way, **[changed]** works but get
 * **Agent doors are not part of this API.** `/runs/{run_id}/tools*`, `/runs/{run_id}/model/*`,
   `/studio-agents/*` and `/fake-model/*` are for agents and Bifrost only. They never need sign-in.
 
-## 2. Sign-in and who may do what
+## 2. Sign-in, workspaces and who may do what
 
 There are three kinds of session, kept in a signed, HttpOnly cookie called `evalix_session`
 (7 days, `SameSite=Lax`, signed with `EVALIX_SECRET`; if that is unset, a random secret is made at start-up).
 
-| Session | How you get it | Role |
+| Session | How you get it | Role | Workspace |
+| :--- | :--- | :--- | :--- |
+| `google` | "Continue with Google", email on `EVALIX_OWNER_EMAILS` (or that list is empty) | `owner` | the main one |
+| `google` | "Continue with Google", any other verified email (refused if `EVALIX_ALLOWED_EMAILS` is set and it isn't on it) | `member` | their own, starts empty |
+| `local` | "Continue on this computer". Only offered when Google sign-in is not set up | `owner` | the main one |
+| `guest` | "Look around first, no sign-in" | `guest` | the main one, read only, shown as an example |
+
+**No cookie at all:** `owner` if `GOOGLE_CLIENT_ID` is unset (so scripts, tests and `curl` keep working on
+your own machine), and `guest` if it is set.
+
+**Workspaces [v2].** Every agent, benchmark (with its runs and steps) and studio agent belongs to one workspace.
+Every read is limited to the caller's workspace; something in another workspace is a `404`, as if it did not
+exist. A member's workspace id is a hash of their Google account id (`sub`), never the email. Everything made
+before workspaces existed belongs to the main workspace.
+
+**Who may do what.**
+
+| Mark | Who | Used for |
 | :--- | :--- | :--- |
-| `google` | "Continue with Google" | `owner` if the email is on `EVALIX_OWNER_EMAILS` (or that list is empty), else `guest`. Refused if not on `EVALIX_ALLOWED_EMAILS` (when set) |
-| `local` | "Continue on this computer". Only offered when Google sign-in is not set up | `owner` |
-| `guest` | "Look around first, no sign-in" | `guest` |
+| ✍️ | `owner` or `member` | changing things in your own workspace: agents, runs, Agent Studio, gateway tests |
+| 🔑 | `owner` only | keys, models and other Settings changes, sending to Maxim |
 
-**No cookie at all:** the role is `owner` if `GOOGLE_CLIENT_ID` is unset (so scripts, tests and `curl`
-keep working on your own machine), and `guest` if it is set.
+A guest gets `403 {"detail": "Sign in to do this. You're looking around as a guest."}`. A member on a 🔑 route
+gets `403 {"detail": "Only the owner of this Evalix can change this."}`. The owner list is read on every
+request, so editing it takes effect without signing in again.
 
-**Guests can read everything but change nothing.** Every route marked ✍️ below needs role `owner`.
-A guest gets `403 {"detail": "Sign in to do this. You're looking around as a guest."}`. Someone signed in with a
-Google account that isn't on the owner list gets
-`403 {"detail": "Your Google account can look around here but not change things. Ask the owner to add you."}`.
-The owner list is read on every request, so editing it takes effect without signing in again.
+**Daily limits for members [v2].** Members run on the owner's API keys, so each has a daily allowance
+(UTC days):
+
+* **Spending:** `EVALIX_MEMBER_DAILY_USD` (default `0.25`) of model calls. Checked twice: before a benchmark
+  starts (`402 {"detail": "You've used today's $0.25 for runs. It resets at midnight UTC."}`), and by Bifrost
+  itself, because every model call a member's agents make goes through a Bifrost virtual key made for that
+  workspace with a budget of the same amount that resets every day. A call Bifrost refuses ends that run as a
+  setup problem, "daily spending limit reached".
+* **Live web search:** `EVALIX_MEMBER_DAILY_SEARCHES` (default `60`) live searches. A benchmark with
+  `live_mode: true` is refused with `402` once they are used up; saved search results always work.
+
+The owner has no daily limit.
 
 **How a Google sign-in is checked.** Google's button gives the browser an ID token, which it sends to
 `POST /api/auth/google`. The backend checks it itself with `google-auth`: Google's signature, audience =
@@ -61,7 +86,9 @@ fetched. Bad token: `401`. Google unreachable: `502`. More than 10 sign-in attem
 | Name | Meaning |
 | :--- | :--- |
 | `GOOGLE_CLIENT_ID` | Turns on Google sign-in. Unset means "Continue on this computer" is offered instead |
-| `EVALIX_OWNER_EMAILS` | Comma list. Google accounts that may change things. Empty means every Google account that may sign in |
+| `EVALIX_OWNER_EMAILS` | Comma list. Google accounts that use the main workspace and may change Settings. Empty means every Google account that may sign in |
+| `EVALIX_MEMBER_DAILY_USD` | A member's daily spending allowance, in dollars. Default `0.25` |
+| `EVALIX_MEMBER_DAILY_SEARCHES` | A member's daily live web searches. Default `60` |
 | `EVALIX_ALLOWED_EMAILS` | Comma list. If set, only these Google accounts may sign in |
 | `EVALIX_SECRET` | Signs the cookie |
 
@@ -73,13 +100,18 @@ field names.
 ```ts
 // ---------- sign-in ----------
 type SessionKind = 'google' | 'local' | 'guest'
-type Role = 'owner' | 'guest'
+type Role = 'owner' | 'member' | 'guest'
 
 interface Me {
   session: SessionKind | null      // null = never chose; the web app shows the sign-in page
   role: Role                       // what the backend will allow right now
   user: { name: string; email: string; picture: string | null } | null   // only for google
   google_client_id: string | null  // null = Google sign-in is not set up on this server
+  workspace: 'own' | 'example'     // [v2] example = a guest looking at the main workspace, read only
+  allowance: {                     // [v2] what's left today. null limits = no limit (the owner)
+    daily_usd: number | null; spent_today_usd: number
+    daily_searches: number | null; searches_today: number
+  }
 }
 
 // ---------- health ----------
@@ -231,12 +263,45 @@ interface ComparePair { position: number; a: Step | null; b: Step | null; same: 
 interface CompareResult { a: RunDetail; b: RunDetail; pairs: ComparePair[]; first_difference: number | null }
 
 // ---------- Agent Studio ----------
-interface StudioQuestion { id: string; text: string }
+// [v2] The questions are written by the model for each description, so they differ every time.
+interface StudioQuestion {
+  id: string                       // "q1", "q2"...
+  text: string                     // "Which sources should it trust most?"
+  choices: string[]                // 2 to 4 short answers. The UI adds its own "Something else" box
+}
+interface StudioAnswer { id: string; question: string; answer: string }   // answer = a choice or the person's own words
 interface StudioSetup { name: string; instructions: string; retries: number; double_check: boolean; stop_when_unsure: boolean }
 interface StudioResult { agent: Agent; setup: StudioSetup }
 
-// ---------- gateway tests ----------
-type GatewayTestName = 'fallback' | 'retry' | 'budget'
+// ---------- gateway ----------
+type GatewayTestName = 'fallback' | 'retry' | 'budget' | 'rate' | 'access'   // [v2] adds rate, access
+
+// [v2] The stops one model call passes inside Bifrost, in order. The UI owns the words for each stop.
+type GatewayStopId = 'key' | 'limits' | 'route' | 'cache' | 'retry' | 'fallback' | 'log'
+
+interface GatewayTrace {           // [v2] one real call, followed through Bifrost
+  ok: boolean
+  simulated: boolean               // true in test mode
+  model: string                    // "gemini/gemini-3.5-flash-lite"
+  answer: string                   // the model's reply, cut to 200 characters
+  stops: { id: GatewayStopId; result: string }[]   // what happened at each stop, one plain line each
+  latency_ms: number               // the whole call, as the caller saw it
+  overhead_ms: number | null       // the time Bifrost itself added, from Bifrost's log
+  cost_usd: number | null          // from Bifrost's log
+}
+
+interface GatewayLogEntry {        // [v2] one call from Bifrost's own log. No prompts or replies
+  at: string
+  model: string                    // "gemini/gemini-3.5-flash-lite"
+  ok: boolean
+  latency_ms: number | null
+  overhead_ms: number | null
+  cost_usd: number | null
+  retries: number
+  used_backup: boolean
+  key: string | null               // provider key slot, e.g. "gemini-key-1"
+  virtual_key: string | null       // e.g. "evalix-you-3f2a"
+}
 
 interface GatewayStatus {
   bifrost_up: boolean | null       // null in test mode
@@ -284,8 +349,10 @@ interface GatewayTestResult {
     main_hits?: number; backup_hits?: number; errors_seen?: number; added_s_per_call?: number
     // test 2
     answered_on_try?: number | null
-    // test 3
+    // budget and rate
     limit_kind?: 'usd' | 'calls'; limit_value?: number; spent_usd?: number; blocked_at?: number | null
+    // access
+    allowed_model?: string; blocked_model?: string
   }
 }
 
@@ -328,7 +395,8 @@ interface SettingsUpdate {         // every field optional
 
 ## 4. Routes
 
-✍️ = needs role `owner` (see section 2).
+✍️ = `owner` or `member`, acting on their own workspace. 🔑 = `owner` only (see section 2).
+Every read below is limited to the caller's workspace.
 
 ### Sign-in [new]
 
@@ -347,10 +415,11 @@ interface SettingsUpdate {         // every field optional
 | `GET /api/health` | | `Health` | [changed] adds `judge_model`, `bifrost_up`, `search_mode` |
 | `GET /api/agents` | | `Agent[]` | [changed] adds `tag`, `description`. The four built-in agents get the tags and sentences from the design (below) |
 | ✍️ `POST /api/agents` | `{name, url, tag?, description?}` | `Agent` | [changed] |
+| ✍️ `POST /api/agents/samples` | | `Agent[]` | [v2] Adds the four sample agents below to your workspace (skips ones already there). Returns the workspace's agents |
 | `GET /api/tasks` | | `Task[]` | [same] |
 | `GET /api/faults` | | `Fault[]` | [changed] adds `short` |
 
-Built-in agent words:
+Sample agent words (the main workspace gets them at start-up; others add them with `POST /api/agents/samples`):
 
 | Agent | `tag` | `description` |
 | :--- | :--- | :--- |
@@ -369,12 +438,12 @@ tool_gone "Search never works. The right move is to stop".
 
 | Method and path | Body | Returns | Mark |
 | :--- | :--- | :--- | :--- |
-| ✍️ `POST /api/benchmarks` | `StartBenchmarkBody` | `{id: number}` | [same]. Uses the agent model from Settings at the moment it starts |
+| ✍️ `POST /api/benchmarks` | `StartBenchmarkBody` | `{id: number}` | [changed] Uses the agent model from Settings at the moment it starts. Only agents in your workspace. 402 when a member is over a daily limit |
 | `GET /api/benchmarks` | | `BenchmarkListItem[]` | [changed] adds `total_cost`, `agent_count` |
 | `GET /api/benchmarks/{id}` | | `BenchmarkDetail` | [changed] see types |
 | `GET /api/benchmarks/{id}/events` | | SSE stream | [same], see section 5 |
 | ✍️ `POST /api/benchmarks/{id}/cancel` | | `{ok: true}` | [same] |
-| ✍️ `POST /api/benchmarks/{id}/export-maxim` | | `{ok, traces_sent, note}` | [same] |
+| 🔑 `POST /api/benchmarks/{id}/export-maxim` | | `{ok, traces_sent, note}` | [same] |
 | `GET /api/runs/{run_id}` | | `RunDetail` | [changed] adds `checks`, `task_text`, `fault_short`, `model`; steps add `at_ms` |
 | `GET /api/steps/{step_id}` | | `Step` (full JSON) | [same] |
 | `GET /api/compare?a={run_id}&b={run_id}` | | `CompareResult` | [same] |
@@ -387,24 +456,39 @@ failure. Example for a pass: `[{"label":"Gave an answer instead of giving up","o
 "Stopped instead of guessing", "Said why it stopped", "Didn't make up an answer". A crash gives one failed check
 with the crash reason.
 
-### Agent Studio [same]
+### Agent Studio [v2]
 
 | Method and path | Body | Returns |
 | :--- | :--- | :--- |
-| `GET /api/studio/questions` | | `StudioQuestion[]` |
-| ✍️ `POST /api/studio/agents` | `{description: string, answers: Record<string, boolean>}` | `StudioResult` |
+| ✍️ `POST /api/studio/questions` | `{description: string}` | `{questions: StudioQuestion[]}` |
+| ✍️ `POST /api/studio/agents` | `{description: string, answers: StudioAnswer[]}` | `StudioResult` |
 | `GET /api/studio/agents/{agent_id}` | | `StudioSetup` |
+
+**Follow-up questions.** One model call reads the description and writes 2 to 4 questions that matter for
+*that* agent (which sources to trust, what to do when search fails, how sure it must be, what to leave out),
+each with 2 to 4 short choices. The person picks a choice or types their own answer. A second model call turns
+the description and the answers into the setup; it decides `retries`, `double_check` and `stop_when_unsure`
+from what the person said. If the first call fails, or in test mode, a fixed set of three questions is
+returned instead. The source label for these agents in the UI is "Agent Studio".
 
 "Agents you've made" = `GET /api/agents` filtered to `source == 'studio'`.
 
-### Gateway tests [new] (replaces `POST /api/gateway-test`)
+### Gateway [v2]
+
+The gateway page follows one model call through Bifrost's stops, in order: **key** (which virtual key and what
+it may use), **limits** (budgets and calls per hour), **route** (which provider and key slot), **cache**,
+**retry** (with backoff), **fallback** (backup model) and **log** (cost, time, Bifrost's own overhead).
+Five stops can be shown with real calls; route and cache are explained but not run here (they need a second
+key and a vector store).
 
 | Method and path | Body | Returns | Notes |
 | :--- | :--- | :--- | :--- |
 | `GET /api/gateway/status` | | `GatewayStatus` | |
-| ✍️ `PUT /api/gateway/main-model` | `{down: boolean}` | `GatewayStatus` | The switch for test 1 |
-| ✍️ `POST /api/gateway/tests/{name}` | | `GatewayTestResult` | `name` is `fallback`, `retry` or `budget`. Waits until the test ends (up to about 60 s). 409 if a test is already running |
-| ✍️ `POST /api/gateway/tests/all` | | `{results: GatewayTestResult[]}` | Runs the three in order |
+| ✍️ `POST /api/gateway/trace` | | `GatewayTrace` | One small real call with a virtual key, then Bifrost's log entry for it. A member's call uses their own workspace key |
+| `GET /api/gateway/logs?limit=8` | | `GatewayLogEntry[]` | Newest first, at most 20. Read from Bifrost's log. A member sees only calls made with their own key |
+| ✍️ `PUT /api/gateway/main-model` | `{down: boolean}` | `GatewayStatus` | The switch for the fallback test |
+| ✍️ `POST /api/gateway/tests/{name}` | | `GatewayTestResult` | `name` is `fallback`, `retry`, `budget`, `rate` or `access`. Waits until the test ends (up to about 60 s). 409 if a test is already running |
+| ✍️ `POST /api/gateway/tests/all` | | `{results: GatewayTestResult[]}` | Runs every test in order |
 
 What each test does (all calls go through Bifrost at `BIFROST_URL`; Evalix only causes the problem):
 
@@ -424,18 +508,24 @@ What each test does (all calls go through Bifrost at `BIFROST_URL`; Evalix only 
    is at the limit or just over it (Bifrost lets the call that crosses the limit through, then blocks the next).
    Each test starts with a fresh limit. If Bifrost can't price the model (it never blocks on dollars), use a
    per-key call limit instead and report `limit_kind: 'calls'`. The UI then says "a limit of 10 calls".
+4. **`rate`: too many calls.** A fresh virtual key allowed 3 calls an hour. The test sends calls until one is
+   refused. Pass = calls 1 to 3 answered and call 4 got 429. `numbers`: `limit_kind: 'calls'`,
+   `limit_value: 3`, `blocked_at`.
+5. **`access`: a key that may only use one model.** A fresh virtual key whose `allowed_models` is only the
+   agent model. The test asks the agent model (should answer) and then the judge model (should be refused).
+   Pass = 200 then 403. `numbers`: `allowed_model`, `blocked_model`.
 
-In test mode (`EVALIX_MOCK=1`) every test returns a fixed, believable result with `simulated: true`,
-and sends nothing.
+In test mode (`EVALIX_MOCK=1`) every test and the trace return a fixed, believable result with
+`simulated: true`, and send nothing.
 
 ### Settings [new]
 
 | Method and path | Body | Returns | Notes |
 | :--- | :--- | :--- | :--- |
 | `GET /api/settings` | | `Settings` | |
-| ✍️ `PUT /api/settings` | `SettingsUpdate` | `Settings` | Saved in the database. Applies to the next run, never to a running one. 400 for an unknown model or one whose key is missing |
-| ✍️ `PUT /api/settings/keys/{provider}` | `{value: string}` | `KeyStatus` | Saves the key to the local `.env` (keeps every other line) and to this process. Never echoes the key. For `openai` / `anthropic` it also adds the provider to `bifrost/config.json` as `env.<NAME>` and sets `pending_restart` |
-| ✍️ `POST /api/settings/keys/{provider}/test` | | `{ok: boolean, note: string}` | A cheap check that the key works (for example, listing models). Never spends search credits |
+| 🔑 `PUT /api/settings` | `SettingsUpdate` | `Settings` | Saved in the database. Applies to the next run, never to a running one. 400 for an unknown model or one whose key is missing |
+| 🔑 `PUT /api/settings/keys/{provider}` | `{value: string}` | `KeyStatus` | Saves the key to the local `.env` (keeps every other line) and to this process. Never echoes the key. For `openai` / `anthropic` it also adds the provider to `bifrost/config.json` as `env.<NAME>` and sets `pending_restart` |
+| 🔑 `POST /api/settings/keys/{provider}/test` | | `{ok: boolean, note: string}` | A cheap check that the key works (for example, listing models). Never spends search credits |
 
 Key names in `.env`: google `GEMINI_API_KEY`, tavily `TAVILY_API_KEY`, maxim `MAXIM_API_KEY`,
 openai `OPENAI_API_KEY`, anthropic `ANTHROPIC_API_KEY`.

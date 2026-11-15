@@ -8,6 +8,7 @@ import hmac
 import json
 import secrets
 import time
+from dataclasses import dataclass
 
 from collections import defaultdict, deque
 
@@ -25,7 +26,7 @@ router = APIRouter()
 COOKIE = "evalix_session"
 WEEK = 7 * 24 * 3600
 GUEST_MESSAGE = "Sign in to do this. You're looking around as a guest."
-VIEWER_MESSAGE = "Your Google account can look around here but not change things. Ask the owner to add you."
+MEMBER_MESSAGE = "Only the owner of this Evalix can change this."
 
 # Used when EVALIX_SECRET is not set. A new one is made at every start-up.
 _random_secret = secrets.token_hex(32)
@@ -82,32 +83,67 @@ def current_session(request: Request) -> dict | None:
     return session
 
 
+MAIN = "main"  # the owner's workspace; everything made before workspaces existed is here
+
+
 def role_of(session: dict | None) -> str:
+    """owner, member or guest (spec/api.md section 2)."""
     if session is None:
         return "guest" if config.GOOGLE_CLIENT_ID else "owner"
     if session["kind"] == "guest":
         return "guest"
     if session["kind"] == "google" and config.OWNER_EMAILS:
         # Checked on every request, so editing EVALIX_OWNER_EMAILS takes effect at once.
-        return "owner" if str(session.get("email", "")).lower() in config.OWNER_EMAILS else "guest"
+        return "owner" if str(session.get("email", "")).lower() in config.OWNER_EMAILS else "member"
     return "owner"
 
 
-def require_owner(request: Request) -> None:
-    """FastAPI dependency for routes that change things. Raises 403 for guests."""
+def workspace_of(session: dict | None) -> str:
+    """A member's own workspace id: a hash of their Google account id, never the email itself."""
+    if role_of(session) != "member":
+        return MAIN
+    who = str(session.get("sub") or session.get("email", "")).lower()
+    return "u" + hashlib.sha256(f"evalix-workspace:{who}".encode()).hexdigest()[:16]
+
+
+@dataclass(frozen=True)
+class Who:
+    role: str        # owner | member | guest
+    workspace: str   # "main" or "u<16 hex>"
+    session: dict | None
+
+
+def who(request: Request) -> Who:
+    """FastAPI dependency: who is asking, and which workspace they see."""
     session = current_session(request)
-    if role_of(session) != "owner":
-        viewer = session is not None and session["kind"] == "google"
-        raise HTTPException(status_code=403, detail=VIEWER_MESSAGE if viewer else GUEST_MESSAGE)
+    return Who(role_of(session), workspace_of(session), session)
+
+
+def require_member(request: Request) -> None:
+    """FastAPI dependency for routes that change things in your own workspace. Guests get 403."""
+    if role_of(current_session(request)) == "guest":
+        raise HTTPException(status_code=403, detail=GUEST_MESSAGE)
+
+
+def require_owner(request: Request) -> None:
+    """FastAPI dependency for Settings, keys and Maxim. Only the owner."""
+    role = role_of(current_session(request))
+    if role != "owner":
+        raise HTTPException(status_code=403, detail=MEMBER_MESSAGE if role == "member" else GUEST_MESSAGE)
 
 
 def _me(session: dict | None) -> dict:
+    from app import allowance  # imported here: allowance needs the store, which needs nothing from here
+
     user = None
     if session and session["kind"] == "google":
         user = {"name": session.get("name", ""), "email": session.get("email", ""),
                 "picture": session.get("picture")}
-    return {"session": session["kind"] if session else None, "role": role_of(session), "user": user,
-            "google_client_id": config.GOOGLE_CLIENT_ID or None}
+    role = role_of(session)
+    return {"session": session["kind"] if session else None, "role": role, "user": user,
+            "google_client_id": config.GOOGLE_CLIENT_ID or None,
+            "workspace": "example" if role == "guest" else "own",
+            "allowance": allowance.status(role, workspace_of(session))}
 
 
 def _secure(request: Request) -> bool:
@@ -188,8 +224,8 @@ async def sign_in_google(body: GoogleLogin, request: Request, response: Response
     email = info["email"]
     if config.ALLOWED_EMAILS and email.lower() not in config.ALLOWED_EMAILS:
         raise HTTPException(status_code=403, detail="This Google account is not allowed to sign in here.")
-    return _sign_in(request, response, {"kind": "google", "name": info.get("name") or email, "email": email,
-                                        "picture": info.get("picture")})
+    return _sign_in(request, response, {"kind": "google", "sub": str(info["sub"]), "name": info.get("name") or email,
+                                        "email": email, "picture": info.get("picture")})
 
 
 @router.post("/api/auth/local", dependencies=[Depends(sign_in_limit)])

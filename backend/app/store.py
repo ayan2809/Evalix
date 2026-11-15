@@ -60,7 +60,12 @@ NEW_COLUMNS = [
     ("agents", "description", "TEXT NOT NULL DEFAULT ''"),
     ("runs", "checks_json", "TEXT"),
     ("steps", "at_ms", "INTEGER"),
+    # Workspaces (spec/api.md section 2). Everything made before them belongs to the main one.
+    ("agents", "workspace", "TEXT NOT NULL DEFAULT 'main'"),
+    ("benchmarks", "workspace", "TEXT NOT NULL DEFAULT 'main'"),
+    ("studio_agents", "workspace", "TEXT NOT NULL DEFAULT 'main'"),
 ]
+MAIN = "main"
 STUDIO_TAG = "Made from one sentence"
 
 
@@ -132,9 +137,10 @@ def _migrate() -> None:
 
 # ---- agents ----
 
-def add_agent(name: str, url: str, source: str = "registered", tag: str = "", description: str = "") -> dict:
-    agent_id = _run("INSERT INTO agents (name, url, source, created_at, tag, description) VALUES (?,?,?,?,?,?)",
-                    (name, url, source, _now(), tag, description))
+def add_agent(name: str, url: str, source: str = "registered", tag: str = "", description: str = "",
+              workspace: str = MAIN) -> dict:
+    agent_id = _run("INSERT INTO agents (name, url, source, created_at, tag, description, workspace)"
+                    " VALUES (?,?,?,?,?,?,?)", (name, url, source, _now(), tag, description, workspace))
     return get_agent(agent_id)
 
 
@@ -144,8 +150,8 @@ def fill_agent_words(name: str, tag: str, description: str) -> None:
          (tag, description, name))
 
 
-def list_agents() -> list[dict]:
-    return _all("SELECT * FROM agents ORDER BY id")
+def list_agents(workspace: str = MAIN) -> list[dict]:
+    return _all("SELECT * FROM agents WHERE workspace=? ORDER BY id", (workspace,))
 
 
 def get_agent(agent_id: int) -> dict | None:
@@ -154,11 +160,12 @@ def get_agent(agent_id: int) -> dict | None:
 
 # ---- benchmarks ----
 
-def create_benchmark(trials: int, live_mode: bool, total_runs: int, selection: dict | None = None) -> int:
+def create_benchmark(trials: int, live_mode: bool, total_runs: int, selection: dict | None = None,
+                     workspace: str = MAIN) -> int:
     # `selection` remembers which agents, tasks and faults were picked.
-    return _run("INSERT INTO benchmarks (status, trials, live_mode, created_at, total_runs, selection_json)"
-                " VALUES ('running',?,?,?,?,?)",
-                (trials, int(live_mode), _now(), total_runs, _dump(selection)))
+    return _run("INSERT INTO benchmarks (status, trials, live_mode, created_at, total_runs, selection_json, workspace)"
+                " VALUES ('running',?,?,?,?,?,?)",
+                (trials, int(live_mode), _now(), total_runs, _dump(selection), workspace))
 
 
 def set_benchmark_status(benchmark_id: int, status: str) -> None:
@@ -173,8 +180,33 @@ def get_benchmark(benchmark_id: int) -> dict | None:
     return _one("SELECT * FROM benchmarks WHERE id=?", (benchmark_id,))
 
 
-def list_benchmarks() -> list[dict]:
-    return _all("SELECT * FROM benchmarks ORDER BY id DESC")
+def list_benchmarks(workspace: str = MAIN) -> list[dict]:
+    return _all("SELECT * FROM benchmarks WHERE workspace=? ORDER BY id DESC", (workspace,))
+
+
+def run_workspace(run_id: str) -> str | None:
+    """The workspace a run belongs to (through its benchmark)."""
+    row = _one("SELECT b.workspace FROM runs r JOIN benchmarks b ON b.id=r.benchmark_id WHERE r.id=?", (run_id,))
+    return row["workspace"] if row else None
+
+
+def _today() -> str:
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def spent_today(workspace: str) -> float:
+    """Dollars of model calls made today (UTC) by runs in this workspace."""
+    row = _one("SELECT SUM(r.cost_usd) AS total FROM runs r JOIN benchmarks b ON b.id=r.benchmark_id"
+               " WHERE b.workspace=? AND r.started_at >= ?", (workspace, _today()))
+    return float(row["total"] or 0.0) if row else 0.0
+
+
+def live_searches_today(workspace: str) -> int:
+    """Live web searches made today (UTC) by runs in this workspace."""
+    row = _one("SELECT COUNT(*) AS n FROM steps s JOIN runs r ON r.id=s.run_id JOIN benchmarks b ON b.id=r.benchmark_id"
+               " WHERE b.workspace=? AND b.live_mode=1 AND s.kind='tool_call' AND s.name='search' AND r.started_at >= ?",
+               (workspace, _today()))
+    return int(row["n"]) if row else 0
 
 
 def benchmark_costs() -> dict[int, float]:
@@ -259,12 +291,13 @@ def _studio_row(row: dict | None) -> dict | None:
     return {**row, "answers_json": json.loads(row["answers_json"]), "setup_json": json.loads(row["setup_json"])}
 
 
-def add_studio_agent(description: str, answers: dict, setup: dict, public_url: str) -> tuple[dict, dict]:
+def add_studio_agent(description: str, answers, setup: dict, public_url: str,
+                     workspace: str = MAIN) -> tuple[dict, dict]:
     """Save a setup and register its agent. Returns (agent row, studio row)."""
-    studio_id = _run("INSERT INTO studio_agents (description, answers_json, setup_json, created_at)"
-                     " VALUES (?,?,?,?)", (description, _dump(answers), _dump(setup), _now()))
+    studio_id = _run("INSERT INTO studio_agents (description, answers_json, setup_json, created_at, workspace)"
+                     " VALUES (?,?,?,?,?)", (description, _dump(answers), _dump(setup), _now(), workspace))
     agent = add_agent(setup["name"], f"{public_url.rstrip('/')}/studio-agents/{studio_id}", source="studio",
-                      tag=STUDIO_TAG, description=description)
+                      tag=STUDIO_TAG, description=description, workspace=workspace)
     _run("UPDATE studio_agents SET agent_id=? WHERE id=?", (agent["id"], studio_id))
     return agent, get_studio_agent(studio_id)
 

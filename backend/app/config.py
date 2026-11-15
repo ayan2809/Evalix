@@ -14,6 +14,8 @@ TAVILY_API_KEY = os.environ.get("TAVILY_API_KEY", "")
 AGENT_MODEL = os.environ.get("AGENT_MODEL") or "gemini-3.5-flash-lite"
 JUDGE_MODEL = os.environ.get("JUDGE_MODEL") or "gemini-3.8-flash"
 BIFROST_URL = os.environ.get("BIFROST_URL", "http://localhost:8080").rstrip("/")
+# Bifrost's management API is closed to scripts until you send this. It matches `setup_token` in bifrost/config.json.
+BIFROST_SETUP_TOKEN = os.environ.get("BIFROST_SETUP_TOKEN", "evalix-local-setup")
 MOCK = os.environ.get("EVALIX_MOCK", "0") == "1"
 DB_PATH = os.environ.get("EVALIX_DB", str(ROOT / "backend" / "evalix.db"))
 MAX_PARALLEL = max(1, int(os.environ.get("MAX_PARALLEL", "4")))
@@ -28,9 +30,12 @@ def _emails(name: str) -> list[str]:
 
 # Only these Google accounts may sign in at all. Empty means anyone with a verified Google email.
 ALLOWED_EMAILS = _emails("EVALIX_ALLOWED_EMAILS")
-# Google accounts that may change things. Everyone else who signs in with Google can only look.
-# Empty means every Google account that may sign in is an owner.
+# Google accounts that use the main workspace and may change Settings. Everyone else who signs in with
+# Google is a member with their own workspace. Empty means every Google account that may sign in is an owner.
 OWNER_EMAILS = _emails("EVALIX_OWNER_EMAILS")
+# Daily allowance for members (Google accounts not on the owner list), who run on the owner's keys.
+MEMBER_DAILY_USD = float(os.environ.get("EVALIX_MEMBER_DAILY_USD") or 0.25)
+MEMBER_DAILY_SEARCHES = int(os.environ.get("EVALIX_MEMBER_DAILY_SEARCHES") or 60)
 EVALIX_SECRET = os.environ.get("EVALIX_SECRET", "")
 
 # Limits for one run (plan section 9).

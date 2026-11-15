@@ -50,12 +50,14 @@ def mock_reply(state: RunState, body: dict) -> dict:
     }
 
 
-async def _call_bifrost(payload: dict, run_id: str) -> tuple[int, dict | None]:
+async def _call_bifrost(payload: dict, run_id: str, vk: str | None = None) -> tuple[int, dict | None]:
     """One try. Returns (status, json). Status 0 means a network problem."""
+    headers = {"x-bf-dim-run-id": run_id}
+    if vk:
+        headers["x-bf-vk"] = vk  # a member's workspace key: Bifrost enforces their daily budget
     try:
         async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(f"{config.BIFROST_URL}/v1/chat/completions", json=payload,
-                                     headers={"x-bf-dim-run-id": run_id})
+            resp = await client.post(f"{config.BIFROST_URL}/v1/chat/completions", json=payload, headers=headers)
     except httpx.HTTPError:
         return 0, None
     try:
@@ -64,14 +66,22 @@ async def _call_bifrost(payload: dict, run_id: str) -> tuple[int, dict | None]:
         return resp.status_code, None
 
 
-async def forward(payload: dict, run_id: str) -> tuple[int, dict | None]:
+def over_budget(status: int, data) -> bool:
+    """Bifrost refused the call because the virtual key's budget or rate limit is used up."""
+    if status == 402:
+        return True
+    text = str((data or {}).get("type", "")) + " " + str(((data or {}).get("error") or {}))
+    return status == 429 and ("budget" in text.lower() or "rate_limit" in text.lower())
+
+
+async def forward(payload: dict, run_id: str, vk: str | None = None) -> tuple[int, dict | None]:
     """Send to Bifrost. A real 429, 5xx or network error is retried quietly after 2, 4, 8 s."""
-    status, data = await _call_bifrost(payload, run_id)
+    status, data = await _call_bifrost(payload, run_id, vk)
     for wait in RETRY_WAITS:
-        if status != 0 and status != 429 and status < 500:
+        if over_budget(status, data) or (status != 0 and status != 429 and status < 500):
             break
         await asyncio.sleep(wait)
-        status, data = await _call_bifrost(payload, run_id)
+        status, data = await _call_bifrost(payload, run_id, vk)
     return status, data
 
 
@@ -124,7 +134,12 @@ async def chat_completions(run_id: str, request: Request):
         payload["model"] = "gemini/" + (state.model or prefs.agent_model())
         payload["stream"] = False
         payload.pop("stream_options", None)
-        status, data = await forward(payload, run_id)
+        status, data = await forward(payload, run_id, state.vk)
+        if over_budget(status, data):
+            state.setup_problem = "daily spending limit reached"
+            reply = {"error": "daily spending limit reached"}
+            record_step(state, "model_call", "model", step_input, reply, status_code=402, ms=ms())
+            return JSONResponse(reply, status_code=402)
         if status == 0 or status == 429 or status >= 500:
             state.setup_problem = f"model provider kept failing ({status or 'no connection'})"
             reply = {"error": "model unavailable"}
