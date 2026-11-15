@@ -1,0 +1,332 @@
+/* Datasheet page pieces shared by Start a run, Make an agent, Agents and Gateway test.
+   Variables come from styles.css; every one carries the datasheet value as its fallback. */
+
+.ds {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+/* A section bar with the thing it heads directly under it. */
+.ds-block {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ds-block > .sectionbar + * {
+  margin-top: 0;
+}
+.ds-note {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-2, #50585d);
+}
+.ds-pad {
+  padding: 12px 0 0;
+}
+.ds-empty {
+  margin: 0;
+  padding: 14px 10px;
+  color: var(--ink-2, #50585d);
+  border-bottom: 1px solid var(--line, #d6d9db);
+  font-size: 14.5px;
+}
+
+/* ---- tables: square, ruled, no cards ---- */
+.ds-scroll {
+  overflow-x: auto;
+}
+.ds-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14.5px;
+  font-variant-numeric: tabular-nums;
+}
+.ds-table th {
+  font-stretch: 70%;
+  font-weight: 700;
+  font-size: 14px;
+  text-align: left;
+  padding: 8px 10px;
+  color: var(--ink, #15181a);
+  border-bottom: 1.5px solid var(--ink, #15181a);
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+.ds-table td,
+.ds-table tbody th {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line, #d6d9db);
+  vertical-align: top;
+}
+.ds-table tbody th {
+  font-stretch: 100%;
+  font-weight: 400;
+  white-space: normal;
+}
+.ds-table tbody tr:hover > td,
+.ds-table tbody tr:hover > th {
+  background: var(--solder-tint, #e6efea);
+}
+.ds-table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+.ds-table .graph {
+  color: var(--ink-2, #50585d);
+  font-size: 13.5px;
+}
+.ds-table td.ds-nowrap {
+  white-space: nowrap;
+}
+.ds-table .narrow {
+  width: 1%;
+  white-space: nowrap;
+}
+.ds-table td.ds-where {
+  overflow-wrap: anywhere;
+}
+
+/* one fixed name plate per agent */
+.plate {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.plate b {
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.3;
+}
+.plate small {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-2, #50585d);
+  font-weight: 400;
+}
+.plate small.why {
+  color: var(--ink-2, #50585d);
+}
+label.plate {
+  cursor: pointer;
+}
+.is-off label.plate {
+  cursor: not-allowed;
+}
+.is-off .plate b {
+  color: var(--ink-3, #80878b);
+}
+
+/* square checkbox, drawn by us; the real input stays for keyboards and screen readers */
+.ds-check {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  border: 1.5px solid var(--ink, #15181a);
+  border-radius: 3px;
+  background: var(--surface, #fff);
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+  flex: none;
+}
+.ds-check:checked {
+  background: var(--solder, #1f4d3a);
+  border-color: var(--solder, #1f4d3a);
+}
+.ds-check:checked::after {
+  content: '';
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: translateY(-1px) rotate(-45deg);
+}
+.ds-check:disabled {
+  cursor: not-allowed;
+  border-color: var(--line, #d6d9db);
+  background: var(--surface-2, #f1f3f4);
+}
+.ds-check:focus-visible {
+  outline: 2px solid var(--solder, #1f4d3a);
+  outline-offset: 2px;
+}
+
+/* online status: a small square and a word */
+.online {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  color: var(--ink, #15181a);
+  white-space: nowrap;
+}
+.online i {
+  width: 9px;
+  height: 9px;
+  border-radius: 0;
+  background: var(--ink, #15181a);
+  flex: 0 0 9px;
+}
+.online.down {
+  color: var(--ink-2, #50585d);
+}
+.online.down i {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--ink-3, #80878b);
+}
+
+/* ---- action sheet: borders, not shadows ---- */
+.ds-sheet {
+  background: var(--surface, #fff);
+  border: 1.5px solid var(--ink, #15181a);
+  border-radius: 4px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.ds-sheet h2 {
+  margin: 0;
+  font-stretch: 70%;
+  font-weight: 800;
+  font-size: 26px;
+  line-height: 1.15;
+}
+.ds-sheet .input,
+.ds-sheet .textarea {
+  border: 1px solid var(--ink-2, #50585d);
+  border-radius: 3px;
+  background: var(--surface, #fff);
+}
+.ds-sheet .input:focus,
+.ds-sheet .textarea:focus {
+  outline: 2px solid var(--solder, #1f4d3a);
+  outline-offset: 1px;
+  border-color: var(--solder, #1f4d3a);
+}
+.ds-lbl {
+  font-stretch: 70%;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--ink, #15181a);
+}
+.ds-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+}
+
+/* a disclosure the reader opens by clicking */
+.ds-more > summary {
+  cursor: pointer;
+  list-style: none;
+  font-stretch: 70%;
+  font-weight: 700;
+  font-size: 15px;
+  width: fit-content;
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink, #15181a);
+}
+.ds-more > summary::-webkit-details-marker {
+  display: none;
+}
+.ds-more > summary:focus-visible {
+  outline: 2px solid var(--solder, #1f4d3a);
+  outline-offset: 2px;
+}
+.ds-chev {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ds-more[open] > summary .ds-chev,
+.ds-bar-more[open] > summary .ds-chev {
+  transform: rotate(180deg);
+}
+
+/* a section bar that is also the disclosure's button */
+.ds-bar-more > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.ds-bar-more > summary::-webkit-details-marker {
+  display: none;
+}
+.ds-bar-more > summary:focus-visible {
+  outline: 2px solid var(--ink, #15181a);
+  outline-offset: 2px;
+}
+.ds-bar-more .sectionbar {
+  color: #fff;
+}
+.ds-bar-more .ds-chev {
+  stroke: #fff;
+  margin-left: auto;
+}
+.ds-body {
+  margin: 0;
+  padding: 14px 10px;
+  border-bottom: 1px solid var(--line, #d6d9db);
+  white-space: pre-wrap;
+  line-height: 1.55;
+  color: var(--ink-2, #50585d);
+  max-width: none;
+  padding-right: max(10px, calc(100% - 72ch));
+  font-size: 14.5px;
+}
+
+/* title block: a small second line under a value */
+.tb-cell dd small {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--ink-2, #50585d);
+  line-height: 1.35;
+}
+.tb-action {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* a pass or fail line: a mark and the headline beside it */
+.ds-pass {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 10px;
+  border-top: 1.5px solid var(--ink, #15181a);
+  font-size: 15px;
+}
+.ds-pass b {
+  font-stretch: 70%;
+  font-weight: 800;
+  font-size: 20px;
+}
+
+@media (max-width: 720px) {
+  .ds-sheet {
+    padding: 16px 14px;
+  }
+  .ds .hide-sm {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-chev {
+    transition: none;
+  }
+}

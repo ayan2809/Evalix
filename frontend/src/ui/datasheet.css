@@ -1,0 +1,135 @@
+/* Datasheet primitives: marks, title block, section bars, timing diagrams.
+   Uses the shared variables from styles.css; the fallbacks are the datasheet values. */
+
+/* ---- marks ---- */
+.mark { display: inline-block; flex: none; vertical-align: -2px; overflow: visible; }
+.mark .mark-box { fill: none; stroke: var(--ink, #15181a); stroke-width: 2; }
+.mark .mark-fill { fill: var(--ink, #15181a); }
+.mark-recovered .mark-box { stroke: var(--rec, #1f4fa3); }
+.mark-recovered .mark-fill { fill: var(--rec, #1f4fa3); }
+.mark-slipped .mark-box,
+.mark-crashed .mark-box { stroke: var(--fail, #b3261e); }
+.mark .mark-strike { stroke: var(--fail, #b3261e); stroke-width: 2; }
+.mark-setup .mark-box { stroke: var(--ink-3, #80878b); stroke-dasharray: 3 2; }
+.mark-running .mark-box { stroke: var(--ink-3, #80878b); }
+.mark .mark-hatch { stroke: var(--ink-3, #80878b); stroke-width: 1.5; fill: none; }
+
+/* The one authored motion: the fill wipes in from the left, 30 ms apart in reading order. */
+.mark.ink .mark-fill {
+  clip-path: inset(0 100% 0 0);
+  animation: mark-ink 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: calc(var(--i, 0) * 30ms);
+}
+@keyframes mark-ink { to { clip-path: inset(0 0 0 0); } }
+@media (prefers-reduced-motion: reduce) {
+  .mark.ink .mark-fill { animation: none; clip-path: none; }
+}
+
+/* ---- title block ---- */
+.titleblock {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  border: 1.5px solid var(--ink, #15181a);
+  background: var(--surface, #fff);
+}
+.tb-cell { padding: 9px 14px 10px; border-left: 1px solid var(--ink, #15181a); min-width: 0; }
+.tb-cell:first-child { border-left: 0; }
+.tb-cell.wide { grid-column: span 2; }
+.tb-cell dt { font-size: 12px; color: var(--ink-2, #50585d); margin: 0 0 2px; }
+.tb-cell dd { margin: 0; font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.tb-action { display: flex; align-items: center; justify-content: flex-end; }
+@media (max-width: 720px) {
+  /* On phones the title block is one column of label and value rows. */
+  .titleblock { grid-template-columns: 1fr; }
+  .tb-cell, .tb-cell.wide { grid-column: auto; border-left: 0; border-top: 1px solid var(--ink, #15181a); display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 8px 12px; }
+  .tb-cell:first-child { border-top: 0; }
+  .tb-cell dt { margin: 0; flex: none; }
+  .tb-cell dd { text-align: right; }
+  .tb-action { justify-content: flex-start; }
+}
+
+/* ---- section bar ---- */
+.sectionbar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: var(--solder, #1f4d3a); color: #fff;
+  padding: 7px 12px; min-height: 36px;
+}
+.sectionbar-title {
+  margin: 0; font-size: 17px; font-weight: 700; font-stretch: 70%; letter-spacing: 0; line-height: 1.2;
+}
+.sectionbar-hint { font-size: 13px; color: #cfe0d7; }
+.sectionbar-actions { margin-left: auto; display: flex; gap: 8px; }
+.sectionbar-actions .btn { height: 28px; color: #fff; border-color: #6e9583; background: transparent; }
+.sectionbar-actions .btn:hover { background: rgb(255 255 255 / 10%); }
+.sectionbar .btn.quiet, .sectionbar .link-btn { color: #fff; border-color: transparent; }
+.sectionbar .btn.quiet:hover, .sectionbar .link-btn:hover { color: #fff; background: transparent; text-decoration: underline; }
+.sectionbar :focus-visible { outline-color: #fff; }
+
+/* ---- timing diagram ---- */
+.timing { margin: 0; display: flex; flex-direction: column; gap: 6px; font-variant-numeric: tabular-nums; }
+.timing-lane { padding-top: 14px; }
+.timing-axis, .timing-lane { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 12px; align-items: center; }
+.timing-ruler { position: relative; height: 18px; border-bottom: 1.5px solid var(--ink, #15181a); }
+.timing-tick { position: absolute; bottom: 3px; transform: translateX(-50%); font-size: 12px; color: var(--ink-2, #50585d); white-space: nowrap; }
+.timing-tick:first-child { transform: none; }
+.timing-tick.end { transform: translateX(-100%); }
+.timing-name { font-size: 14px; font-weight: 650; min-width: 0; overflow-wrap: anywhere; }
+.timing-track { position: relative; height: 44px; border-bottom: 1px solid var(--line, #d6d9db); }
+.timing-grid { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--grid, #e4e7e9); }
+.timing-split { position: absolute; top: -6px; bottom: -6px; width: 2px; background: var(--solder, #1f4d3a); z-index: 2; }
+.timing-segments { list-style: none; margin: 0; padding: 0; }
+.tseg { position: absolute; top: 10px; height: 24px; box-sizing: border-box; min-width: 3px; }
+.tseg-btn { all: unset; display: block; width: 100%; height: 100%; cursor: pointer; }
+.tseg-above { position: absolute; top: -15px; font-size: 12px; font-weight: 600; line-height: 14px; white-space: nowrap; color: var(--ink, #15181a); pointer-events: none; }
+.tseg-btn:focus-visible { outline: 2px solid var(--solder, #1f4d3a); outline-offset: 2px; }
+.tseg-label { display: block; padding: 3px 6px; font-size: 12px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+.tseg-model { background: var(--solder, #1f4d3a); color: #fff; }
+.tseg-tool { background: var(--surface, #fff); border: 1.5px solid var(--ink, #15181a); color: var(--ink, #15181a); }
+.tseg-answer { background: var(--ink, #15181a); color: #fff; }
+.tseg-hit { background: var(--warn-bg, #fbf1e0); border: 1.5px solid var(--warn, #9a5b00); color: var(--warn, #9a5b00); }
+.tseg-failed { background: var(--fail-bg, #fbe9e7); border: 1.5px solid var(--fail, #b3261e); color: var(--fail, #b3261e); }
+.tseg-blocked { background: repeating-linear-gradient(135deg, var(--fail-bg, #fbe9e7) 0 4px, #fff 4px 8px); border: 1.5px solid var(--fail, #b3261e); color: var(--fail, #b3261e); }
+.tseg.selected { outline: 2px solid var(--solder, #1f4d3a); outline-offset: 2px; }
+/* A wait is a dimension line: |<-- 2.0 s -->| */
+.tseg-wait { top: 18px; height: 8px; border-left: 1px solid var(--ink-2, #50585d); border-right: 1px solid var(--ink-2, #50585d); }
+.tseg-wait::before { content: ''; position: absolute; left: 0; right: 0; top: 3px; border-top: 1px dashed var(--ink-2, #50585d); }
+.tseg-dim { position: absolute; left: 50%; top: -16px; transform: translateX(-50%); font-size: 12px; color: var(--ink-2, #50585d); white-space: nowrap; background: var(--surface, #fff); padding: 0 3px; }
+.timing-mark { position: absolute; top: -4px; bottom: -4px; width: 0; border-left: 2px solid var(--warn, #9a5b00); z-index: 3; }
+.timing-mark.tm-fail { border-color: var(--fail, #b3261e); }
+.timing-mark.tm-split { border-color: var(--solder, #1f4d3a); }
+.tm-label { position: absolute; top: -18px; left: 4px; font-size: 12px; font-weight: 650; white-space: nowrap; color: var(--warn, #9a5b00); }
+.tm-label.flip { left: auto; right: 4px; }
+.tm-fail .tm-label { color: var(--fail, #b3261e); }
+.tm-split .tm-label { color: var(--solder, #1f4d3a); }
+@media (max-width: 720px) {
+  .timing-axis, .timing-lane { grid-template-columns: 1fr; gap: 4px; }
+  .timing-lane { padding-top: 0; }
+  .timing-track { margin-top: 16px; }
+  .timing-axis .timing-gutter { display: none; }
+}
+
+/* ---- name plate ---- */
+.plate { display: inline-flex; flex-direction: column; gap: 1px; min-width: 0; }
+.plate strong { font-weight: 700; }
+.plate-tag { font-size: 12.5px; font-weight: 400; color: var(--ink-2, #50585d); line-height: 1.3; }
+
+/* ---- spec rows: label and value in ruled rows ---- */
+.spec { margin: 0; border-bottom: 1px solid var(--line, #d6d9db); }
+.spec > div { display: flex; justify-content: space-between; gap: 16px; padding: 8px 10px; border-top: 1px solid var(--line, #d6d9db); }
+.spec > div:first-child { border-top: 0; }
+.spec dt { color: var(--ink-2, #50585d); font-size: 14px; }
+.spec dd { margin: 0; font-weight: 650; text-align: right; overflow-wrap: anywhere; }
+
+/* ---- key to a timing diagram ---- */
+.td-legend { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 12.5px; color: var(--ink-2, #50585d); }
+.td-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.td-sw { display: inline-block; width: 16px; height: 10px; box-sizing: border-box; }
+.td-sw.model { background: var(--solder, #1f4d3a); }
+.td-sw.tool { border: 1.5px solid var(--ink, #15181a); }
+.td-sw.answer { background: var(--ink, #15181a); }
+.td-sw.hit { background: var(--warn-bg, #fbf1e0); border: 1.5px solid var(--warn, #9a5b00); }
+.td-sw.failed { background: var(--fail-bg, #fbe9e7); border: 1.5px solid var(--fail, #b3261e); }
+.td-sw.wait { height: 8px; border-left: 1px solid var(--ink-2, #50585d); border-right: 1px solid var(--ink-2, #50585d); background: linear-gradient(var(--ink-2, #50585d), var(--ink-2, #50585d)) center / 100% 1px no-repeat; }
+.sectionbar-actions a.bar-link { color: #fff; font-weight: 600; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; align-self: center; }
+.sectionbar-actions a.bar-link:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }

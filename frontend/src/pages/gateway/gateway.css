@@ -1,0 +1,292 @@
+/* Gateway test. Section bars, tables and pass lines come from ../sheet.css and ui/datasheet.css. */
+
+.gw-about {
+  padding: 12px 10px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.gw-about p {
+  margin: 0;
+  max-width: 78ch;
+  font-size: 14.5px;
+  color: var(--ink-2, #50585d);
+}
+.gw-about p.gw-rule {
+  color: var(--ink, #15181a);
+}
+.gw-about p.ds-note {
+  font-size: 13px;
+}
+
+.gw-draw {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 10px 6px;
+  min-width: 0;
+}
+.gw-route {
+  max-width: 760px;
+}
+.gw-down,
+.gw-bad {
+  color: var(--warn, #9a5b00);
+  font-weight: 650;
+}
+.gw-bad {
+  color: var(--fail, #b3261e);
+}
+.gw-headline {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.gw-total {
+  margin-left: auto;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.ds-pass {
+  flex-wrap: wrap;
+}
+
+/* ---------- Test 3: spent against the limit ---------- */
+.gw-spent {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 22px;
+}
+.gw-spent-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px 12px;
+  flex-wrap: wrap;
+  font-size: 14.5px;
+}
+.gw-spent-line b {
+  font-stretch: 70%;
+  font-weight: 700;
+  font-size: 15px;
+}
+.gw-ruler {
+  position: relative;
+  height: 14px;
+  border: 1.5px solid var(--ink, #15181a);
+  background-color: var(--surface, #fff);
+  background-image: linear-gradient(90deg, var(--grid, #e4e7e9) 1px, transparent 1px);
+  background-size: 10% 100%;
+}
+.gw-ruler-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--ink, #15181a);
+}
+.gw-ruler-limit {
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  width: 0;
+  border-left: 2.5px solid var(--solder, #1f4d3a);
+}
+.gw-ruler-limit span {
+  position: absolute;
+  top: -17px;
+  right: 6px;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+  color: var(--solder, #1f4d3a);
+}
+
+.gw-callno {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.gw-route tr.gw-blocked td,
+.gw-route tr.gw-blocked th {
+  color: var(--fail, #b3261e);
+  font-weight: 650;
+}
+.gw-more {
+  align-self: flex-start;
+  font-size: 14px;
+  margin: 10px 10px 0;
+}
+
+/* ---------- The path of one call ---------- */
+.gw-path {
+  display: flex;
+  align-items: stretch;
+  margin-top: 12px;
+  border: 1.5px solid var(--ink, #15181a);
+  border-radius: var(--radius-sm, 2px);
+  background: var(--surface, #fff);
+}
+.gw-end {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  font-weight: 650;
+  font-size: 14px;
+  background: var(--surface-2, #f3f4f4);
+  white-space: nowrap;
+}
+.gw-end:last-child {
+  border-left: 1px solid var(--line, #d6d9db);
+}
+.gw-stop {
+  flex: 1 1 0;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 6px 12px;
+  border: 0;
+  border-left: 1px solid var(--line, #d6d9db);
+  background: transparent;
+  font: 600 14.5px var(--sans);
+  color: var(--ink, #15181a);
+  cursor: pointer;
+}
+/* The wire the call travels along, through every stop. */
+.gw-stop::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 0;
+  right: 0;
+  border-top: 1.5px solid var(--ink, #15181a);
+}
+.gw-stop-mark {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  background: var(--surface, #fff);
+}
+.gw-stop-mark i {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--ink, #15181a);
+  background: var(--surface, #fff);
+}
+.gw-stop.explained .gw-stop-mark i {
+  border-style: dashed;
+  border-color: var(--ink-2, #50585d);
+}
+.gw-stop.explained .gw-stop-name {
+  color: var(--ink-2, #50585d);
+}
+.gw-stop:hover:not(.on) {
+  background: var(--surface-2, #f3f4f4);
+}
+.gw-stop.on {
+  background: var(--solder, #1f4d3a);
+  color: #fff;
+}
+.gw-stop.on::before {
+  border-color: #fff;
+}
+.gw-stop.on .gw-stop-mark {
+  background: var(--solder, #1f4d3a);
+}
+.gw-stop.on .gw-stop-name {
+  color: #fff;
+}
+.gw-stop:focus-visible {
+  outline: 2px solid var(--solder, #1f4d3a);
+  outline-offset: -4px;
+}
+.gw-stop.on:focus-visible {
+  outline-color: #fff;
+}
+.gw-trace-line {
+  margin: 10px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- The open stop ---------- */
+.gw-panel {
+  margin-top: 8px;
+}
+.gw-yours {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--solder, #1f4d3a);
+  background: var(--surface-2, #f3f4f4);
+}
+.gw-pick {
+  margin: 4px 0 12px;
+}
+.gw-also {
+  max-width: 78ch;
+  margin: 24px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line, #d6d9db);
+  color: var(--ink-2, #50585d);
+}
+.gw-also a {
+  font-weight: 600;
+}
+
+@media (max-width: 860px) {
+  .gw-path {
+    flex-direction: column;
+  }
+  .gw-end {
+    padding: 10px 14px;
+  }
+  .gw-end:last-child {
+    border-left: 0;
+    border-top: 1px solid var(--line, #d6d9db);
+  }
+  .gw-stop {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 10px 14px 10px 10px;
+    border-left: 0;
+    border-top: 1px solid var(--line, #d6d9db);
+  }
+  .gw-stop::before {
+    top: 0;
+    bottom: 0;
+    left: 16px;
+    right: auto;
+    border-top: 0;
+    border-left: 1.5px solid var(--ink, #15181a);
+  }
+  .gw-stop.on::before {
+    border-color: #fff;
+  }
+}
+
+/* A live test inside an open stop: a light heading, not a second bar. */
+.gw-subhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 16px;
+  padding: 10px 0 8px;
+  border-top: 1.5px solid var(--ink, #15181a);
+}
+.gw-subhead h3 {
+  margin: 0;
+  font-size: 20px;
+  font-stretch: 80%;
+}
+.gw-panel .gw-about {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
