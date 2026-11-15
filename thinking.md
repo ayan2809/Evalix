@@ -1297,11 +1297,21 @@ Timeline of Collaboration
 
 ---
 
+### Phase 69: YouTube Video Metadata & Submission Copy Generation
+
+#### User Prompt 105
+> *"give me the description for the youtube video."*
+
+* **YouTube Video Metadata Prepared:**
+  - Prepared optimized video titles, description copy, verified chapter timestamps matching exact video cut points, live project links (GitHub + CloudFront), technical architecture highlights, and sponsor track callouts (Maxim AI Bifrost + Tavily).
+
+---
+
 ## Pending Items (as of Nov 15, 2026)
 
 **For the author**
 1. **Demo Video Produced:** `docs/submission/video/Evalix-demo-draft.mp4` (3:26, 1080p, 17.6 MB) and cover art `Evalix-cover.png` ready for upload.
-2. **Video Upload (Immediate):** Upload `Evalix-demo-draft.mp4` to YouTube (set to **Unlisted**) or Loom / Google Drive (set to "Anyone with link can view"), setting `Evalix-cover.png` as the thumbnail.
+2. **Video Upload (Immediate):** Upload `Evalix-demo-draft.mp4` to YouTube (set to **Unlisted**), paste the prepared description & chapter timestamps, and set `Evalix-cover.png` as the thumbnail.
 3. **Presentation Deck:** `docs/submission/Evalix-deck.pptx` ready (export to PDF for upload if needed).
 4. **Final Submission on HackCulture (Deadline: Nov 15, 2026, 23:59 IST):**
    - Video link (YouTube unlisted / Loom).
