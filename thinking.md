@@ -1307,17 +1307,31 @@ Timeline of Collaboration
 
 ---
 
+### Phase 70: SubRip Subtitle (.SRT) Generation & Acoustic Alignment
+
+#### User Prompt 106
+> *"create the srt file as well"*
+
+* **SRT Captions Synthesized & Calibrated:**
+  - File created at `docs/submission/video/Evalix-demo.srt` (and mirrored to `Evalix-demo-draft.srt`).
+  - 35 subtitle blocks perfectly timed to the acoustic speech boundaries of `Evalix-demo-draft.mp4` across all 8 scenes (from `00:00:01,000` to `00:03:22,500`).
+  - Strict compliance with SubRip standards: chronological ascending timestamps, 2-line maximum per cue, natural sentence breaks, and clean accounting for the 5-second benchmark execution pause at `01:06 - 01:11`.
+  - Validated with custom verification script: zero overlap, zero syntax errors, 100% ready for YouTube upload.
+
+---
+
 ## Pending Items (as of Nov 15, 2026)
 
 **For the author**
-1. **Demo Video Produced:** `docs/submission/video/Evalix-demo-draft.mp4` (3:26, 1080p, 17.6 MB) and cover art `Evalix-cover.png` ready for upload.
-2. **Video Upload (Immediate):** Upload `Evalix-demo-draft.mp4` to YouTube (set to **Unlisted**), paste the prepared description & chapter timestamps, and set `Evalix-cover.png` as the thumbnail.
+1. **Demo Video Produced:** `docs/submission/video/Evalix-demo-draft.mp4` (3:26, 1080p, 17.6 MB), cover art `Evalix-cover.png`, and captions `Evalix-demo.srt` ready for upload.
+2. **Video Upload (Immediate):** Upload `Evalix-demo-draft.mp4` to YouTube (set to **Unlisted**), paste the description & timestamps, upload `Evalix-cover.png` as thumbnail, and upload `Evalix-demo.srt` under Subtitles.
 3. **Presentation Deck:** `docs/submission/Evalix-deck.pptx` ready (export to PDF for upload if needed).
 4. **Final Submission on HackCulture (Deadline: Nov 15, 2026, 23:59 IST):**
    - Video link (YouTube unlisted / Loom).
    - Pitch deck (PDF / PPT export of `Evalix-deck.pptx`).
    - GitHub repo URL: `https://github.com/ayan2809/Evalix`.
    - Dual-project answer: `NA (not applied)`.
+
    - Tavily integration answer: `Stale-Answer Detector`.
 8. **Deploy to AWS (Phase 55, code written, not deployed):**
    - run `uv run --project backend python infra/push_secrets.py` (keys into SSM; it prints names only);
