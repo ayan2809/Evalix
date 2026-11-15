@@ -139,11 +139,21 @@ quietly and, if it persists, marked as a **setup problem**, never counted agains
   Evalix makes one model call to write the agent's instructions, registers it, and it can be benchmarked
   right away like any other agent. Studio agents still reach tools and the model only over HTTP, so
   faults and counting work the same way.
-* **Gateway test** (the **Gateway** screen): Bifrost is given a fake main model that is always down,
-  plus a real backup. One request goes in; Bifrost switches to the backup and the caller notices nothing.
-  This shows the gateway's failover on its own and is not part of agent scores.
-* **Send to Maxim** (on the Scoreboard): every finished run of a benchmark becomes a Maxim trace with its
-  tool calls, model calls (with token counts), and tags for agent, task, fault, ending, cost, and time.
+* **Gateway test** (the **Gateway test** screen): three real problems, each caught by a real Bifrost setting.
+  These test the gateway, not the agents, so they never change agent scores.
+  1. *The main model goes down.* A stand-in main model (`/fake-model`) is switched off; Bifrost's fallback
+     sends every call to Gemini. Live: 6 of 6 calls answered by the backup, 0 errors seen.
+  2. *The model says "too busy".* A busy model (`/fake-busy`) refuses the first two tries; Bifrost retries
+     with growing waits (`max_retries` 3, starting at 1 s, doubling). Live: answered on the 3rd try after about 2.8 s.
+  3. *An agent won't stop spending.* Each test makes a fresh Bifrost virtual key with a $0.01 budget and
+     keeps calling until Bifrost refuses. Live: 10 calls let through ($0.0102), call 11 blocked with 402.
+* **Send to Maxim** (when a run finishes): every finished run becomes a Maxim trace with its tool calls,
+  model calls (with token counts), and tags for agent, task, fault, ending, cost, and time. Settings can
+  send every finished benchmark automatically.
+* **Sign in:** Google sign-in (set `GOOGLE_CLIENT_ID`), or "Continue on this computer" when Google isn't
+  set up, or "Look around first" as a read-only guest. `EVALIX_ALLOWED_EMAILS` limits who may sign in.
+* **Settings** (the gear on the "Running on" card): pick the model for agents and for second opinions
+  (applies to the next run), see masked API keys, test or replace them, and choose saved or live search.
 
 ---
 
@@ -171,8 +181,11 @@ EOF
 ./scripts/dev.sh --mock     # test mode: no keys, no internet, a fake model
 ```
 
-Open **http://localhost:5173**, go to **Run**, press **Run**, and watch it live.
-Logs go to `.logs/`.
+Open **http://localhost:5173**, press **Continue on this computer**, go to **Start a run**, pick agents and
+problems, press **Start the run**, and watch it live. Logs go to `.logs/`.
+
+The backend and web app talk through one contract: [spec/api.md](./spec/api.md). The web app calls plain
+`/api/...` paths and Vite passes them to port 8000.
 
 **Bifrost** runs from `bifrost/config.json` with `npx -y @maximhq/bifrost -app-dir ./bifrost -port 8080`.
 The model door rewrites the model name to `gemini/<AGENT_MODEL>` and tags each call with
@@ -182,7 +195,7 @@ Caching stays off, so trials are never replayed.
 ### Tests
 
 ```bash
-cd backend && uv run pytest -q     # 67 tests: grader, faults, scores, runner, tools, model door, studio, extras (no keys needed)
+cd backend && uv run pytest -q     # 190 tests, no keys needed (includes a check that every route in spec/api.md exists)
 cd frontend && npm run build       # type check + build
 ```
 
@@ -202,6 +215,11 @@ Five agents (the four built-in ones plus one made in Agent Studio) × 6 normal t
 Same model, same tools, same tasks: the difference is how each agent is built.
 One try is a small sample; the full benchmark uses 3 tries per test.
 
+A second, smaller real run on Nov 15 (5 agents × 3 problems: model busy, lying result, broken tool;
+15 runs, $0.049) checked the new build end to end. Careless crashed on "model busy" again (it doesn't
+retry), the Studio agent gave up on it, and everything else got through. These runs also record when each
+step started, which the timing diagrams in Run details and Compare are drawn from.
+
 ---
 
 ## Project layout
@@ -210,12 +228,14 @@ One try is a small sample; the full benchmark uses 3 tries per test.
 backend/
   app/            main.py (web addresses) · runner.py · tool_server.py · model_door.py · faults.py
                   grader.py · judge.py · scores.py · store.py (SQLite) · events.py (live updates)
-                  studio.py (Agent Studio) · extras (gateway test, Maxim export)
-  data/           tasks.json · faults.json · prices.json · raw/ (saved Tavily recordings)
+                  studio.py (Agent Studio) · gateway.py (three gateway tests) · extras.py (Maxim export)
+                  auth.py (sign-in) · settings_api.py · prefs.py (saved settings)
+  data/           tasks.json · faults.json · prices.json · models.json · raw/ (saved Tavily recordings)
   scripts/        record_search.py
   tests/
 agents/           plain_python/ (Careful + Careless) · langchain_agent/ · google_adk_agent/
-frontend/src/     pages/ · components/ · api.ts
+frontend/src/     pages/ · ui/ (marks, title block, timing diagram, controls) · shell/ · api.ts
+spec/api.md       the backend/frontend contract
 bifrost/          config.json
 scripts/dev.sh    start everything
 ```
@@ -241,6 +261,8 @@ integrated and tested end to end.
 
 ## More docs
 
+* [spec/api.md](./spec/api.md): the web API, the contract between backend and web app
+* [PRODUCT.md](./PRODUCT.md): who it's for, what it must prove, and the rules it keeps
 * [goal.md](./goal.md): product goals and demo flow
 * [rules.md](./rules.md): project rules (privacy, UI, git)
 * [AGENT_BENCHMARKING_AND_EVALS_GUIDE.md](./AGENT_BENCHMARKING_AND_EVALS_GUIDE.md): background on agent evaluation
