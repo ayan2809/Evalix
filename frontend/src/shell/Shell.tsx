@@ -1,19 +1,40 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { accountName, useAuth } from '../auth'
-import { Button, Icon, Logo } from '../ui'
+import { Button, Icon, Logo, type IconName } from '../ui'
 import { useModelLabel, useShell } from './ShellContext'
 import SettingsDialog from './SettingsDialog'
 import './shell.css'
 
-const NAV: { to: string; label: string; on: (path: string) => boolean }[] = [
-  { to: '/', label: 'Results', on: (p) => p === '/' || p.startsWith('/runs/') },
-  { to: '/run', label: 'Start a run', on: (p) => p === '/run' || p.startsWith('/run/') },
-  { to: '/compare', label: 'Compare', on: (p) => p.startsWith('/compare') },
-  { to: '/agents', label: 'Agents', on: (p) => p.startsWith('/agents') },
-  { to: '/studio', label: 'Make an agent', on: (p) => p.startsWith('/studio') },
-  { to: '/gateway', label: 'Gateway test', on: (p) => p.startsWith('/gateway') },
+const NAV: { to: string; label: string; icon: IconName; on: (path: string) => boolean }[] = [
+  { to: '/', label: 'Results', icon: 'results', on: (p) => p === '/' || p.startsWith('/runs/') },
+  { to: '/run', label: 'Start a run', icon: 'play', on: (p) => p === '/run' || p.startsWith('/run/') },
+  { to: '/compare', label: 'Compare', icon: 'compare', on: (p) => p.startsWith('/compare') },
+  { to: '/agents', label: 'Agents', icon: 'agent', on: (p) => p.startsWith('/agents') },
+  { to: '/studio', label: 'Make an agent', icon: 'plus', on: (p) => p.startsWith('/studio') },
+  { to: '/gateway', label: 'Gateway test', icon: 'pulse', on: (p) => p.startsWith('/gateway') },
 ]
+
+const RAIL_KEY = 'evalix.rail'
+
+/** The rail can fold down to icons on wide screens. The choice is remembered in this browser only. */
+function useRailCollapsed(): [boolean, (v: boolean) => void] {
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(RAIL_KEY) === 'collapsed'
+    } catch {
+      return false
+    }
+  })
+  useEffect(() => {
+    try {
+      localStorage.setItem(RAIL_KEY, collapsed ? 'collapsed' : 'open')
+    } catch {
+      /* storage blocked: the rail still works, it just won't be remembered */
+    }
+  }, [collapsed])
+  return [collapsed, setCollapsed]
+}
 
 export default function Shell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
@@ -21,6 +42,7 @@ export default function Shell({ children }: { children: ReactNode }) {
   const { health, openSettings } = useShell()
   const modelLabel = useModelLabel()
   const [leaving, setLeaving] = useState(false)
+  const [collapsed, setCollapsed] = useRailCollapsed()
   const guest = me?.role === 'guest'
   const name = accountName(me)
 
@@ -35,20 +57,49 @@ export default function Shell({ children }: { children: ReactNode }) {
 
   const bifrostDown = health?.bifrost_up === false
   return (
-    <div className="shell">
+    <div className={collapsed ? 'shell collapsed' : 'shell'}>
       <aside className="side">
-        <Link to="/" className="brand">
-          <Logo size={22} />
-          <span>Evalix</span>
-        </Link>
+        <div className="brandrow">
+          <Link to="/" className="brand" aria-label="Evalix, go to results">
+            <Logo size={22} />
+            <span className="rail-text">Evalix</span>
+          </Link>
+          <button
+            type="button"
+            className="rail-toggle"
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            onClick={() => setCollapsed(!collapsed)}
+          >
+            <Icon name="chevron" size={16} />
+          </button>
+        </div>
 
         <nav className="nav" aria-label="Main">
           {NAV.map((n) => (
-            <Link key={n.to} to={n.to} className={n.on(pathname) ? 'on' : ''} aria-current={n.on(pathname) ? 'page' : undefined}>
-              {n.label}
+            <Link
+              key={n.to}
+              to={n.to}
+              className={n.on(pathname) ? 'on' : ''}
+              aria-current={n.on(pathname) ? 'page' : undefined}
+              title={collapsed ? n.label : undefined}
+            >
+              <Icon name={n.icon} size={18} />
+              <span className="rail-text">{n.label}</span>
             </Link>
           ))}
         </nav>
+
+        <button
+          type="button"
+          className="rail-gear"
+          aria-label="Running on. Open settings"
+          title="Settings"
+          onClick={() => openSettings()}
+        >
+          <Icon name="gear" size={18} />
+        </button>
 
         <button type="button" className="envcard" aria-label="Running on. Open settings" onClick={() => openSettings()}>
           <span className="envhead">
@@ -77,8 +128,9 @@ export default function Shell({ children }: { children: ReactNode }) {
           <span className="who" title={me?.user?.email}>
             {name}
           </span>
-          <button type="button" className="signout" onClick={leave} disabled={leaving}>
-            Sign out
+          <button type="button" className="signout" onClick={leave} disabled={leaving} title={collapsed ? 'Sign out' : undefined}>
+            <Icon name="sign-out" size={16} />
+            <span className="rail-text">Sign out</span>
           </button>
         </div>
 
