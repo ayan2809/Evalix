@@ -37,7 +37,7 @@ There are three kinds of session, kept in a signed, HttpOnly cookie called `eval
 
 | Session | How you get it | Role |
 | :--- | :--- | :--- |
-| `google` | "Continue with Google" | `owner` (or refused, see `EVALIX_ALLOWED_EMAILS`) |
+| `google` | "Continue with Google" | `owner` if the email is on `EVALIX_OWNER_EMAILS` (or that list is empty), else `guest`. Refused if not on `EVALIX_ALLOWED_EMAILS` (when set) |
 | `local` | "Continue on this computer". Only offered when Google sign-in is not set up | `owner` |
 | `guest` | "Look around first, no sign-in" | `guest` |
 
@@ -45,13 +45,23 @@ There are three kinds of session, kept in a signed, HttpOnly cookie called `eval
 keep working on your own machine), and `guest` if it is set.
 
 **Guests can read everything but change nothing.** Every route marked ✍️ below needs role `owner`.
-A guest gets `403 {"detail": "Sign in to do this. You're looking around as a guest."}`.
+A guest gets `403 {"detail": "Sign in to do this. You're looking around as a guest."}`. Someone signed in with a
+Google account that isn't on the owner list gets
+`403 {"detail": "Your Google account can look around here but not change things. Ask the owner to add you."}`.
+The owner list is read on every request, so editing it takes effect without signing in again.
+
+**How a Google sign-in is checked.** Google's button gives the browser an ID token, which it sends to
+`POST /api/auth/google`. The backend checks it itself with `google-auth`: Google's signature, audience =
+`GOOGLE_CLIENT_ID`, not expired, issuer `accounts.google.com`, and a verified email. Only Google's public keys are
+fetched. Bad token: `401`. Google unreachable: `502`. More than 10 sign-in attempts a minute from one address:
+`429`. The cookie is marked `Secure` when the request came over https.
 
 **Settings for sign-in** (in `.env`):
 
 | Name | Meaning |
 | :--- | :--- |
 | `GOOGLE_CLIENT_ID` | Turns on Google sign-in. Unset means "Continue on this computer" is offered instead |
+| `EVALIX_OWNER_EMAILS` | Comma list. Google accounts that may change things. Empty means every Google account that may sign in |
 | `EVALIX_ALLOWED_EMAILS` | Comma list. If set, only these Google accounts may sign in |
 | `EVALIX_SECRET` | Signs the cookie |
 
@@ -325,7 +335,7 @@ interface SettingsUpdate {         // every field optional
 | Method and path | Body | Returns | Notes |
 | :--- | :--- | :--- | :--- |
 | `GET /api/auth/me` | | `Me` | Never fails |
-| `POST /api/auth/google` | `{credential: string}` | `Me` + sets cookie | `credential` is Google's ID token. The backend checks it with Google (`https://oauth2.googleapis.com/tokeninfo`): `aud` must equal `GOOGLE_CLIENT_ID`, and `email_verified` must be true. Bad token: 401. Not on `EVALIX_ALLOWED_EMAILS`: 403. Google not set up: 400 |
+| `POST /api/auth/google` | `{credential: string}` | `Me` + sets cookie | `credential` is Google's ID token. The backend checks it with `google-auth` (signature, `aud` = `GOOGLE_CLIENT_ID`, expiry, issuer, `email_verified`). Bad token: 401. Google unreachable: 502. Not on `EVALIX_ALLOWED_EMAILS`: 403. Too many tries: 429. Google not set up: 400. Not on `EVALIX_OWNER_EMAILS` (when set): signs in with role `guest` |
 | `POST /api/auth/local` | | `Me` + sets cookie | 403 when `GOOGLE_CLIENT_ID` is set |
 | `POST /api/auth/guest` | | `Me` + sets cookie | |
 | `POST /api/auth/sign-out` | | `{ok: true}` | Clears the cookie |

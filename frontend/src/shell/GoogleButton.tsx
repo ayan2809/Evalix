@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 
 interface GoogleId {
-  initialize: (cfg: { client_id: string; callback: (r: { credential: string }) => void }) => void
+  initialize: (cfg: {
+    client_id: string
+    callback: (r: { credential: string }) => void
+    ux_mode?: 'popup' | 'redirect'
+    auto_select?: boolean
+    context?: 'signin' | 'signup' | 'use'
+  }) => void
   renderButton: (el: HTMLElement, opts: Record<string, unknown>) => void
 }
 declare global {
@@ -51,8 +57,16 @@ export function GoogleButton({
     loadGoogle().then(
       () => {
         if (!alive || !slot.current || !window.google) return
-        window.google.accounts.id.initialize({ client_id: clientId, callback: (r) => cb.current(r.credential) })
-        const width = Math.min(380, Math.max(200, slot.current.clientWidth || 380))
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: (r) => cb.current(r.credential),
+          ux_mode: 'popup',
+          auto_select: false,
+          context: 'signin',
+        })
+        // Measure the wrapper: the empty div Google draws into has no width of its own yet.
+        const room = slot.current.parentElement?.clientWidth || 380
+        const width = Math.min(380, Math.max(200, room))
         window.google.accounts.id.renderButton(slot.current, {
           type: 'standard',
           theme: 'outline',
@@ -71,7 +85,9 @@ export function GoogleButton({
   }, [clientId])
 
   return (
-    <div className="google-slot" ref={slot} aria-busy={!ready}>
+    <div className="google-slot" aria-busy={!ready}>
+      {/* Google's script owns this div and replaces what's inside, so React must never put children in it. */}
+      <div ref={slot} />
       {!ready && <span className="tag">Loading Google sign-in…</span>}
     </div>
   )
