@@ -7,10 +7,10 @@ import { GoogleButton } from '../shell/GoogleButton'
 import { Button, Logo, Mark, Notice, SectionBar, TimingDiagram, TitleBlock, type Lane } from '../ui'
 import './login.css'
 
-/** An illustrative one-lane excerpt: what "Careless" did when the search result lied. Not measured data. */
+/** An illustrative one-lane excerpt: what "Quick Answer" did when the search result lied. Not measured data. */
 const EXAMPLE_LANE: Lane = {
-  id: 'careless',
-  label: 'Careless',
+  id: 'quick-answer',
+  label: 'Quick Answer',
   segments: [
     { startMs: 0, endMs: 900, kind: 'model', label: 'Model', title: 'Asked the model' },
     { startMs: 900, endMs: 1700, kind: 'hit', label: 'Search', title: 'Searched, and we made the result lie' },
@@ -116,8 +116,8 @@ export default function Login() {
               <thead>
                 <tr>
                   <th>Problem we caused</th>
-                  <th>Careful</th>
-                  <th>Careless</th>
+                  <th>Fact Checker</th>
+                  <th>Quick Answer</th>
                 </tr>
               </thead>
               <tbody>
@@ -141,7 +141,7 @@ export default function Login() {
                 </tr>
               </tbody>
             </table>
-            <TimingDiagram label="Example timing of Careless on a lying search result" lanes={[EXAMPLE_LANE]} totalMs={3500} />
+            <TimingDiagram label="Example timing of Quick Answer on a lying search result" lanes={[EXAMPLE_LANE]} totalMs={3500} />
             <p className="tag">Example only. The timings are illustrative, not from a run.</p>
           </aside>
         </div>

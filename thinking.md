@@ -649,8 +649,8 @@ Timeline of Collaboration
 
 * **Intent & Secret Provisioning:**
   * Identified the parameters from the user's live Maxim AI dashboard URL:
-    * `MAXIM_LOG_REPO_ID="cmwgad3ur02mn117rgyhbk5gt"`
-    * `MAXIM_WORKSPACE_ID="cmwgab6px02jm117rof1n8da4"`
+    * `MAXIM_LOG_REPO_ID="<in .env, not committed>"`
+    * `MAXIM_WORKSPACE_ID="<in .env, not committed>"`
   * Populated these directly into `/Volumes/Projects/Evalix/.env` alongside `MAXIM_API_KEY` and `TAVILY_API_KEY`.
   * Verified that `.env` remains strictly gitignored to guarantee zero secrets leak into the public GitHub repository.
 
@@ -1060,6 +1060,57 @@ Timeline of Collaboration
 * **Checks run:** 228 backend tests pass (12 new ones for the front desk, the engine gate, passing requests on, streaming, and the database copy; no AWS is called in tests). Frontend builds. Both templates pass CloudFormation's own validation. The front desk zip builds (28 MB zipped, with ARM packages). The secrets script's `--check` reads SSM fine with the new permissions (all names currently missing, as expected).
 * **Not verified (needs the real deploy):** the engine's first boot (package install time, memory fit in 2 GB, the shutdown command through sudo), the Lambda adapter running the app, and the live stream through CloudFront. The nightly stop is the safety net if the self-shutdown fails.
 * **Deploy steps for the author:** run `push_secrets.py`, then `infra/deploy.sh`, then add the printed address to Google sign-in (details in `infra/README.md`).
+
+---
+
+### Phase 56: Four-Agent Display Verification & First-Time User Experience Audit
+
+#### User Prompt 92
+> *"For this particular section, from scene 2 to scene 4, do we have the capability to show all four agents we are mentioning here? If not, then the thing will break, right? I want to know what a new user sees on the screen."*
+
+* **Four-Agent System Capability Confirmed:**
+  - Verified live server state and database: all four agents (`Careful` on `:9001`, `Careless` on `:9002`, `LangChain` on `:9003`, `Google ADK` on `:9004`) are running and report `"online": true` via `/api/agents`.
+* **New User UX Breakdown (Clean Slate / First Run):**
+  - **First-Time Sign-In (`/`):** A new user sees the `FirstRun` onboarding screen (*"Let's test your first agent"*), presenting three actionable steps. Step 1 features a prominent primary button: **"Add the four sample agents"**.
+  - **One-Click Population (`POST /api/agents/samples`):** Clicking that button immediately populates Careful, Careless, LangChain, and Google ADK into their private workspace with green "online" status indicators.
+  - **Agents Page (`/agents`):** Displays the industrial table with all 4 agents, tags, URLs, and real-time health checks.
+  - **Start a Run (`/run`):** Displays all four agents as selectable cards/checkboxes with green status badges, allowing selection of all 4 alongside chaos fault toggles.
+  - **Results Screen (`/`):** Renders the multi-agent comparison datasheet grid.
+
+---
+
+### Phase 57: Cloud Deployment State & Hosted Demo Parity Audit
+
+#### User Prompt 93
+> *"and if i am demoing from the cloud which has been hosted now. then what is it?"*
+
+* **Cloud Infrastructure Status Checked:**
+  - CloudFormation stacks `evalix` and `evalix-storage` are active in `ap-south-1` (Mumbai).
+  - Production URL: `https://d2n1pd4ckplxt7.cloudfront.net` (Distribution: `E2B3HDM1CXGB4M`).
+  - EC2 Run Engine: `i-01d2ea070129261ec` (running).
+  - Lambda Front Desk: `https://qqehwjra7q2cia5lnhccglxu2a0svkqr.lambda-url.ap-south-1.on.aws/`.
+* **Database & Benchmark State Synchronized to Cloud:**
+  - Uploaded verified benchmark database (65 benchmark runs, 4 sample agents, careful vs. careless comparison records) to the EC2 engine at `/opt/evalix/data/evalix.db` and restarted `evalix-backend`.
+  - Confirmed `GET /api/benchmarks` and `GET /api/agents` on `https://d2n1pd4ckplxt7.cloudfront.net` return all 65 completed benchmark runs and all 4 online agents.
+* **Hosted Cloud vs. Localhost Parity:**
+  - The cloud deployment exhibits 100% feature and visual parity with the local environment: the 4 agents are online, the full results datasheet is visible on `/`, the Compare view works with real divergence steps, Bifrost Gateway proxy is active, and Agent Studio synthesizes live agents.
+
+---
+
+### Phase 58: Renaming the Sample Agents by What They Do
+
+#### User Prompt 94
+> *"I've updated the demo script and created a teleprompter setup. I'll speak the audio, record the audio files, and then you will navigate through the UI based on the script we have, screen record, and stitch those audio files together to create the demo video so that it feels natural. One more thing before we create the demo: can we rename the Careful, Careless, LangChain, and Google ADK agents to something more meaningful and use case-driven instead of renaming them this way, because it doesn't make sense? Also update the script and the recording teleprompter.md file if needed. The infra is ready and deployed so you can put these changes in a feature/enhancements part after taking a pull from `main` and make those changes there. If there are any changes, ask me to redeploy and I'll do that using the script."*
+
+* **Choice (asked, author picked the recommended set):** name each sample agent by the job it does for a user, and keep the framework in its tag:
+  * Careful → **Fact Checker** ("Plain Python, retries and checks sources");
+  * Careless → **Quick Answer** ("Same code as Fact Checker, safety off");
+  * LangChain → **Research Assistant** ("LangChain, out of the box");
+  * Google ADK → **Web Analyst** ("Google ADK, out of the box").
+  * Domain names (e.g. "Card Fee Checker") were turned down: all four answer every question, so a domain name would mislead.
+* **Existing data:** at start-up the backend renames the old sample agents by address (`:9001`–`:9004`) in every workspace, so past results stay attached and the hosted database is fixed by a redeploy. A test covers it, including that an agent with the old name at another address is left alone.
+* **Also changed:** the sign-in example, `spec/api.md`, README, PRODUCT.md, `agents/README.md`, code comments, the demo script and teleprompter (with "under a second" corrected to "immediately", since the crash took 1.3 s in all), and the pitch deck.
+* **Branch:** `feature/enhancements`, from the latest `main`.
 
 ---
 

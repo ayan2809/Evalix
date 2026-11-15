@@ -151,7 +151,7 @@ def test_health_agents_tasks_faults(api):
     aid = agent_id(api, "normal")
     agents = {a["id"]: a for a in api.get("/api/agents").json()}
     assert agents[aid]["online"] is True
-    assert {"Careful", "Careless", "LangChain", "Google ADK"} <= {a["name"] for a in agents.values()}
+    assert {"Fact Checker", "Quick Answer", "Research Assistant", "Web Analyst"} <= {a["name"] for a in agents.values()}
     tasks = api.get("/api/tasks").json()
     assert {t["id"] for t in tasks} == {"cloud_limits", "ai_model_facts"}
     assert "answer_key" not in tasks[0] and "pool" not in tasks[0]

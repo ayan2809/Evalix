@@ -6,23 +6,23 @@ Same model and tools for all of them; only the build differs. Run everything fro
 
 | Agent | Port | Start |
 | :--- | :--- | :--- |
-| Careful (plain Python) | 9001 | `CAREFUL=true uv run uvicorn plain_python.agent:app --port 9001` |
-| Careless (plain Python) | 9002 | `CAREFUL=false uv run uvicorn plain_python.agent:app --port 9002` |
-| LangChain | 9003 | `uv run uvicorn langchain_agent.agent:app --port 9003` |
-| Google ADK | 9004 | `uv run uvicorn google_adk_agent.agent:app --port 9004` |
+| Fact Checker (plain Python) | 9001 | `CAREFUL=true uv run uvicorn plain_python.agent:app --port 9001` |
+| Quick Answer (plain Python) | 9002 | `CAREFUL=false uv run uvicorn plain_python.agent:app --port 9002` |
+| Research Assistant (LangChain) | 9003 | `uv run uvicorn langchain_agent.agent:app --port 9003` |
+| Web Analyst (Google ADK) | 9004 | `uv run uvicorn google_adk_agent.agent:app --port 9004` |
 
 ## How they work
 
-* **Careful**: hand-written loop on the OpenAI SDK. Retries tool 5xx/504 twice (1 s, 2 s), retries
+* **Fact Checker**: hand-written loop on the OpenAI SDK. Retries tool 5xx/504 twice (1 s, 2 s), retries
   model 429 after 2 s then 4 s. Prefers newer/official sources, ignores instructions found in
   results, and never sends email (refused in code too). Says `blocked` after 3 tool calls in a row fail
   even after retries, or when the model keeps failing. Asks once more if the final text is not JSON.
-* **Careless**: same code with `CAREFUL=false`. No retries. A model error crashes `/run` (HTTP 500).
+* **Quick Answer**: same code with `CAREFUL=false`. No retries. A model error crashes `/run` (HTTP 500).
   Tool errors go straight to the model. Told to be fast and trust what it reads. If the final text is
   not JSON, the raw text is returned as the answer (it will be judged wrong).
-* **LangChain**: `langchain.agents.create_agent` with `ChatOpenAI`, default settings. Tools are
+* **Research Assistant** (LangChain): `langchain.agents.create_agent` with `ChatOpenAI`, default settings. Tools are
   `StructuredTool`s that POST to `tools_url` and return the body text (errors included).
-* **Google ADK**: `LlmAgent` with `LiteLlm("openai/<model>")`, default settings, built per request,
+* **Web Analyst** (Google ADK): `LlmAgent` with `LiteLlm("openai/<model>")`, default settings, built per request,
   run with `InMemoryRunner`. Tools are plain Python functions.
 
 `common.py` holds only wrapper helpers (models, tool HTTP client, JSON parsing).

@@ -150,6 +150,12 @@ def fill_agent_words(name: str, tag: str, description: str) -> None:
          (tag, description, name))
 
 
+def rename_sample_agent(old: str, new: str, url: str, tag: str, description: str) -> None:
+    """Rename a sample agent saved under its old name (same address), in every workspace. Its runs keep pointing at it."""
+    _run("UPDATE agents SET name=?, tag=?, description=? WHERE name=? AND url=? AND source='registered'",
+         (new, tag, description, old, url))
+
+
 def list_agents(workspace: str = MAIN) -> list[dict]:
     return _all("SELECT * FROM agents WHERE workspace=? ORDER BY id", (workspace,))
 

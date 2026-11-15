@@ -140,7 +140,7 @@ export function waitBetween(prev: Step, next: Step): number {
   return gap > 1000 ? gap : 0
 }
 
-/** Sentence for a wait: "Careful waited 2 seconds and asked again". */
+/** Sentence for a wait: "Fact Checker waited 2 seconds and asked again". */
 export function waitSentence(agent: string, prev: Step, next: Step, gap: number): string {
   const when = secondsWords(gap)
   if (prev.fault && prev.kind === next.kind) return `${agent} waited ${when} and asked again`

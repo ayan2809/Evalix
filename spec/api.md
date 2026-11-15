@@ -419,14 +419,16 @@ Every read below is limited to the caller's workspace.
 | `GET /api/tasks` | | `Task[]` | [same] |
 | `GET /api/faults` | | `Fault[]` | [changed] adds `short` |
 
-Sample agent words (the main workspace gets them at start-up; others add them with `POST /api/agents/samples`):
+Sample agent words (the main workspace gets them at start-up; others add them with `POST /api/agents/samples`).
+A database from before Nov 15, 2026 has them under their old names (Careful, Careless, LangChain, Google ADK); at start-up
+they are renamed by address in every workspace, and their runs stay with them:
 
 | Agent | `tag` | `description` |
 | :--- | :--- | :--- |
-| Careful | Retries, checks sources | Plain Python. Tries again when something fails, trusts official pages over blogs, and ignores instructions hidden in web pages. |
-| Careless | Same code, safety off | The same code as Careful, with the safety habits turned off. |
-| LangChain | LangChain, out of the box | LangChain's standard agent, straight out of the box. |
-| Google ADK | Google ADK, out of the box | Google's Agent Development Kit, straight out of the box. |
+| Fact Checker | Plain Python, retries and checks sources | Looks up current facts. Tries again when something fails, trusts official pages over blogs, and ignores instructions hidden in web pages. |
+| Quick Answer | Same code as Fact Checker, safety off | Looks up current facts the fast way: the same code as Fact Checker, with the safety habits turned off. |
+| Research Assistant | LangChain, out of the box | Looks up current facts with LangChain's standard agent, straight out of the box. |
+| Web Analyst | Google ADK, out of the box | Looks up current facts with Google's Agent Development Kit, straight out of the box. |
 | Studio agents | Made from one sentence | The sentence the person typed. |
 
 Fault `short` words: broken_tool "Search fails once", slow_tool "Search hangs, then times out",

@@ -23,16 +23,23 @@ from app.tool_server import router as tool_router
 
 # The sample agents: (name, url, tag, description). The words are from spec/api.md.
 BUILT_IN_AGENTS = [
-    ("Careful", "http://localhost:9001", "Retries, checks sources",
-     "Plain Python. Tries again when something fails, trusts official pages over blogs, "
+    ("Fact Checker", "http://localhost:9001", "Plain Python, retries and checks sources",
+     "Looks up current facts. Tries again when something fails, trusts official pages over blogs, "
      "and ignores instructions hidden in web pages."),
-    ("Careless", "http://localhost:9002", "Same code, safety off",
-     "The same code as Careful, with the safety habits turned off."),
-    ("LangChain", "http://localhost:9003", "LangChain, out of the box",
-     "LangChain's standard agent, straight out of the box."),
-    ("Google ADK", "http://localhost:9004", "Google ADK, out of the box",
-     "Google's Agent Development Kit, straight out of the box."),
+    ("Quick Answer", "http://localhost:9002", "Same code as Fact Checker, safety off",
+     "Looks up current facts the fast way: the same code as Fact Checker, with the safety habits turned off."),
+    ("Research Assistant", "http://localhost:9003", "LangChain, out of the box",
+     "Looks up current facts with LangChain's standard agent, straight out of the box."),
+    ("Web Analyst", "http://localhost:9004", "Google ADK, out of the box",
+     "Looks up current facts with Google's Agent Development Kit, straight out of the box."),
 ]
+# What the sample agents were called before Nov 15, 2026, by address. Older databases are renamed on start.
+OLD_SAMPLE_NAMES = {
+    "http://localhost:9001": "Careful",
+    "http://localhost:9002": "Careless",
+    "http://localhost:9003": "LangChain",
+    "http://localhost:9004": "Google ADK",
+}
 CUT = 500  # long step text in /api/runs is cut to this many characters
 
 
@@ -42,8 +49,10 @@ async def lifespan(app: FastAPI):
     store.mark_orphans()
     if not store.list_agents(store.MAIN):
         add_samples(store.MAIN)
-    for name, _, tag, description in BUILT_IN_AGENTS:  # an older database has none of these words yet
-        store.fill_agent_words(name, tag, description)
+    for name, url, tag, description in BUILT_IN_AGENTS:
+        # An older database still has the old names; rename them in every workspace, keeping their results.
+        store.rename_sample_agent(OLD_SAMPLE_NAMES[url], name, url, tag, description)
+        store.fill_agent_words(name, tag, description)  # an older database has none of these words yet
     hosting.on_start()
     yield
     hosting.on_stop()

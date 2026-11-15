@@ -151,7 +151,7 @@ function scoreWords(n: number, total: number, unit: string): string {
   return `${ofTotal(n, total)} ${unit}`
 }
 
-/** "Careful got through all 7 problems. Careless got through 4." Handles ties and a single agent. */
+/** "Fact Checker got through all 7 problems. Quick Answer got through 4." Handles ties and a single agent. */
 export function answerSentence(rows: AgentRow[], hasProblems: boolean): string {
   const useFaults = rows.some((r) => r.fTotal > 0)
   const unit = useFaults ? 'problems' : 'everyday questions'
@@ -185,7 +185,7 @@ export function factsSentence(b: BenchmarkDetail): string {
 }
 
 /**
- * The everyday questions in one sentence: "Everyone passed all 6, except Google ADK once: it gave no sources on
+ * The everyday questions in one sentence: "Everyone passed all 6, except Web Analyst once: it gave no sources on
  * AWS Fargate and EKS billing."
  */
 export function everydaySentence(b: BenchmarkDetail, cells: Map<string, CellInfo>, questions: Problem[]): string {

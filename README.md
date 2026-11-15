@@ -18,7 +18,7 @@ and lets you put any two runs side by side.
 
 | Problem Statement 02 asks for | Evalix does it with |
 | :--- | :--- |
-| Framework independence | Agents are separate programs reached over HTTP. Evalix never imports agent code. Four agents ship with it: plain Python ×2, LangChain, Google ADK. |
+| Framework independence | Agents are separate programs reached over HTTP. Evalix never imports agent code. Four sample agents ship with it, all looking up current facts: Fact Checker and Quick Answer (plain Python), Research Assistant (LangChain), Web Analyst (Google ADK). |
 | Same tasks, with success, steps, tool calls, tokens, cost, time | Every agent gets the same 6 tasks, the same 3 tools, and the same model. Every call passes through Evalix, so it counts everything. |
 | Repeatability | Each task runs 3 times. Search results are saved once and replayed, so every trial sees the same web. |
 | Failure testing | 7 scripted faults: broken tool, slow tool, empty search, lying result, misleading instruction, model busy, tool gone. |
@@ -42,7 +42,7 @@ and lets you put any two runs side by side.
           │                                                 │
           ▼                                                 │
    Agents (separate programs) ──────────────────────────────┘
-     Careful :9001 · Careless :9002 · LangChain :9003 · Google ADK :9004
+     Fact Checker :9001 · Quick Answer :9002 · Research Assistant :9003 · Web Analyst :9004
 
    Model door ──► Bifrost gateway :8080 ──► Gemini
 ```
@@ -226,17 +226,17 @@ Five agents (the four built-in ones plus one made in Agent Studio) × 6 normal t
 
 | Agent | Normal tasks | With faults | What stood out |
 | :--- | :--- | :--- | :--- |
-| Careful (plain Python) | 6 of 6 | **7 of 7** | Waited out "model busy", stopped cleanly when search was gone |
-| Careless (same code, no safeguards) | 6 of 6 | **4 of 7** | Crashed on "model busy"; cited pages it never saw on "lying result" and "misleading instruction" |
-| LangChain | 6 of 6 | 7 of 7 | The OpenAI client's built-in retries absorbed "model busy" |
-| Google ADK | 5 of 6 | 7 of 7 | One normal task answered without sources |
+| Fact Checker (plain Python) | 6 of 6 | **7 of 7** | Waited out "model busy", stopped cleanly when search was gone |
+| Quick Answer (same code, no safeguards) | 6 of 6 | **4 of 7** | Crashed on "model busy"; cited pages it never saw on "lying result" and "misleading instruction" |
+| Research Assistant (LangChain) | 6 of 6 | 7 of 7 | The OpenAI client's built-in retries absorbed "model busy" |
+| Web Analyst (Google ADK) | 5 of 6 | 7 of 7 | One normal task answered without sources |
 | Studio agent | 6 of 6 | 5 of 7 | Its setup chose only 1 retry, not enough for a 2-call outage |
 
 Same model, same tools, same tasks: the difference is how each agent is built.
 One try is a small sample; the full benchmark uses 3 tries per test.
 
 A second, smaller real run on Nov 15 (5 agents × 3 problems: model busy, lying result, broken tool;
-15 runs, $0.049) checked the new build end to end. Careless crashed on "model busy" again (it doesn't
+15 runs, $0.049) checked the new build end to end. Quick Answer crashed on "model busy" again (it doesn't
 retry), the Studio agent gave up on it, and everything else got through. These runs also record when each
 step started, which the timing diagrams in Run details and Compare are drawn from.
 
@@ -253,7 +253,7 @@ backend/
   data/           tasks.json · faults.json · prices.json · models.json · raw/ (saved Tavily recordings)
   scripts/        record_search.py
   tests/
-agents/           plain_python/ (Careful + Careless) · langchain_agent/ · google_adk_agent/
+agents/           plain_python/ (Fact Checker + Quick Answer) · langchain_agent/ · google_adk_agent/
 frontend/src/     pages/ · ui/ (marks, title block, timing diagram, controls) · shell/ · api.ts
 spec/api.md       the backend/frontend contract
 bifrost/          config.json

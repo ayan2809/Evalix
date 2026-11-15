@@ -54,7 +54,7 @@ Two claims carry equal weight:
 * Terms used in the UI: "run", "problem" (a fault we cause), "everyday question" (a task), "got through",
   "slipped", "crashed", "second opinion", "Agent Studio" (where agents are made from a sentence).
 * Screens carry no explanations; the **How it works** page and a first-visit tour do that once.
-* Open: whether Careless should be made weaker (human queue Q3); whether to keep four answer values taken from
+* Open: whether Quick Answer should be made weaker (human queue Q3); whether to keep four answer values taken from
   third-party pages (Q4); whether to reuse an existing Google sign-in client ID (Q5).
 
 ## Brand Commitments
@@ -65,11 +65,11 @@ Two claims carry equal weight:
 
 ## Evidence on Hand
 
-* A real benchmark (Nov 14, 2026): 5 agents, 65 runs, one try each, $0.17 in total. Careful got through 7 of 7
-  problems, LangChain 7, Google ADK 7, the Studio agent 5, Careless 4. Stored in `backend/evalix.db`.
+* A real benchmark (Nov 14, 2026): 5 agents, 65 runs, one try each, $0.17 in total. Fact Checker got through 7 of 7
+  problems, Research Assistant 7, Web Analyst 7, the Studio agent 5, Quick Answer 4. Stored in `backend/evalix.db`.
 * Live gateway runs through Bifrost v2.5.1: fallback 6 of 6 calls answered by the backup with 0 errors; retry
   answered on the 3rd try (waits about 1 s and 2.4 s); a $0.01 limit stopped an agent after about 10 calls.
-* A member's real run on Nov 15, 2026 (Careful, one question and one problem): both got through, $0.0048,
+* A member's real run on Nov 15, 2026 (Fact Checker, one question and one problem): both got through, $0.0048,
   every model call made with that member's own Bifrost key.
 * No users, customers, testimonials or press exist yet. Do not invent them.
 

@@ -7,16 +7,18 @@ import sqlite3
 # test_runtime must load first: it sets the settings (ports, mock mode) before the app is imported.
 from test_runtime import api, run_benchmark, servers, agent_id  # noqa: F401,I001  (pytest fixtures)
 
-CAREFUL_WORDS = ("Retries, checks sources", "Plain Python. Tries again when something fails, trusts official "
-                 "pages over blogs, and ignores instructions hidden in web pages.")
+FACT_CHECKER_WORDS = ("Plain Python, retries and checks sources", "Looks up current facts. Tries again when something "
+                      "fails, trusts official pages over blogs, and ignores instructions hidden in web pages.")
 
 
 def test_built_in_agents_have_their_words(api):
     agents = {a["name"]: a for a in api.get("/api/agents").json()}
-    assert (agents["Careful"]["tag"], agents["Careful"]["description"]) == CAREFUL_WORDS
-    assert agents["Careless"]["tag"] == "Same code, safety off"
-    assert agents["LangChain"]["tag"] == "LangChain, out of the box"
-    assert agents["Google ADK"]["description"] == "Google's Agent Development Kit, straight out of the box."
+    assert (agents["Fact Checker"]["tag"], agents["Fact Checker"]["description"]) == FACT_CHECKER_WORDS
+    assert agents["Quick Answer"]["tag"] == "Same code as Fact Checker, safety off"
+    assert agents["Research Assistant"]["tag"] == "LangChain, out of the box"
+    assert agents["Web Analyst"]["description"] == ("Looks up current facts with Google's Agent Development Kit, "
+                                                    "straight out of the box.")
+    assert not {"Careful", "Careless", "LangChain", "Google ADK"} & set(agents)
 
 
 def test_new_agent_accepts_tag_and_description(api):
@@ -151,3 +153,22 @@ def test_model_door_rewrites_to_the_runs_model(servers, monkeypatch):
     resp = httpx.post(f"{BASE}/runs/r_model001/model/v1/chat/completions",
                       json={"model": "agent-model", "messages": [{"role": "user", "content": "x"}]})
     assert resp.status_code == 200 and seen["model"] == "gemini/gemini-3.8-flash"
+
+
+def test_old_sample_names_are_renamed_and_keep_their_runs(tmp_path):
+    from app import config, store
+    from app.main import BUILT_IN_AGENTS, OLD_SAMPLE_NAMES
+    try:
+        store.init_db(str(tmp_path / "renamed.db"))
+        old = store.add_agent("Careful", "http://localhost:9001", source="registered", workspace="u1")
+        mine = store.add_agent("Careful", "http://elsewhere:1", source="registered", workspace="u1")
+        name, url, tag, description = BUILT_IN_AGENTS[0]
+        store.rename_sample_agent(OLD_SAMPLE_NAMES[url], name, url, tag, description)
+        store.rename_sample_agent(OLD_SAMPLE_NAMES[url], name, url, tag, description)  # a second start changes nothing
+        renamed = store.get_agent(old["id"])
+        assert (renamed["name"], renamed["tag"]) == ("Fact Checker", "Plain Python, retries and checks sources")
+        assert renamed["workspace"] == "u1"
+        other = store.get_agent(mine["id"])
+        assert other["name"] == "Careful"  # an agent of the same name at another address is someone else's
+    finally:
+        store.init_db(config.DB_PATH)
