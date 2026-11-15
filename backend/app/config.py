@@ -21,7 +21,16 @@ PUBLIC_URL = os.environ.get("EVALIX_PUBLIC_URL", "http://localhost:8000").rstrip
 
 # Sign-in (spec/api.md section 2). Empty GOOGLE_CLIENT_ID means Google sign-in is not set up.
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
-ALLOWED_EMAILS = [e.strip().lower() for e in os.environ.get("EVALIX_ALLOWED_EMAILS", "").split(",") if e.strip()]
+
+def _emails(name: str) -> list[str]:
+    return [e.strip().lower() for e in os.environ.get(name, "").split(",") if e.strip()]
+
+
+# Only these Google accounts may sign in at all. Empty means anyone with a verified Google email.
+ALLOWED_EMAILS = _emails("EVALIX_ALLOWED_EMAILS")
+# Google accounts that may change things. Everyone else who signs in with Google can only look.
+# Empty means every Google account that may sign in is an owner.
+OWNER_EMAILS = _emails("EVALIX_OWNER_EMAILS")
 EVALIX_SECRET = os.environ.get("EVALIX_SECRET", "")
 
 # Limits for one run (plan section 9).

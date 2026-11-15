@@ -151,7 +151,10 @@ quietly and, if it persists, marked as a **setup problem**, never counted agains
   model calls (with token counts), and tags for agent, task, fault, ending, cost, and time. Settings can
   send every finished benchmark automatically.
 * **Sign in:** Google sign-in (set `GOOGLE_CLIENT_ID`), or "Continue on this computer" when Google isn't
-  set up, or "Look around first" as a read-only guest. `EVALIX_ALLOWED_EMAILS` limits who may sign in.
+  set up, or "Look around first" as a read-only guest. The backend checks Google's ID token itself with
+  `google-auth` (signature, audience, expiry, issuer). `EVALIX_OWNER_EMAILS` lists the Google accounts that may
+  start runs and change settings; anyone else who signs in can only look. `EVALIX_ALLOWED_EMAILS` limits who may
+  sign in at all. The Google client must list `http://localhost:5173` under "Authorized JavaScript origins".
 * **Settings** (the gear on the "Running on" card): pick the model for agents and for second opinions
   (applies to the next run), see masked API keys, test or replace them, and choose saved or live search.
 

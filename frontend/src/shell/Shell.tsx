@@ -140,12 +140,16 @@ export default function Shell({ children }: { children: ReactNode }) {
       </aside>
 
       <main className="main">
-        {guest && (
+        {guest && me?.session === 'google' ? (
+          <div className="guest-note" role="note">
+            <span>You're signed in to look around. Only the owner can start runs or change settings.</span>
+          </div>
+        ) : guest ? (
           <div className="guest-note" role="note">
             <span>You're looking around. Sign in to start runs or change settings.</span>
             <Link to="/signin">Sign in</Link>
           </div>
-        )}
+        ) : null}
         {children}
       </main>
       <SettingsDialog />

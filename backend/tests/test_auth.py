@@ -7,8 +7,10 @@ from fastapi.testclient import TestClient
 
 GUEST_MESSAGE = "Sign in to do this. You're looking around as a guest."
 CLIENT_ID = "test-client.apps.googleusercontent.com"
-GOOD_TOKEN = {"aud": CLIENT_ID, "email": "Ann@Example.com", "email_verified": "true",
+GOOD_TOKEN = {"iss": "https://accounts.google.com", "sub": "1234567890", "aud": CLIENT_ID,
+              "email": "Ann@Example.com", "email_verified": True,
               "name": "Ann", "picture": "https://pics.example.com/ann.png"}
+VIEWER_MESSAGE = "Your Google account can look around here but not change things. Ask the owner to add you."
 
 
 @pytest.fixture
@@ -19,6 +21,8 @@ def setup(monkeypatch):
     store.init_db(config.DB_PATH)
     monkeypatch.setattr(config, "GOOGLE_CLIENT_ID", "")
     monkeypatch.setattr(config, "ALLOWED_EMAILS", [])
+    monkeypatch.setattr(config, "OWNER_EMAILS", [])
+    auth._tries.clear()
     return TestClient(app), auth, config, monkeypatch
 
 
@@ -27,10 +31,13 @@ def google_on(config, monkeypatch, allowed=()):
     monkeypatch.setattr(config, "ALLOWED_EMAILS", list(allowed))
 
 
-def fake_google(auth, monkeypatch, status=200, info=None):
-    async def fetch(credential):
-        return status, GOOD_TOKEN if info is None else info
-    monkeypatch.setattr(auth, "_fetch_tokeninfo", fetch)
+def fake_google(auth, monkeypatch, info=None, error=None):
+    """Stand in for google-auth's check. `error` is raised instead, like a bad signature would."""
+    def verify(credential):
+        if error is not None:
+            raise error
+        return GOOD_TOKEN if info is None else info
+    monkeypatch.setattr(auth, "_verify_google", verify)
 
 
 def change_something(client):
@@ -110,15 +117,16 @@ def test_google_not_set_up_is_400(setup):
     assert client.post("/api/auth/google", json={"credential": "t"}).status_code == 400
 
 
-@pytest.mark.parametrize("status, info", [
-    (400, {"error": "invalid_token"}),
-    (200, {**GOOD_TOKEN, "aud": "someone-else"}),
-    (200, {**GOOD_TOKEN, "email_verified": "false"}),
+@pytest.mark.parametrize("info, error", [
+    (None, ValueError("Token expired")),                      # bad signature, out of date, wrong audience
+    ({**GOOD_TOKEN, "aud": "someone-else"}, None),
+    ({**GOOD_TOKEN, "iss": "https://evil.example.com"}, None),
+    ({**GOOD_TOKEN, "email_verified": False}, None),
 ])
-def test_google_bad_token_is_401(setup, status, info):
+def test_google_bad_token_is_401(setup, info, error):
     client, auth, config, monkeypatch = setup
     google_on(config, monkeypatch)
-    fake_google(auth, monkeypatch, status, info)
+    fake_google(auth, monkeypatch, info, error)
     resp = client.post("/api/auth/google", json={"credential": "t"})
     assert resp.status_code == 401 and resp.json()["detail"]
     assert client.get("/api/auth/me").json()["session"] is None
@@ -133,6 +141,52 @@ def test_google_allowed_emails(setup):
     assert "evalix_session" not in client.cookies
     google_on(config, monkeypatch, allowed=["ann@example.com"])  # not case sensitive
     assert client.post("/api/auth/google", json={"credential": "t"}).status_code == 200
+
+
+def test_google_cant_reach_google_is_502(setup):
+    from google.auth.exceptions import TransportError
+    client, auth, config, monkeypatch = setup
+    google_on(config, monkeypatch)
+    fake_google(auth, monkeypatch, error=TransportError("offline"))
+    assert client.post("/api/auth/google", json={"credential": "t"}).status_code == 502
+
+
+def test_owner_emails_decide_who_may_change_things(setup):
+    client, auth, config, monkeypatch = setup
+    google_on(config, monkeypatch)
+    fake_google(auth, monkeypatch)
+    monkeypatch.setattr(config, "OWNER_EMAILS", ["boss@example.com"])
+    me = client.post("/api/auth/google", json={"credential": "t"}).json()
+    assert (me["session"], me["role"]) == ("google", "guest")  # signed in, but only to look
+    resp = change_something(client)
+    assert resp.status_code == 403 and resp.json() == {"detail": VIEWER_MESSAGE}
+    assert client.get("/api/agents").status_code == 200
+    monkeypatch.setattr(config, "OWNER_EMAILS", ["ann@example.com"])  # read on every request
+    assert client.get("/api/auth/me").json()["role"] == "owner"
+    assert change_something(client).status_code == 404
+
+
+def test_too_many_sign_ins_is_429(setup):
+    client, auth, config, monkeypatch = setup
+    google_on(config, monkeypatch)
+    fake_google(auth, monkeypatch, error=ValueError("bad"))
+    codes = [client.post("/api/auth/google", json={"credential": "t"}).status_code
+             for _ in range(auth.SIGN_IN_TRIES + 1)]
+    assert codes[:-1] == [401] * auth.SIGN_IN_TRIES and codes[-1] == 429
+
+
+def test_cookie_is_secure_behind_https(setup):
+    client, *_ = setup
+    resp = client.post("/api/auth/local", headers={"x-forwarded-proto": "https"})
+    assert "secure" in resp.headers["set-cookie"].lower()
+    assert "secure" not in client.post("/api/auth/local").headers["set-cookie"].lower()
+
+
+def test_real_google_check_refuses_junk(setup):
+    """The real google-auth path, no mock: a token that isn't a JWT fails before anything is fetched."""
+    client, _, config, monkeypatch = setup
+    google_on(config, monkeypatch)
+    assert client.post("/api/auth/google", json={"credential": "not-a-jwt"}).status_code == 401
 
 
 def test_sign_out_clears_the_cookie(setup):

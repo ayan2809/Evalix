@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { api, asApiError, type ApiError, type Me } from './api'
 
 export const GUEST_REASON = "Sign in to do this. You're looking around as a guest."
+/** A Google account that isn't on the owner list (EVALIX_OWNER_EMAILS). */
+export const VIEWER_REASON = 'Your Google account can look around here but not change things. Ask the owner to add you.'
 
 interface AuthValue {
   /** null until the first answer from GET /api/auth/me */
@@ -84,7 +86,8 @@ export function useAuth(): AuthValue {
 export function useCanEdit(): { canEdit: boolean; reason: string | undefined } {
   const v = useContext(Ctx)
   const canEdit = !v || !v.me || v.me.role === 'owner'
-  return { canEdit, reason: canEdit ? undefined : GUEST_REASON }
+  if (canEdit) return { canEdit, reason: undefined }
+  return { canEdit, reason: v?.me?.session === 'google' ? VIEWER_REASON : GUEST_REASON }
 }
 
 /** "Guest", "This computer" or the Google name. */

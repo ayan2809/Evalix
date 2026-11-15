@@ -10,6 +10,8 @@ dependencies = [
   "python-dotenv>=1.0",
   "tavily-python>=0.8.5",
   "maxim-py>=3.14.20",
+  "google-auth>=2.35",
+  "requests>=2.32",
 ]
 
 [dependency-groups]
