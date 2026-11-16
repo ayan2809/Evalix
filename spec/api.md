@@ -415,6 +415,8 @@ Every read below is limited to the caller's workspace.
 | `GET /api/health` | | `Health` | [changed] adds `judge_model`, `bifrost_up`, `search_mode` |
 | `GET /api/agents?archived=` | | `Agent[]` | [changed] adds `tag`, `description`, `archived`. Archived agents are left out unless `archived=true` (then all, marked). The four built-in agents get the tags and sentences from the design (below) |
 | ✍️ `POST /api/agents/{id}/archive` | `{archived: boolean}` | `Agent` | [new] Hides an agent from lists and run pickers, or brings it back. Its runs stay |
+| ✍️ `POST /api/agents/{id}/try` | `{question, fault_id?}` | `{run_id}` | [new] The playground: asks one question with live search and, optionally, one of `broken_tool`, `slow_tool`, `empty_result`, `model_busy`, `tool_gone`. Returns at once; `GET /api/runs/{run_id}` shows it (ending `passed` = answered, `crashed`, or `setup_problem`; not graded) |
+| `GET /api/agents/{id}/tries` | | `TryItem[]` | [new] The last 10 playground questions to this agent |
 | ✍️ `POST /api/agents/{id}/check` | | `{online, problem, detail}` | [new] Why it does or doesn't answer: `problem` is `address`, `dns`, `refused`, `timeout`, `error`, `health` or null, and `detail` is one sentence. Hosted, a refused `localhost` address adds that "localhost" means the Evalix server |
 | ✍️ `POST /api/agents` | `{name, url, tag?, description?}` | `Agent` | [changed] |
 | ✍️ `POST /api/agents/samples` | | `Agent[]` | [v2] Adds the four sample agents below to your workspace (skips ones already there). Returns the workspace's agents |

@@ -152,6 +152,14 @@ def _my_benchmark(benchmark_id: int, me: Who) -> dict:
     return _mine(bench, "benchmark", me.workspace, bench and bench.get("workspace"))
 
 
+def _real_benchmark(benchmark_id: int, me: Who) -> dict:
+    """A benchmark people can pin, share or archive: never the playground's hidden one."""
+    bench = _my_benchmark(benchmark_id, me)
+    if bench.get("kind") == "playground":
+        raise HTTPException(status_code=404, detail="benchmark not found")
+    return bench
+
+
 def _my_agent(agent_id: int, me: Who) -> dict:
     agent = store.get_agent(agent_id)
     return _mine(agent, "agent", me.workspace, agent and agent.get("workspace"))
@@ -160,6 +168,8 @@ def _my_agent(agent_id: int, me: Who) -> dict:
 def _run_view(run: dict) -> dict:
     agent = store.get_agent(run["agent_id"])
     task = load_tasks().get(run["task_id"], {})
+    if run["task_id"] == "playground":
+        task = {"title": "Playground question", "task": run.get("prompt", "")}
     fault = load_faults().get(run["fault_id"], {}) if run["fault_id"] else {}
     return {**run,
             "checks": run.get("checks_json"),
@@ -235,6 +245,38 @@ async def diagnose(url: str) -> dict:
         return {"online": False, "problem": "health",
                 "detail": f"{health} answered {resp.status_code}. It must answer 200 to count as ready."}
     return {"online": True, "problem": None, "detail": "It answers. Ready to test."}
+
+
+class TryQuestion(BaseModel):
+    question: str
+    fault_id: str | None = None
+
+
+@app.post("/api/agents/{agent_id}/try", dependencies=[Depends(require_member)])
+async def try_agent(agent_id: int, body: TryQuestion, me: Who = Depends(who)):
+    """The playground: ask one agent one question, with live web search and optionally one problem caused on
+    purpose. Returns {run_id} at once; GET /api/runs/{run_id} shows the steps as they happen."""
+    agent = _my_agent(agent_id, me)
+    question = body.question.strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Type a question for the agent first.")
+    if body.fault_id and body.fault_id not in runner.PLAYGROUND_FAULTS:
+        raise HTTPException(status_code=400, detail="That problem needs a prepared question. Pick another.")
+    allowance.check_can_start(me.role, me.workspace, live_mode=True)
+    key = await allowance.workspace_key(me.workspace, me.role)
+    if me.role == "member" and key is None and not config.MOCK:
+        raise HTTPException(status_code=502, detail="Bifrost couldn't make your spending key, so the question "
+                                                    "can't be asked safely. Check that Bifrost is running.")
+    run_id = await runner.start_try(agent, question[:500], body.fault_id, me.workspace, key and key["value"])
+    return {"run_id": run_id}
+
+
+@app.get("/api/agents/{agent_id}/tries")
+async def agent_tries(agent_id: int, me: Who = Depends(who)):
+    """The latest playground questions asked of this agent, newest first (just the summary of each)."""
+    _my_agent(agent_id, me)
+    keys = ("id", "prompt", "fault_id", "ending", "fail_reason", "seconds", "cost_usd", "answer_json", "started_at")
+    return [{k: r.get(k) for k in keys} for r in store.list_playground_runs(me.workspace, agent_id)]
 
 
 @app.post("/api/agents/{agent_id}/check", dependencies=[Depends(require_member)])
@@ -316,7 +358,7 @@ async def get_benchmarks(archived: bool = False, me: Who = Depends(who)):
 
 @app.post("/api/benchmarks/{benchmark_id}/archive", dependencies=[Depends(require_member)])
 async def archive_benchmark(benchmark_id: int, body: Archive, me: Who = Depends(who)):
-    bench = _my_benchmark(benchmark_id, me)
+    bench = _real_benchmark(benchmark_id, me)
     if bench["status"] == "running" and body.archived:
         raise HTTPException(status_code=409, detail="This benchmark is still running. Stop it first.")
     store.set_benchmark_archived(benchmark_id, body.archived)
@@ -331,7 +373,7 @@ class Feature(BaseModel):
 @app.post("/api/benchmarks/{benchmark_id}/feature", dependencies=[Depends(require_member)])
 async def feature_benchmark(benchmark_id: int, body: Feature, me: Who = Depends(who)):
     """Pin this benchmark as the one shown first (for guests too, in the main workspace), or unpin it."""
-    _my_benchmark(benchmark_id, me)
+    _real_benchmark(benchmark_id, me)
     store.set_featured(me.workspace, benchmark_id if body.featured else None)
     hosting.after_change()
     return {"ok": True}
@@ -344,7 +386,7 @@ class Share(BaseModel):
 @app.post("/api/benchmarks/{benchmark_id}/share", dependencies=[Depends(require_member)])
 async def share_benchmark(benchmark_id: int, body: Share, me: Who = Depends(who)):
     """Make (or keep) a secret read-only link to this benchmark, or switch it off. Returns the token."""
-    bench = _my_benchmark(benchmark_id, me)
+    bench = _real_benchmark(benchmark_id, me)
     token = (bench.get("share_token") or secrets.token_urlsafe(12)) if body.shared else None
     store.set_share_token(benchmark_id, token)
     hosting.after_change()

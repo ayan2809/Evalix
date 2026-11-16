@@ -58,6 +58,19 @@ export interface Agent {
   archived?: boolean
 }
 
+/** One question asked in the playground (GET /api/agents/{id}/tries), newest first. */
+export interface TryItem {
+  id: string
+  prompt: string
+  fault_id: string
+  ending: Ending
+  fail_reason: string
+  seconds: number
+  cost_usd: number
+  answer_json: AnswerJson | null
+  started_at: string
+}
+
 /** Why an agent does or doesn't answer, from POST /api/agents/{id}/check. */
 export interface AgentCheck {
   online: boolean
@@ -519,6 +532,10 @@ export const api = {
   listAgents: (archived = false) => request<Agent[]>(`/api/agents${archived ? '?archived=true' : ''}`),
   archiveAgent: (id: number, archived: boolean) => post<Agent>(`/api/agents/${id}/archive`, { archived }),
   checkAgent: (id: number) => post<AgentCheck>(`/api/agents/${id}/check`),
+  /** The playground: ask one agent one question. Watch it with getRun(run_id). */
+  tryAgent: (id: number, question: string, faultId: string | null) =>
+    post<{ run_id: string }>(`/api/agents/${id}/try`, { question, fault_id: faultId }),
+  agentTries: (id: number) => request<TryItem[]>(`/api/agents/${id}/tries`),
   addAgent: (body: { name: string; url: string; tag?: string; description?: string }) =>
     post<Agent>('/api/agents', body),
   /** Adds the four sample agents to your workspace. Returns all your agents. */

@@ -70,6 +70,9 @@ NEW_COLUMNS = [
     ("benchmarks", "archived", "INTEGER NOT NULL DEFAULT 0"),
     ("benchmarks", "featured", "INTEGER NOT NULL DEFAULT 0"),
     ("benchmarks", "share_token", "TEXT"),
+    # The playground (Nov 16, 2026): one hidden benchmark per workspace holds the questions people try by hand.
+    ("benchmarks", "kind", "TEXT NOT NULL DEFAULT 'benchmark'"),
+    ("runs", "prompt", "TEXT NOT NULL DEFAULT ''"),
 ]
 MAIN = "main"
 STUDIO_TAG = "Made from one sentence"
@@ -203,8 +206,20 @@ def get_benchmark(benchmark_id: int) -> dict | None:
 
 
 def list_benchmarks(workspace: str = MAIN, include_archived: bool = False) -> list[dict]:
+    """Real benchmarks only: the playground's hidden one never shows in lists."""
     hide = "" if include_archived else " AND archived=0"
-    return _all(f"SELECT * FROM benchmarks WHERE workspace=?{hide} ORDER BY id DESC", (workspace,))
+    return _all(f"SELECT * FROM benchmarks WHERE workspace=? AND kind='benchmark'{hide} ORDER BY id DESC",
+                (workspace,))
+
+
+def playground_benchmark(workspace: str) -> int:
+    """The workspace's hidden benchmark that holds playground tries (made the first time it is needed)."""
+    row = _one("SELECT id FROM benchmarks WHERE workspace=? AND kind='playground'", (workspace,))
+    if row:
+        return row["id"]
+    return _run("INSERT INTO benchmarks (status, trials, live_mode, created_at, total_runs, selection_json, workspace,"
+                " kind) VALUES ('done', 1, 1, ?, 0, ?, ?, 'playground')",
+                (_now(), _dump({"agent_ids": [], "task_ids": [], "fault_ids": []}), workspace))
 
 
 def set_benchmark_archived(benchmark_id: int, archived: bool) -> None:
@@ -267,10 +282,17 @@ def benchmark_costs() -> dict[int, float]:
 # ---- runs ----
 
 def create_run(run_id: str, benchmark_id: int, agent_id: int, task_id: str,
-               fault_id: str, trial: int, expect: str, model: str) -> None:
-    _run("INSERT INTO runs (id, benchmark_id, agent_id, task_id, fault_id, trial, expect, model, started_at)"
-         " VALUES (?,?,?,?,?,?,?,?,?)",
-         (run_id, benchmark_id, agent_id, task_id, fault_id, trial, expect, model, _now()))
+               fault_id: str, trial: int, expect: str, model: str, prompt: str = "") -> None:
+    _run("INSERT INTO runs (id, benchmark_id, agent_id, task_id, fault_id, trial, expect, model, started_at, prompt)"
+         " VALUES (?,?,?,?,?,?,?,?,?,?)",
+         (run_id, benchmark_id, agent_id, task_id, fault_id, trial, expect, model, _now(), prompt))
+
+
+def list_playground_runs(workspace: str, agent_id: int, limit: int = 10) -> list[dict]:
+    """The latest playground tries with one agent, newest first."""
+    return _all("SELECT r.* FROM runs r JOIN benchmarks b ON b.id=r.benchmark_id WHERE b.workspace=?"
+                " AND b.kind='playground' AND r.agent_id=? ORDER BY r.started_at DESC, r.rowid DESC LIMIT ?",
+                (workspace, agent_id, limit))
 
 
 RUN_FIELDS = {"ending", "fail_reason", "steps", "tool_calls", "tokens_in", "tokens_out", "cost_usd",

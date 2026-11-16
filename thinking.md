@@ -1370,6 +1370,25 @@ Timeline of Collaboration
 
 ---
 
+### Phase 75: Only the Author as Contributor
+
+#### User Prompt 111
+> *"the repo should show only me as the contributor and not claude."*
+
+* 14 commits on `main` carried a co-author trailer, which is why GitHub listed a second contributor. After the author confirmed, the trailer was stripped from every commit on `main` and the feature branches (authors, dates, messages and file contents unchanged; each branch tip has the same files), and the branches were force-pushed with a lease. A backup bundle was kept outside the repo. New commits carry no trailer.
+
+### Phase 76: A Playground for Studio Agents
+
+#### User Prompt 112
+> *"there should be a playground where the user can interact with the agent that they just created on the ai studio else its like too open ended."*
+
+* **Playground** on the Agent Studio page: pick an agent (the one just made is picked for you; "Try it" picks another), type a question, optionally break one thing, and watch each step as it happens, then the answer and its sources.
+* **Same path as a run:** the question goes to the agent's `POST /run` with Evalix's tools and model door, through Bifrost, with live web search. Only the five problems that fit any question are offered (broken tool, slow tool, empty search, model busy, tool gone); the lying ones need a prepared page.
+* **Storage:** tries are runs in one hidden benchmark per workspace (`benchmarks.kind = 'playground'`, never listed, pinned or shared), with the question in `runs.prompt`. They count toward a member's daily allowance. `POST /api/agents/{id}/try` returns at once and the page polls the run, so a slow agent never hits the CDN's request timeout.
+* **Tests:** 2 more (250 in all).
+
+---
+
 ## Pending Items (as of Nov 15, 2026)
 
 **For the author**

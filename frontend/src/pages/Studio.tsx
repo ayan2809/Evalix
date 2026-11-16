@@ -17,6 +17,7 @@ import {
 } from "../ui";
 import { useShell } from "../shell/ShellContext";
 import { OnlineStatus } from "./agents/OnlineStatus";
+import { Playground } from "./studio/Playground";
 import "./sheet.css";
 import "./studio/studio.css";
 
@@ -70,6 +71,8 @@ export default function Studio() {
   const [busy, setBusy] = useState<"" | "asking" | "making">("");
   const [error, setError] = useState("");
   const [made, setMade] = useState<StudioResult | null>(null);
+  // Which agent the playground talks to: one picked with "Try it", else the one just made.
+  const [tryWith, setTryWith] = useState<number | undefined>(undefined);
 
   const mine = (agents.data ?? [])
     .filter((a) => a.source === "studio")
@@ -108,6 +111,7 @@ export default function Studio() {
     try {
       const res = await api.studio.createAgent(description.trim(), answers());
       setMade(res);
+      setTryWith(undefined);
       agents.reload();
     } catch (e) {
       setError(asApiError(e).message);
@@ -316,6 +320,14 @@ export default function Studio() {
         </section>
       )}
 
+      {agents.data && (
+        <Playground
+          // Studio agents first, newest first; then the rest of the workspace.
+          agents={[...mine, ...(agents.data ?? []).filter((a) => a.source !== "studio")]}
+          pick={tryWith ?? made?.agent.id}
+        />
+      )}
+
       <section className="ds-block" aria-label="Agents you've made">
         <SectionBar title="Agents you've made" />
         {agents.error ? (
@@ -348,7 +360,17 @@ export default function Studio() {
                     <td>
                       <OnlineStatus online={a.online} asleep={asleep} />
                     </td>
-                    <td className="narrow">
+                    <td className="narrow studio-row-actions">
+                      <button
+                        type="button"
+                        className="link-btn"
+                        onClick={() => {
+                          setTryWith(a.id);
+                          document.querySelector(".pg")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }}
+                      >
+                        Try it
+                      </button>
                       <Link to="/run">Use it in a run</Link>
                     </td>
                   </tr>

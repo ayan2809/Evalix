@@ -151,3 +151,10 @@
   align-items: center;
   gap: 16px;
 }
+
+.studio-row-actions {
+  white-space: nowrap;
+}
+.studio-row-actions .link-btn {
+  margin-right: 14px;
+}
