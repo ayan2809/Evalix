@@ -400,3 +400,29 @@
   outline-offset: 6px;
   scroll-margin: 96px;
 }
+
+/* "?" next to the account: replays the tour from any page. */
+.tour-again {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border: 1.5px solid rgb(255 255 255 / 55%);
+  border-radius: 50%;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.tour-again:hover {
+  background: rgb(255 255 255 / 12%);
+}
+.tour-again:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.shell.collapsed .tour-again {
+  display: none;
+}

@@ -96,6 +96,13 @@ export function dollars(v: number | null | undefined): string {
   return `$${v.toFixed(4)}`
 }
 
+/** Money for a headline cell: cents, or "under 1¢" (four decimals read as noise there). */
+export function spentWords(v: number | null | undefined): string {
+  if (v === null || v === undefined) return '–'
+  if (v === 0) return '$0'
+  return v < 0.01 ? 'under 1¢' : `$${v.toFixed(2)}`
+}
+
 export function shortDay(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso

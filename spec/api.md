@@ -413,7 +413,9 @@ Every read below is limited to the caller's workspace.
 | Method and path | Body | Returns | Mark |
 | :--- | :--- | :--- | :--- |
 | `GET /api/health` | | `Health` | [changed] adds `judge_model`, `bifrost_up`, `search_mode` |
-| `GET /api/agents` | | `Agent[]` | [changed] adds `tag`, `description`. The four built-in agents get the tags and sentences from the design (below) |
+| `GET /api/agents?archived=` | | `Agent[]` | [changed] adds `tag`, `description`, `archived`. Archived agents are left out unless `archived=true` (then all, marked). The four built-in agents get the tags and sentences from the design (below) |
+| ✍️ `POST /api/agents/{id}/archive` | `{archived: boolean}` | `Agent` | [new] Hides an agent from lists and run pickers, or brings it back. Its runs stay |
+| ✍️ `POST /api/agents/{id}/check` | | `{online, problem, detail}` | [new] Why it does or doesn't answer: `problem` is `address`, `dns`, `refused`, `timeout`, `error`, `health` or null, and `detail` is one sentence. Hosted, a refused `localhost` address adds that "localhost" means the Evalix server |
 | ✍️ `POST /api/agents` | `{name, url, tag?, description?}` | `Agent` | [changed] |
 | ✍️ `POST /api/agents/samples` | | `Agent[]` | [v2] Adds the four sample agents below to your workspace (skips ones already there). Returns the workspace's agents |
 | `GET /api/tasks` | | `Task[]` | [same] |
@@ -441,7 +443,10 @@ tool_gone "Search never works. The right move is to stop".
 | Method and path | Body | Returns | Mark |
 | :--- | :--- | :--- | :--- |
 | ✍️ `POST /api/benchmarks` | `StartBenchmarkBody` | `{id: number}` | [changed] Uses the agent model from Settings at the moment it starts. Only agents in your workspace. 402 when a member is over a daily limit |
-| `GET /api/benchmarks` | | `BenchmarkListItem[]` | [changed] adds `total_cost`, `agent_count` |
+| `GET /api/benchmarks?archived=` | | `BenchmarkListItem[]` | [changed] adds `total_cost`, `agent_count`, `archived`, `featured`, `share_token`. Archived ones only with `archived=true`. `share_token` is null for guests and share links |
+| ✍️ `POST /api/benchmarks/{id}/archive` | `{archived: boolean}` | `{ok: true}` | [new] 409 while it is running. Archiving also unpins it |
+| ✍️ `POST /api/benchmarks/{id}/feature` | `{featured: boolean}` | `{ok: true}` | [new] Pins it as the one the Results page opens on (one per workspace; guests see the main workspace's pin) |
+| ✍️ `POST /api/benchmarks/{id}/share` | `{shared: boolean}` | `{share_token: string \| null}` | [new] Makes (or keeps) a secret read-only link, or switches it off. The link is `/share/<token>` |
 | `GET /api/benchmarks/{id}` | | `BenchmarkDetail` | [changed] see types |
 | `GET /api/benchmarks/{id}/events` | | SSE stream | [same], see section 5 |
 | ✍️ `POST /api/benchmarks/{id}/cancel` | | `{ok: true}` | [same] |
@@ -450,6 +455,11 @@ tool_gone "Search never works. The right move is to stop".
 | `GET /api/steps/{step_id}` | | `Step` (full JSON) | [same] |
 | `GET /api/compare?a={run_id}&b={run_id}` | | `CompareResult` | [same] |
 | ✍️ `POST /api/runs/{run_id}/review` | | `Review` | [same] (the second opinion) |
+
+**Share links.** A request with the header `X-Evalix-Share: <token>` needs no sign-in and sees one benchmark,
+read-only: `GET` on `/api/benchmarks`, `/api/benchmarks/{id}`, `/api/runs/{id}`, `/api/steps/{id}`, `/api/compare`,
+`/api/health`, `/api/tasks`, `/api/faults` only, and only for that benchmark's runs (others are 404). Everything else
+is 403 "A shared link only shows the benchmark it was made for." An unknown or withdrawn token is 404.
 
 **`checks`** are the grader's own steps in plain words, in the order it checks them, stopping at the first
 failure. Example for a pass: `[{"label":"Gave an answer instead of giving up","ok":true},
@@ -465,6 +475,7 @@ with the crash reason.
 | ✍️ `POST /api/studio/questions` | `{description: string}` | `{questions: StudioQuestion[]}` |
 | ✍️ `POST /api/studio/agents` | `{description: string, answers: StudioAnswer[]}` | `StudioResult` |
 | `GET /api/studio/agents/{agent_id}` | | `StudioSetup` |
+| ✍️ `PUT /api/studio/agents/{agent_id}` | `{name?, retries?, double_check?, stop_when_unsure?}` | `StudioSetup` | [new] Rename (1 to 3 words) or change its habits; the agent's name follows |
 
 **Follow-up questions.** One model call reads the description and writes 2 to 4 questions that matter for
 *that* agent (which sources to trust, what to do when search fails, how sure it must be, what to leave out),

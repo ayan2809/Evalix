@@ -1,0 +1,31 @@
+/* A shared benchmark: one green bar, then the same sheets as the app, no rail. */
+.shared {
+  min-height: 100vh;
+  background: var(--page, #fff);
+}
+.shared-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  padding: 14px var(--gutter, 16px);
+  background: var(--solder, #1f4d3a);
+  color: #fff;
+}
+.shared-brand {
+  font-weight: 800;
+  font-stretch: 75%;
+  font-size: 22px;
+}
+.shared-note {
+  flex: 1;
+  font-size: 14px;
+  opacity: 0.85;
+}
+.shared-try {
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+}
+.shared-main {
+  padding: 24px clamp(16px, 4vw, 56px) 56px;
+}

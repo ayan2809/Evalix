@@ -1347,6 +1347,29 @@ Timeline of Collaboration
 
 ---
 
+### Phase 73: Product Review as a First-Time User
+
+#### User Prompt 109
+> *"Review the code and how things are presented for this platform etc. Think as a product manager or like a user who is coming onto this platform to use it. Document your findings and gaps in a markdown file."*
+
+* **Method:** walked the hosted site signed out, as a guest and as the owner, read the code behind anything odd, and checked a 390 px phone width. Findings went into a private review file under `docs/` (git-ignored), ranked P1 to P3.
+* **Biggest finding:** while the hosted run engine sleeps, a guest saw every agent "Offline", a disabled wake button and a gateway error telling them to run `./scripts/dev.sh`. Judges arrive as guests, so the product looked broken.
+
+### Phase 74: Fixing Every Gap From the Review
+
+#### User Prompt 110
+> *"address all the gaps that has been identified in this doc and implement and fix it and then deploy them. commit and push on this branch and then raise the PR"*
+
+* **Asleep, not broken (P1):** the shell asks `/api/engine` and pages say **Asleep** (dashed square) instead of Offline while the hosted engine is off. Guests get a sentence instead of a dead button; the gateway says it sleeps with the engine; `./scripts/dev.sh` only shows when running locally.
+* **Pinned example (P1):** `benchmarks.featured`; one per workspace; Results opens on it (guests too). Dropdown labels gain the number and "pinned/archived".
+* **Archive (P1):** `agents.archived` and `benchmarks.archived`. Hidden from lists and run pickers, results kept, "Show archived" brings them back. A running benchmark can't be archived.
+* **Share links (P2):** `benchmarks.share_token`; `/share/<token>` needs no sign-in. The token travels in an `X-Evalix-Share` header; a middleware allows only GETs on the benchmark, run, step and compare routes, and handlers 404 anything outside that benchmark. Copy link on run details and compare.
+* **Smaller fixes:** Check now (says why an agent doesn't answer, and that hosted "localhost" is the Evalix server); Studio rename and habit toggles; Recovered marks on the Results grid; cost guesses labelled as guesses; Spent in cents; guide's doubled "right move" sentence; "Sign in" instead of "Sign out" for guests; a "?" to replay the tour; Send to Maxim secondary with a one-line explanation; the timing ruler runs to the next labelled tick; "See the results" opens that benchmark, not the pinned one; README opens with the hosted URL.
+* **Saving for the desk:** archive, pin, share and rename save the database copy to S3 straight away, so the always-on front desk shows them while the engine sleeps.
+* **Tests:** `backend/tests/test_tidy_share.py` (7 tests); 248 backend tests pass; frontend builds.
+
+---
+
 ## Pending Items (as of Nov 15, 2026)
 
 **For the author**

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { api, asApiError, type StudioAnswer, type StudioQuestion, type StudioResult, type StudioSetup } from "../api";
 import { useAsync, useTitle } from "../hooks";
@@ -11,8 +11,11 @@ import {
   Notice,
   PageHeader,
   SectionBar,
+  Segmented,
+  Switch,
   TitleBlock,
 } from "../ui";
+import { useShell } from "../shell/ShellContext";
 import { OnlineStatus } from "./agents/OnlineStatus";
 import "./sheet.css";
 import "./studio/studio.css";
@@ -58,6 +61,7 @@ const ELSE = "__else__";
 export default function Studio() {
   useTitle("Agent Studio");
   const agents = useAsync(() => api.listAgents(), []);
+  const { asleep } = useShell();
   const [step, setStep] = useState<Step>("describe");
   const [description, setDescription] = useState("");
   const [questions, setQuestions] = useState<StudioQuestion[]>([]);
@@ -279,6 +283,13 @@ export default function Studio() {
               }
             />
           </div>
+          <Tune
+            made={made}
+            onSaved={(setup) => {
+              setMade({ ...made, setup, agent: { ...made.agent, name: setup.name } });
+              agents.reload();
+            }}
+          />
           <div className="ds-pad" />
           <SectionBar title="How it behaves" />
           <div className="ds-scroll">
@@ -335,7 +346,7 @@ export default function Studio() {
                       </span>
                     </td>
                     <td>
-                      <OnlineStatus online={a.online} />
+                      <OnlineStatus online={a.online} asleep={asleep} />
                     </td>
                     <td className="narrow">
                       <Link to="/run">Use it in a run</Link>
@@ -356,5 +367,73 @@ function Chevron() {
     <svg className="ds-chev" viewBox="0 0 12 12" aria-hidden="true">
       <path d="M2 4.5 L6 8.5 L10 4.5" />
     </svg>
+  );
+}
+
+/** Change the name Studio picked, and the three habits, without starting over. Each change saves at once. */
+function Tune({ made, onSaved }: { made: StudioResult; onSaved: (s: StudioSetup) => void }) {
+  const { toast } = useShell();
+  const [name, setName] = useState(made.setup.name);
+  const [saving, setSaving] = useState(false);
+
+  async function save(change: Partial<StudioSetup>, said: string) {
+    setSaving(true);
+    try {
+      const setup = await api.studio.updateSetup(made.agent.id, change);
+      setName(setup.name);
+      onSaved(setup);
+      toast(said);
+    } catch (e) {
+      toast(asApiError(e).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function rename(e: FormEvent) {
+    e.preventDefault();
+    const next = name.trim();
+    if (next && next !== made.setup.name) void save({ name: next }, `Renamed to ${next}.`);
+  }
+
+  return (
+    <div className="studio-tune ds-sheet">
+      <form className="tune-name" onSubmit={rename}>
+        <label className="lbl-field">
+          <span className="ds-lbl">Name (up to three words)</span>
+          <input className="input" value={name} maxLength={30} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <Button type="submit" needsSignIn disabled={saving || !name.trim() || name.trim() === made.setup.name}>
+          Rename
+        </Button>
+      </form>
+      <div className="tune-traits">
+        <div className="switch-row">
+          <span>Tries again after a failure</span>
+          <Segmented
+            label="Tries again"
+            value={made.setup.retries}
+            onChange={(v: number) => void save({ retries: v }, v === 0 ? "It won't try again now." : `It tries again up to ${v} times now.`)}
+            options={[0, 1, 2, 3].map((v) => ({ value: v, label: v === 0 ? "Never" : String(v) }))}
+          />
+        </div>
+        <div className="switch-row">
+          <span>Checks every fact twice</span>
+          <Switch
+            checked={made.setup.double_check}
+            label="Checks every fact twice"
+            onChange={(v: boolean) => void save({ double_check: v }, v ? "It checks every fact twice now." : "It takes the first answer now.")}
+          />
+        </div>
+        <div className="switch-row">
+          <span>Stops and says why when unsure</span>
+          <Switch
+            checked={made.setup.stop_when_unsure}
+            label="Stops and says why when unsure"
+            onChange={(v: boolean) => void save({ stop_when_unsure: v }, v ? "It owns up when unsure now." : "It always answers now.")}
+          />
+        </div>
+      </div>
+    </div>
   );
 }

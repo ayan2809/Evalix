@@ -474,3 +474,11 @@
     margin-left: 0;
   }
 }
+
+/* Pin, share, archive: a quiet row under the headline. */
+.rs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: -6px 0 18px;
+}

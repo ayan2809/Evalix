@@ -5,13 +5,12 @@ import { api, asApiError, type Agent, type BenchmarkListItem } from '../../api'
 import { useAsync } from '../../hooks'
 import { useModelLabel, useShell } from '../../shell/ShellContext'
 import { Button, EmptyState, ErrorState, Loading, Notice, PageHeader, Segmented, SectionBar, Switch, TitleBlock } from '../../ui'
-import { OnlineStatus } from '../agents/OnlineStatus'
+import { ASLEEP_REASON, OFFLINE_REASON, OnlineStatus } from '../agents/OnlineStatus'
 import { EngineNotice } from './EngineNotice'
 import '../sheet.css'
 import './run.css'
 
 
-const OFFLINE_REASON = 'Not answering. Start it, then reload this page.'
 
 /** What one run has cost on average in the last finished benchmark, or null when there is nothing to go on. */
 function costPerRun(list: BenchmarkListItem[] | null): number | null {
@@ -39,7 +38,8 @@ function Chevron() {
 
 export default function RunForm() {
   const navigate = useNavigate()
-  const { health } = useShell()
+  const { health, asleep } = useShell()
+  const offWhy = asleep ? ASLEEP_REASON : OFFLINE_REASON
   const label = useModelLabel()
   const agents = useAsync(() => api.listAgents(), [])
   const tasks = useAsync(() => api.listTasks(), [])
@@ -182,7 +182,7 @@ export default function RunForm() {
               </thead>
               <tbody>
                 {agentList.map((a: Agent) => (
-                  <tr key={a.id} className={a.online ? '' : 'is-off'} title={a.online ? a.description : OFFLINE_REASON}>
+                  <tr key={a.id} className={a.online ? '' : 'is-off'} title={a.online ? a.description : offWhy}>
                     <td className="narrow">
                       <input
                         id={`rf-agent-${a.id}`}
@@ -197,13 +197,13 @@ export default function RunForm() {
                     <td>
                       <label className="plate" htmlFor={`rf-agent-${a.id}`}>
                         <b>{a.name}</b>
-                        <small>{a.online ? a.tag || 'Ready' : OFFLINE_REASON}</small>
+                        <small>{a.online ? a.tag || 'Ready' : asleep ? 'Asleep until the run engine is on' : OFFLINE_REASON}</small>
                       </label>
                     </td>
                     <td className="graph hide-sm">{agentSource(a)}</td>
                     <td className="graph hide-sm ds-where">{a.url}</td>
                     <td>
-                      <OnlineStatus online={a.online} />
+                      <OnlineStatus online={a.online} asleep={asleep} />
                     </td>
                   </tr>
                 ))}
@@ -339,7 +339,7 @@ export default function RunForm() {
           label="Summary of the run"
           cells={[
             { label: 'Runs', value: plural(total, 'run') },
-            { label: 'Rough cost', value: perRun !== null && total > 0 ? `about ${roughMoney(perRun * total)}` : 'No guess yet' },
+            { label: 'Rough cost', value: perRun !== null && total > 0 ? `≈ ${roughMoney(perRun * total)}, a guess` : 'No guess yet' },
             { label: 'Model', value: modelName },
             { label: 'Search', value: live ? 'Live web' : 'Saved results' },
           ]}

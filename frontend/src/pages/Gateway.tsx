@@ -12,7 +12,7 @@ import {
 } from '../api'
 import { money, shortDate } from '../format'
 import { useTitle } from '../hooks'
-import { useModelLabel } from '../shell/ShellContext'
+import { useModelLabel, useShell } from '../shell/ShellContext'
 import { Button, ErrorState, Loading, Mark, Notice, PageHeader, SectionBar, Segmented } from '../ui'
 import { STOPS, TEST_WORD, type Stop } from './gateway/stops'
 import { AccessTest, BudgetTest, FallbackTest, RateTest, RetryTest, bare, type TestProps } from './gateway/Tests'
@@ -30,6 +30,7 @@ const TESTS: Record<GatewayTestName, (p: TestProps) => ReactElement> = {
 export default function Gateway() {
   useTitle('Gateway')
   const label = useModelLabel()
+  const { asleep, hosted, health } = useShell()
   const [status, setStatus] = useState<GatewayStatus | null>(null)
   const [loadError, setLoadError] = useState<ApiError | null>(null)
   const [running, setRunning] = useState<GatewayTestName | 'all' | null>(null)
@@ -110,13 +111,26 @@ export default function Gateway() {
         }
       />
 
-      {status?.bifrost_up === false && (
-        <Notice tone="error">Bifrost isn't running. Start it with ./scripts/dev.sh, then try again.</Notice>
+      {asleep ? (
+        <Notice tone="info">
+          The gateway sleeps with the run engine while nobody is using it. Signed in, press “Send one call”: the engine
+          switches on by itself in about a minute.
+        </Notice>
+      ) : (
+        status?.bifrost_up === false &&
+        (hosted ? (
+          <Notice tone="error">Bifrost isn't answering on the run engine yet. Wait a minute, then try again.</Notice>
+        ) : (
+          <Notice tone="error">Bifrost isn't running. Start it with ./scripts/dev.sh, then try again.</Notice>
+        ))
       )}
       {error && <Notice tone="error">{error}</Notice>}
 
       <section className="ds-block" aria-labelledby="gw-path-title">
-        <SectionBar title={<span id="gw-path-title">The path of a call</span>} />
+        <SectionBar
+          title={<span id="gw-path-title">The path of a call</span>}
+          actions={health && !health.mock ? <span className="gw-real">Real calls through Bifrost, not a mock</span> : undefined}
+        />
         <div className="gw-path" role="list">
           <span className="gw-end" role="listitem">
             Your agent

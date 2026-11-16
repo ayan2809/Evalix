@@ -6,6 +6,7 @@ import { Button, Icon, Logo, type IconName } from '../ui'
 import { useModelLabel, useShell } from './ShellContext'
 import SettingsDialog from './SettingsDialog'
 import { Tour, useTour, TOUR } from './Tour'
+import { TOUR_EVENT } from './Tour'
 import './shell.css'
 
 const NAV: { to: string; label: string; icon: IconName; on: (path: string) => boolean }[] = [
@@ -148,9 +149,25 @@ export default function Shell({ children }: { children: ReactNode }) {
           <span className="who" title={me?.user?.email}>
             {name}
           </span>
-          <button type="button" className="signout" onClick={leave} disabled={leaving} title={collapsed ? 'Sign out' : undefined}>
+          <button
+            type="button"
+            className="tour-again"
+            aria-label="Show the tour again"
+            title="Show the tour again"
+            onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}
+          >
+            ?
+          </button>
+          {/* A guest never signed in, so the way out is signing in. Leaving the guest view lands on that page. */}
+          <button
+            type="button"
+            className="signout"
+            onClick={leave}
+            disabled={leaving}
+            title={collapsed ? (guest ? 'Sign in' : 'Sign out') : undefined}
+          >
             <Icon name="sign-out" size={16} />
-            <span className="rail-text">Sign out</span>
+            <span className="rail-text">{guest ? 'Sign in' : 'Sign out'}</span>
           </button>
         </div>
 

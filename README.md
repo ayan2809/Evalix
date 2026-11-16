@@ -7,6 +7,11 @@ Most AI agents look great in a demo and then break quietly in production:
 a search tool times out, the model says "too many requests", or a web page
 contains a sneaky instruction. Evalix finds this out **before** real users do.
 
+**Try it in a minute, no install:** open **https://d2n1pd4ckplxt7.cloudfront.net**.
+Press *Look around first* to see a finished benchmark read-only, or sign in with Google for your own workspace:
+press **Add the four sample agents**, then **Start a run** (the run engine wakes up in about a minute the first
+time). Open any mark on the Results page to see the exact step where an agent slipped.
+
 Evalix runs several AI agents on the **same research tasks**, several times each.
 It records every step. Then it **breaks things on purpose** (a tool fails, the model is busy,
 a search result lies) and checks whether each agent copes. It shows a scoreboard,

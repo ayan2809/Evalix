@@ -290,3 +290,10 @@
   flex-direction: column;
   gap: 10px;
 }
+
+/* "Real calls" note on the path's section bar. */
+.gw-real {
+  font-size: 13px;
+  color: #fff;
+  opacity: 0.85;
+}

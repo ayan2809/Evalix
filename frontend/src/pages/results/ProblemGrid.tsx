@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { BenchmarkDetail } from '../../api'
+import { appPath, type BenchmarkDetail } from '../../api'
 import { Mark, Table, type MarkState } from '../../ui'
 import { cellKey, type CellInfo, type Problem } from './model'
 import { failWord, reasonShort } from './words'
@@ -15,6 +15,7 @@ function Cell({
   cell,
   agent,
   problem,
+  fault,
   ink,
   index,
   onHot,
@@ -22,6 +23,8 @@ function Cell({
   cell: CellInfo | undefined
   agent: string
   problem: string
+  /** a problem we caused (not an everyday question): a pass after the problem hit is "Recovered" */
+  fault: boolean
   ink: boolean
   index: number
   onHot: (on: boolean) => void
@@ -44,10 +47,13 @@ function Cell({
     word = onlySetup ? 'Setup problem' : 'Still running'
     said = onlySetup ? 'a setup problem' : 'still running'
   } else if (allPass) {
-    state = 'through'
-    // A single pass is the filled mark alone; the link's label still says it got through.
+    // Got through after the problem really hit it: say so, that is what the test is for.
+    const recovered = fault && trials.filter((t) => t.outcome === 'pass').every((t) => t.fired)
+    state = recovered ? 'recovered' : 'through'
+    // A single pass is the mark alone; the link's label still says what happened.
+    // The blue mark says it (the legend explains it once); a word in every cell is noise.
     word = many ? `${cell.passed} of ${cell.counted}` : ''
-    said = many ? `${cell.passed} of ${cell.counted} got through` : 'got through'
+    said = many ? `${cell.passed} of ${cell.counted} got through` : recovered ? 'recovered' : 'got through'
   } else {
     state = failed?.ending === 'crashed' ? 'crashed' : 'slipped'
     why = reasonShort(failed?.reason ?? '')
@@ -58,7 +64,7 @@ function Cell({
   return (
     <>
       <Link
-        to={`/runs/${target.runId}`}
+        to={appPath(`/runs/${target.runId}`)}
         className="rs-cell-link"
         aria-label={`${agent} on ${problem}: ${said}. Open the run.`}
         title={why || undefined}
@@ -79,7 +85,7 @@ function Cell({
           {trials.map((t) => (
             <Link
               key={t.runId}
-              to={`/runs/${t.runId}`}
+              to={appPath(`/runs/${t.runId}`)}
               className={t.outcome === 'fail' ? 'bad' : undefined}
               aria-label={`Try ${t.trial}: ${t.outcome === 'pass' ? 'got through' : t.outcome === 'fail' ? 'slipped' : 'not counted'}`}
             >
@@ -117,6 +123,9 @@ function Legend() {
     <ul className="rs-legend" aria-label="What the marks mean">
       <li>
         <Mark state="through" size={12} label="" /> Got through
+      </li>
+      <li>
+        <Mark state="recovered" size={12} label="" /> Recovered: the problem hit, and it still got through
       </li>
       <li>
         <Mark state="slipped" size={12} label="" /> Slipped
@@ -208,6 +217,7 @@ export function ProblemGrid({
                       cell={cells.get(cellKey(a.id, p.taskId, p.faultId))}
                       agent={a.name}
                       problem={p.title}
+                      fault={p.faultId !== ''}
                       ink={animate}
                       index={row * cols + col}
                       onHot={(on) => setHot(on ? { row, col } : null)}

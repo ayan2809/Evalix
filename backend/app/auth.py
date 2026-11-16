@@ -108,25 +108,43 @@ def workspace_of(session: dict | None) -> str:
 
 @dataclass(frozen=True)
 class Who:
-    role: str        # owner | member | guest
+    role: str        # owner | member | guest | viewer (someone with a share link)
     workspace: str   # "main" or "u<16 hex>"
     session: dict | None
+    share_bench: int | None = None  # a viewer sees only this one benchmark and its runs
+
+
+# A share link sends its secret in this header. It shows one benchmark, read-only, to anyone who has it.
+SHARE_HEADER = "x-evalix-share"
+SHARE_MESSAGE = "A shared link only shows the benchmark it was made for."
 
 
 def who(request: Request) -> Who:
     """FastAPI dependency: who is asking, and which workspace they see."""
+    token = request.headers.get(SHARE_HEADER)
+    if token:
+        from app import store  # imported here: the store is opened after this module loads
+
+        bench = store.benchmark_by_token(token)
+        if bench is None:
+            raise HTTPException(status_code=404, detail="This shared link no longer works. Ask for a new one.")
+        return Who("viewer", bench["workspace"], None, bench["id"])
     session = current_session(request)
     return Who(role_of(session), workspace_of(session), session)
 
 
 def require_member(request: Request) -> None:
     """FastAPI dependency for routes that change things in your own workspace. Guests get 403."""
+    if request.headers.get(SHARE_HEADER):
+        raise HTTPException(status_code=403, detail=SHARE_MESSAGE)
     if role_of(current_session(request)) == "guest":
         raise HTTPException(status_code=403, detail=GUEST_MESSAGE)
 
 
 def require_owner(request: Request) -> None:
     """FastAPI dependency for Settings, keys and Maxim. Only the owner."""
+    if request.headers.get(SHARE_HEADER):
+        raise HTTPException(status_code=403, detail=SHARE_MESSAGE)
     role = role_of(current_session(request))
     if role != "owner":
         raise HTTPException(status_code=403, detail=MEMBER_MESSAGE if role == "member" else GUEST_MESSAGE)

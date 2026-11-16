@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
-import { api, type CompareResult } from '../api'
+import { api, appPath, type CompareResult } from '../api'
+import { CopyLink } from './CopyLink'
 import { useAsync, useTitle } from '../hooks'
 import { Button, EmptyState, ErrorState, Loading, LinkButton, Notice, PageHeader, SectionBar, TimingDiagram, TitleBlock } from '../ui'
 import { PickerDialog } from './compare/PickerDialog'
@@ -53,7 +54,7 @@ function Choose({ a }: { a: string }) {
       </div>
     )
   }
-  return <Navigate to={`/compare?a=${encodeURIComponent(pair.data.a)}&b=${encodeURIComponent(pair.data.b)}`} replace />
+  return <Navigate to={appPath(`/compare?a=${encodeURIComponent(pair.data.a)}&b=${encodeURIComponent(pair.data.b)}`)} replace />
 }
 
 function endingPhrase(run: CompareResult['a']): string {
@@ -83,7 +84,7 @@ function Compared({ a, b }: { a: string; b: string }) {
       <div className="wrap sheet">
         <ErrorState error={result.error} onRetry={result.reload} />
         <div>
-          <LinkButton to="/compare">Pick a different pair</LinkButton>
+          <LinkButton to={appPath('/compare')}>Pick a different pair</LinkButton>
         </div>
       </div>
     )
@@ -148,9 +149,12 @@ function Compared({ a, b }: { a: string; b: string }) {
           { label: 'Benchmark', value: ra.benchmark_id === rb.benchmark_id ? `#${ra.benchmark_id}` : `#${ra.benchmark_id} and #${rb.benchmark_id}` },
         ]}
         action={
-          <Button small onClick={() => setPicking(true)}>
-            Change
-          </Button>
+          <>
+            <Button small onClick={() => setPicking(true)}>
+              Change
+            </Button>
+            <CopyLink benchmarkId={ra.benchmark_id} />
+          </>
         }
       />
 
@@ -193,7 +197,7 @@ function Compared({ a, b }: { a: string; b: string }) {
         current={r}
         onPick={(p) => {
           setPicking(false)
-          navigate(`/compare?a=${encodeURIComponent(p.a)}&b=${encodeURIComponent(p.b)}`)
+          navigate(appPath(`/compare?a=${encodeURIComponent(p.a)}&b=${encodeURIComponent(p.b)}`))
         }}
       />
     </div>
