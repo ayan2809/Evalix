@@ -1,6 +1,10 @@
 """The Evalix web API."""
 import asyncio
 import json
+import re
+import secrets
+import socket
+from urllib.parse import urlparse
 from contextlib import asynccontextmanager
 
 import httpx
@@ -12,7 +16,7 @@ from pydantic import BaseModel
 
 from app import allowance, config, events, hosting, judge, prefs, runner, store
 from app.data import load_faults, load_tasks, public_task
-from app.auth import Who, require_member, router as auth_router, who
+from app.auth import SHARE_HEADER, SHARE_MESSAGE, Who, require_member, router as auth_router, who
 from app.extras import router as extras_router
 from app.gateway import router as gateway_router
 from app.model_door import router as model_router
@@ -23,16 +27,23 @@ from app.tool_server import router as tool_router
 
 # The sample agents: (name, url, tag, description). The words are from spec/api.md.
 BUILT_IN_AGENTS = [
-    ("Careful", "http://localhost:9001", "Retries, checks sources",
-     "Plain Python. Tries again when something fails, trusts official pages over blogs, "
+    ("Fact Checker", "http://localhost:9001", "Plain Python, retries and checks sources",
+     "Looks up current facts. Tries again when something fails, trusts official pages over blogs, "
      "and ignores instructions hidden in web pages."),
-    ("Careless", "http://localhost:9002", "Same code, safety off",
-     "The same code as Careful, with the safety habits turned off."),
-    ("LangChain", "http://localhost:9003", "LangChain, out of the box",
-     "LangChain's standard agent, straight out of the box."),
-    ("Google ADK", "http://localhost:9004", "Google ADK, out of the box",
-     "Google's Agent Development Kit, straight out of the box."),
+    ("Quick Answer", "http://localhost:9002", "Same code as Fact Checker, safety off",
+     "Looks up current facts the fast way: the same code as Fact Checker, with the safety habits turned off."),
+    ("Research Assistant", "http://localhost:9003", "LangChain, out of the box",
+     "Looks up current facts with LangChain's standard agent, straight out of the box."),
+    ("Web Analyst", "http://localhost:9004", "Google ADK, out of the box",
+     "Looks up current facts with Google's Agent Development Kit, straight out of the box."),
 ]
+# What the sample agents were called before Nov 15, 2026, by address. Older databases are renamed on start.
+OLD_SAMPLE_NAMES = {
+    "http://localhost:9001": "Careful",
+    "http://localhost:9002": "Careless",
+    "http://localhost:9003": "LangChain",
+    "http://localhost:9004": "Google ADK",
+}
 CUT = 500  # long step text in /api/runs is cut to this many characters
 
 
@@ -42,8 +53,10 @@ async def lifespan(app: FastAPI):
     store.mark_orphans()
     if not store.list_agents(store.MAIN):
         add_samples(store.MAIN)
-    for name, _, tag, description in BUILT_IN_AGENTS:  # an older database has none of these words yet
-        store.fill_agent_words(name, tag, description)
+    for name, url, tag, description in BUILT_IN_AGENTS:
+        # An older database still has the old names; rename them in every workspace, keeping their results.
+        store.rename_sample_agent(OLD_SAMPLE_NAMES[url], name, url, tag, description)
+        store.fill_agent_words(name, tag, description)  # an older database has none of these words yet
     hosting.on_start()
     yield
     hosting.on_stop()
@@ -68,6 +81,17 @@ app.include_router(auth_router)
 app.include_router(gateway_router)
 app.include_router(settings_router)
 hosting.install(app)  # AWS only: the front desk or run engine gate (nothing when running locally)
+
+# What a share link may read: one benchmark, its runs and steps, and the compare screen. Nothing else.
+SHARE_READS = re.compile(r"^/api/(health|tasks|faults|benchmarks|benchmarks/\d+|runs/[\w-]+|steps/\d+|compare)$")
+
+
+@app.middleware("http")
+async def share_links_read_only(request: Request, call_next):
+    """A request carrying a share link may only read what that link shows (added last, so it runs first)."""
+    if request.headers.get(SHARE_HEADER) and (request.method != "GET" or not SHARE_READS.match(request.url.path)):
+        return JSONResponse(status_code=403, content={"detail": SHARE_MESSAGE})
+    return await call_next(request)
 
 
 @app.exception_handler(RequestValidationError)
@@ -115,12 +139,22 @@ def _mine(value, what: str, workspace: str, of: str | None):
 
 
 def _my_run(run_id: str, me: Who) -> dict:
-    return _mine(store.get_run(run_id), "run", me.workspace, store.run_workspace(run_id))
+    run = _mine(store.get_run(run_id), "run", me.workspace, store.run_workspace(run_id))
+    if me.share_bench is not None and run["benchmark_id"] != me.share_bench:
+        raise HTTPException(status_code=404, detail="run not found")
+    return run
 
 
 def _my_benchmark(benchmark_id: int, me: Who) -> dict:
     bench = store.get_benchmark(benchmark_id)
+    if me.share_bench is not None and benchmark_id != me.share_bench:
+        bench = None
     return _mine(bench, "benchmark", me.workspace, bench and bench.get("workspace"))
+
+
+def _my_agent(agent_id: int, me: Who) -> dict:
+    agent = store.get_agent(agent_id)
+    return _mine(agent, "agent", me.workspace, agent and agent.get("workspace"))
 
 
 def _run_view(run: dict) -> dict:
@@ -154,8 +188,58 @@ async def health():
 
 
 @app.get("/api/agents")
-async def get_agents(me: Who = Depends(who)):
-    return await _with_online(store.list_agents(me.workspace))
+async def get_agents(archived: bool = False, me: Who = Depends(who)):
+    """The workspace's agents. Archived ones only with ?archived=true (then all of them, marked)."""
+    return await _with_online(store.list_agents(me.workspace, include_archived=archived))
+
+
+class Archive(BaseModel):
+    archived: bool = True
+
+
+@app.post("/api/agents/{agent_id}/archive", dependencies=[Depends(require_member)])
+async def archive_agent(agent_id: int, body: Archive, me: Who = Depends(who)):
+    _my_agent(agent_id, me)
+    store.set_agent_archived(agent_id, body.archived)
+    hosting.after_change()
+    return (await _with_online([store.get_agent(agent_id)]))[0]
+
+
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "0.0.0.0"}
+
+
+async def diagnose(url: str) -> dict:
+    """Why an agent does or doesn't answer, in one sentence a person can act on."""
+    parsed = urlparse(url)
+    host = parsed.hostname or ""
+    if parsed.scheme not in ("http", "https") or not host:
+        return {"online": False, "problem": "address",
+                "detail": "That doesn't look like a web address. It should start with http:// or https://."}
+    try:
+        await asyncio.to_thread(socket.getaddrinfo, host, parsed.port or (443 if parsed.scheme == "https" else 80))
+    except OSError:
+        return {"online": False, "problem": "dns", "detail": f"No computer called '{host}' could be found."}
+    health = f"{url.rstrip('/')}/health"
+    try:
+        async with httpx.AsyncClient(timeout=3) as client:
+            resp = await client.get(health)
+    except httpx.ConnectError:
+        where = (" On hosted Evalix, 'localhost' means the Evalix server, not your computer."
+                 if host in LOCAL_HOSTS and config.ROLE != "local" else "")
+        return {"online": False, "problem": "refused", "detail": f"Nothing is answering at {host}.{where}"}
+    except httpx.TimeoutException:
+        return {"online": False, "problem": "timeout", "detail": f"{health} took more than 3 seconds to answer."}
+    except httpx.HTTPError as exc:
+        return {"online": False, "problem": "error", "detail": f"Calling {health} failed: {type(exc).__name__}."}
+    if resp.status_code != 200:
+        return {"online": False, "problem": "health",
+                "detail": f"{health} answered {resp.status_code}. It must answer 200 to count as ready."}
+    return {"online": True, "problem": None, "detail": "It answers. Ready to test."}
+
+
+@app.post("/api/agents/{agent_id}/check", dependencies=[Depends(require_member)])
+async def check_agent(agent_id: int, me: Who = Depends(who)):
+    return await diagnose(_my_agent(agent_id, me)["url"])
 
 
 class NewAgent(BaseModel):
@@ -210,17 +294,61 @@ async def post_benchmark(body: NewBenchmark, me: Who = Depends(who)):
     return {"id": benchmark_id}
 
 
-def _bench_view(b: dict, total_cost: float) -> dict:
+def _bench_view(b: dict, total_cost: float, me: Who | None = None) -> dict:
     agent_ids = (b["selection_json"] or {}).get("agent_ids", [])
+    # Only people who can change this workspace see its share secret; guests and viewers never do.
+    can_share = me is not None and me.role in ("owner", "member")
     return {"id": b["id"], "status": b["status"], "trials": b["trials"], "live_mode": b["live_mode"],
             "created_at": b["created_at"], "total_runs": b["total_runs"], "done_runs": b["done_runs"],
-            "total_cost": round(total_cost, 6), "agent_count": len(agent_ids)}
+            "total_cost": round(total_cost, 6), "agent_count": len(agent_ids),
+            "archived": bool(b.get("archived")), "featured": bool(b.get("featured")),
+            "share_token": b.get("share_token") if can_share else None}
 
 
 @app.get("/api/benchmarks")
-async def get_benchmarks(me: Who = Depends(who)):
+async def get_benchmarks(archived: bool = False, me: Who = Depends(who)):
     costs = store.benchmark_costs()
-    return [_bench_view(b, costs.get(b["id"], 0.0)) for b in store.list_benchmarks(me.workspace)]
+    found = store.list_benchmarks(me.workspace, include_archived=archived or me.share_bench is not None)
+    if me.share_bench is not None:
+        found = [b for b in found if b["id"] == me.share_bench]
+    return [_bench_view(b, costs.get(b["id"], 0.0), me) for b in found]
+
+
+@app.post("/api/benchmarks/{benchmark_id}/archive", dependencies=[Depends(require_member)])
+async def archive_benchmark(benchmark_id: int, body: Archive, me: Who = Depends(who)):
+    bench = _my_benchmark(benchmark_id, me)
+    if bench["status"] == "running" and body.archived:
+        raise HTTPException(status_code=409, detail="This benchmark is still running. Stop it first.")
+    store.set_benchmark_archived(benchmark_id, body.archived)
+    hosting.after_change()
+    return {"ok": True}
+
+
+class Feature(BaseModel):
+    featured: bool = True
+
+
+@app.post("/api/benchmarks/{benchmark_id}/feature", dependencies=[Depends(require_member)])
+async def feature_benchmark(benchmark_id: int, body: Feature, me: Who = Depends(who)):
+    """Pin this benchmark as the one shown first (for guests too, in the main workspace), or unpin it."""
+    _my_benchmark(benchmark_id, me)
+    store.set_featured(me.workspace, benchmark_id if body.featured else None)
+    hosting.after_change()
+    return {"ok": True}
+
+
+class Share(BaseModel):
+    shared: bool = True
+
+
+@app.post("/api/benchmarks/{benchmark_id}/share", dependencies=[Depends(require_member)])
+async def share_benchmark(benchmark_id: int, body: Share, me: Who = Depends(who)):
+    """Make (or keep) a secret read-only link to this benchmark, or switch it off. Returns the token."""
+    bench = _my_benchmark(benchmark_id, me)
+    token = (bench.get("share_token") or secrets.token_urlsafe(12)) if body.shared else None
+    store.set_share_token(benchmark_id, token)
+    hosting.after_change()
+    return {"share_token": token}
 
 
 @app.get("/api/benchmarks/{benchmark_id}")
@@ -233,7 +361,7 @@ async def get_benchmark(benchmark_id: int, me: Who = Depends(who)):
     run_keys = ("id", "agent_id", "task_id", "fault_id", "trial", "ending", "fail_reason", "steps",
                 "tool_calls", "cost_usd", "seconds", "fault_fired", "looped")
     return {
-        **_bench_view(bench, sum(r["cost_usd"] or 0 for r in runs)),
+        **_bench_view(bench, sum(r["cost_usd"] or 0 for r in runs), me),
         "agents": [{"id": a["id"], "name": a["name"], "tag": a["tag"], "description": a["description"]}
                    for a in agents],
         "tasks": [{"id": t, "title": tasks[t]["title"], "area": tasks[t]["area"]}

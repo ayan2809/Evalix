@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { api, asApiError, type ApiError, type Me } from './api'
+import { api, asApiError, currentShareToken, type ApiError, type Me } from './api'
 
 export const GUEST_REASON = "Sign in to do this. You're looking around as a guest."
 /** A member (any Google account not on EVALIX_OWNER_EMAILS) trying to change Settings, keys or Maxim. */
@@ -84,7 +84,8 @@ export function useAuth(): AuthValue {
  */
 export function useCanEdit(): { canEdit: boolean; reason: string | undefined } {
   const v = useContext(Ctx)
-  const canEdit = !v || !v.me || v.me.role !== 'guest'
+  // A shared link is always read-only, whoever opens it.
+  const canEdit = !currentShareToken() && (!v || !v.me || v.me.role !== 'guest')
   return { canEdit, reason: canEdit ? undefined : GUEST_REASON }
 }
 

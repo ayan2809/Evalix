@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { api, asApiError } from '../api'
+import { api, asApiError, type Agent, type AgentCheck } from '../api'
+import { useCanEdit } from '../auth'
 import { agentSource } from '../agentSource'
 import { useAsync, useTitle } from '../hooks'
 import { useShell } from '../shell/ShellContext'
 import { Button, ErrorState, Loading, Notice, PageHeader, SectionBar } from '../ui'
-import { OnlineStatus } from './agents/OnlineStatus'
+import { ASLEEP_REASON, OnlineStatus } from './agents/OnlineStatus'
 import './sheet.css'
 import './agents/agents.css'
 
@@ -20,8 +21,12 @@ function looksLikeUrl(v: string): boolean {
 
 export default function Agents() {
   useTitle('Agents')
-  const { toast } = useShell()
-  const agents = useAsync(() => api.listAgents(), [])
+  const { toast, asleep, hosted } = useShell()
+  const { canEdit } = useCanEdit()
+  const [showArchived, setShowArchived] = useState(false)
+  // Archived agents are fetched with the rest only when asked for, then shown in their own list.
+  const agents = useAsync(() => api.listAgents(showArchived), [showArchived])
+  const [checks, setChecks] = useState<Record<number, AgentCheck | 'checking'>>({})
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
   const [tag, setTag] = useState('')
@@ -43,8 +48,37 @@ export default function Agents() {
     }
   }
 
-  const list = agents.data ?? []
+  const all = agents.data ?? []
+  const list = all.filter((a) => !a.archived)
+  const archived = all.filter((a) => a.archived)
   const online = list.filter((a) => a.online).length
+  const localUrl = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:|\/|$)/i.test(url.trim())
+
+  async function check(a: Agent) {
+    setChecks((c) => ({ ...c, [a.id]: 'checking' }))
+    try {
+      const got = await api.checkAgent(a.id)
+      setChecks((c) => ({ ...c, [a.id]: got }))
+      if (got.online !== a.online) agents.reload()
+    } catch (err) {
+      setChecks((c) => {
+        const next = { ...c }
+        delete next[a.id]
+        return next
+      })
+      toast(asApiError(err).message)
+    }
+  }
+
+  async function archive(a: Agent, on: boolean) {
+    try {
+      await api.archiveAgent(a.id, on)
+      toast(on ? `Archived ${a.name}. Its past runs stay.` : `${a.name} is back.`)
+      agents.reload()
+    } catch (err) {
+      toast(asApiError(err).message)
+    }
+  }
 
   const reason =
     name.trim() === ''
@@ -88,13 +122,24 @@ export default function Agents() {
           agents.data
             ? list.length === 0
               ? 'Nobody yet. Add an agent below.'
-              : `${list.length} ${list.length === 1 ? 'agent' : 'agents'}, ${online} answering right now.`
+              : asleep
+                ? `${list.length} ${list.length === 1 ? 'agent' : 'agents'}. The run engine is asleep, so they wake up when a run starts.`
+                : `${list.length} ${list.length === 1 ? 'agent' : 'agents'}, ${online} answering right now.`
             : undefined
         }
       />
 
       <section className="ds-block" aria-label="All agents">
-        <SectionBar title="All agents" />
+        <SectionBar
+          title="All agents"
+          actions={
+            canEdit && (
+              <Button small variant="quiet" aria-pressed={showArchived} onClick={() => setShowArchived(!showArchived)}>
+                {showArchived ? 'Hide archived' : 'Show archived'}
+              </Button>
+            )
+          }
+        />
         {agents.error ? (
           <ErrorState error={agents.error} onRetry={agents.reload} />
         ) : !agents.data ? (
@@ -119,6 +164,11 @@ export default function Agents() {
                   <th>Address</th>
                   <th>Status</th>
                   <th>Source</th>
+                  {canEdit && (
+                    <th>
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -133,13 +183,49 @@ export default function Agents() {
                     <td className="desc">{a.description || <span className="faint">No description</span>}</td>
                     <td className="ds-url">{a.url}</td>
                     <td>
-                      <OnlineStatus online={a.online} />
+                      <OnlineStatus online={a.online} asleep={asleep} />
+                      <CheckNote check={checks[a.id]} />
                     </td>
                     <td className="ds-url ds-nowrap">{agentSource(a)}</td>
+                    {canEdit && (
+                      <td className="row-actions">
+                        {!asleep && (
+                          <button type="button" className="link-btn" onClick={() => check(a)} disabled={checks[a.id] === 'checking'}>
+                            {checks[a.id] === 'checking' ? 'Checking…' : 'Check now'}
+                          </button>
+                        )}
+                        <button type="button" className="link-btn" onClick={() => archive(a, true)}>
+                          Archive
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {asleep && list.length > 0 && <p className="ds-note agents-asleep">{ASLEEP_REASON}</p>}
+        {showArchived && (
+          <div className="agents-archived">
+            <h3>Archived</h3>
+            {archived.length === 0 ? (
+              <p className="ds-note">Nothing archived. Archive an agent to hide it from runs and lists; its results stay.</p>
+            ) : (
+              <ul>
+                {archived.map((a) => (
+                  <li key={a.id}>
+                    <span className="plate">
+                      <b>{a.name}</b>
+                      {a.tag && <small>{a.tag}</small>}
+                    </span>
+                    <button type="button" className="link-btn" onClick={() => archive(a, false)}>
+                      Restore
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
       </section>
@@ -200,6 +286,12 @@ export default function Agents() {
               </Button>
               {reason && (name || url) && <span className="tag">{reason}</span>}
             </div>
+            {hosted && localUrl && (
+              <Notice tone="warn">
+                On hosted Evalix, “localhost” means the Evalix server, not your computer. Give your agent a public
+                address (for example with a tunnel), or run Evalix on your own computer to test a local agent.
+              </Notice>
+            )}
             {error && <Notice tone="error">{error}</Notice>}
           </form>
         </div>
@@ -207,4 +299,10 @@ export default function Agents() {
 
     </div>
   )
+}
+
+/** The answer of "Check now", under the status: what failed, in one sentence. */
+function CheckNote({ check }: { check: AgentCheck | 'checking' | undefined }) {
+  if (!check || check === 'checking') return null
+  return <small className={`check-note ${check.online ? 'ok' : 'bad'}`}>{check.detail}</small>
 }

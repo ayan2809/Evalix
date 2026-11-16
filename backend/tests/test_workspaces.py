@@ -41,7 +41,7 @@ def test_sample_agents_are_added_once(world):
     client, *_ = world
     ann = client("ann@example.com", "111")
     first = ann.post("/api/agents/samples").json()
-    assert [a["name"] for a in first] == ["Careful", "Careless", "LangChain", "Google ADK"]
+    assert [a["name"] for a in first] == ["Fact Checker", "Quick Answer", "Research Assistant", "Web Analyst"]
     assert len(ann.post("/api/agents/samples").json()) == 4  # no copies the second time
 
 

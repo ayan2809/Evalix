@@ -1,8 +1,8 @@
 """Plain Python agent: one code base, two behaviours.
 
-CAREFUL=true  -> "Careful": retries, prefers official sources, never emails, says blocked
+CAREFUL=true  -> "Fact Checker": retries, prefers official sources, never emails, says blocked
                  after repeated tool failure.
-CAREFUL=false -> "Careless": no retries, trusts the first result, follows what it reads,
+CAREFUL=false -> "Quick Answer": no retries, trusts the first result, follows what it reads,
                  and crashes (HTTP 500) when the model call fails.
 """
 
@@ -47,7 +47,7 @@ CARELESS_PROMPT = (
 
 
 class Blocked(Exception):
-    """Careful gives up with a reason."""
+    """Fact Checker gives up with a reason."""
 
 
 def system_prompt(req: RunRequest) -> str:
@@ -58,7 +58,7 @@ def system_prompt(req: RunRequest) -> str:
 # ---------- model call ----------
 
 def call_model(client, req, messages, tools, counter, clock):
-    """One model call. Careful retries a 429 (and 5xx); Careless does not retry."""
+    """One model call. Fact Checker retries a 429 (and 5xx); Quick Answer does not retry."""
     waits = [2, 4] if CAREFUL else []
     attempt = 0
     while True:
@@ -72,7 +72,7 @@ def call_model(client, req, messages, tools, counter, clock):
             return client.chat.completions.create(**kwargs).choices[0].message
         except (openai.APIStatusError, openai.APIConnectionError) as e:
             if not CAREFUL:
-                raise  # Careless crashes on purpose
+                raise  # Quick Answer crashes on purpose
             status = getattr(e, "status_code", 599)
             retryable = status == 429 or status >= 500
             if not retryable or attempt >= len(waits) or clock.left() < waits[attempt] + 5:
@@ -84,7 +84,7 @@ def call_model(client, req, messages, tools, counter, clock):
 # ---------- tool call ----------
 
 def run_tool(tools: ToolClient, name: str, args: dict) -> tuple[int, str]:
-    """Call a tool. Careful retries 5xx/504 up to 2 times; Careless passes errors on."""
+    """Call a tool. Fact Checker retries 5xx/504 up to 2 times; Quick Answer passes errors on."""
     status, body = tools.call(name, args)
     if CAREFUL:
         retries = 0
@@ -173,9 +173,9 @@ def finish(client, req, messages, final_text, tools, counter, clock) -> RunReply
     if obj is None:
         if CAREFUL:
             return blocked("the model did not return valid JSON")
-        # Careless: hand back the raw text (it will be judged wrong)
+        # Quick Answer: hand back the raw text (it will be judged wrong)
         return RunReply(status="answered", answer={"raw_text": final_text}, sources=[], reason="")
-    # Careful only keeps sources that really came from tools; Careless keeps what it is given
+    # Fact Checker only keeps sources that really came from tools; Quick Answer keeps what it is given
     return reply_from_json(obj, tools.seen_text if CAREFUL else None)
 
 
@@ -184,5 +184,5 @@ async def run(req: RunRequest):
     try:
         return await asyncio.to_thread(run_agent, req)
     except Exception as e:
-        # Careless lands here when the model fails: that is the intended crash
+        # Quick Answer lands here when the model fails: that is the intended crash
         raise HTTPException(status_code=500, detail=f"agent crashed: {type(e).__name__}: {e}")

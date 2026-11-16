@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { api, FORBIDDEN_EVENT, type Health, type Settings } from '../api'
+import { api, FORBIDDEN_EVENT, type EngineStatus, type Health, type Settings } from '../api'
 
 export type SettingsTab = 'models' | 'keys' | 'gateway' | 'search' | 'send'
 
@@ -16,6 +16,10 @@ interface ShellValue {
   closeSettings: () => void
   /** A short message at the bottom of the screen for a few seconds. */
   toast: (text: string) => void
+  /** Hosted only: the run engine is switched off, so agents and the gateway are asleep, not broken. */
+  asleep: boolean
+  /** Running in AWS (agents and the gateway live on the Evalix server, not on your computer). */
+  hosted: boolean
 }
 
 const Ctx = createContext<ShellValue | null>(null)
@@ -28,11 +32,22 @@ export function ShellProvider({ children }: { children: ReactNode }) {
   const [message, setMessage] = useState('')
   const timer = useRef<number | undefined>(undefined)
 
+  const [engine, setEngine] = useState<EngineStatus | null>(null)
+
   const refresh = useCallback(() => {
     api.health().then(setHealth, () => undefined)
     api.settings.get().then(setSettings, () => undefined)
   }, [])
   useEffect(refresh, [refresh])
+
+  // Hosted Evalix switches its run engine off when idle. Ask now and then, so pages can say "asleep".
+  const asleep = !!engine && engine.hosted && !engine.ready
+  useEffect(() => {
+    const ask = () => api.engine().then(setEngine, () => undefined)
+    ask()
+    const t = window.setInterval(ask, asleep ? 8000 : 30000)
+    return () => window.clearInterval(t)
+  }, [asleep])
 
   const toast = useCallback((text: string) => {
     setMessage(text)
@@ -61,8 +76,10 @@ export function ShellProvider({ children }: { children: ReactNode }) {
       },
       closeSettings: () => setOpen(false),
       toast,
+      asleep,
+      hosted: !!engine?.hosted,
     }),
-    [health, settings, refresh, settingsOpen, settingsTab, toast],
+    [health, settings, refresh, settingsOpen, settingsTab, toast, asleep, engine?.hosted],
   )
   return (
     <Ctx.Provider value={value}>

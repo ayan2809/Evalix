@@ -112,7 +112,7 @@ export default function Guide() {
                     </th>
                     <td>
                       {f.short}
-                      {f.expect === 'blocked' && <span className="muted"> The right move here is to stop.</span>}
+                      {f.expect === 'blocked' && !/right move/i.test(f.short) && <span className="muted"> The right move here is to stop.</span>}
                     </td>
                   </tr>
                 ))}

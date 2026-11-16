@@ -87,6 +87,12 @@ def after_benchmark() -> None:
         threading.Thread(target=_save_quietly, daemon=True).start()
 
 
+def after_change() -> None:
+    """Called after a small change people should see at once (archive, pin, share, rename): save a fresh
+    copy for the desk, in the background, so the change shows while the engine is switched off too."""
+    after_benchmark()
+
+
 def _switch_off() -> None:
     # The machine's "shutdown behaviour" is stop, so this stops (not deletes) the instance.
     done = subprocess.run(["sudo", "-n", "/usr/sbin/shutdown", "-h", "now"], check=False)

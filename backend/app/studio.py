@@ -459,3 +459,29 @@ async def get_studio_setup(agent_id: int, me: Who = Depends(who)):
     if studio is None or studio.get("workspace", store.MAIN) != me.workspace:
         raise HTTPException(status_code=404, detail="studio agent not found")
     return studio["setup_json"]
+
+
+class SetupChange(BaseModel):
+    name: str | None = None
+    retries: int | None = None
+    double_check: bool | None = None
+    stop_when_unsure: bool | None = None
+
+
+@router.put("/api/studio/agents/{agent_id}", dependencies=[Depends(require_member)])
+async def put_studio_setup(agent_id: int, body: SetupChange, me: Who = Depends(who)):
+    """Rename a Studio agent or change how it behaves. Its past runs keep the setup they ran with in their steps."""
+    studio = store.get_studio_agent_by_agent(agent_id)
+    if studio is None or studio.get("workspace", store.MAIN) != me.workspace:
+        raise HTTPException(status_code=404, detail="studio agent not found")
+    changes = {k: v for k, v in body.model_dump().items() if v is not None}
+    if "name" in changes and not _words(changes["name"]).strip():
+        raise HTTPException(status_code=400, detail="Give the agent a name.")
+    setup = clean_setup({**studio["setup_json"], **changes})
+    store.update_studio_setup(studio["id"], setup)
+    if setup["name"] != studio["setup_json"]["name"]:
+        store.rename_agent(agent_id, setup["name"])
+    from app import hosting  # imported here: hosting needs the app's auth, which loads after this module
+
+    hosting.after_change()
+    return setup

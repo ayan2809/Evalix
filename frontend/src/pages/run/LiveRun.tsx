@@ -165,10 +165,12 @@ function Body({
     <section className="ds-sheet rr-finish" aria-label="Finished">
       <h2>{cancelled ? 'Stopped. See the results so far.' : 'Done. See the results.'}</h2>
       <div className="ds-actions">
-        <LinkButton to="/" variant="primary">
+        {/* This benchmark, not the default one: a pinned benchmark would otherwise open instead. */}
+        <LinkButton to={`/?b=${d.id}`} variant="primary">
           See the results
         </LinkButton>
         <Button
+          variant="quiet"
           ownerOnly
           disabled={sending}
           disabledReason={
@@ -184,6 +186,9 @@ function Body({
           </button>
         )}
       </div>
+      <p className="ds-note rr-maxim-note">
+        Send to Maxim copies every step of these runs into your Maxim log repository, to search and keep them there.
+      </p>
       {sent && <Notice tone={sent.ok ? 'pass' : 'warn'}>{sent.note}</Notice>}
       {sendError && <Notice tone="error">{sendError}</Notice>}
     </section>

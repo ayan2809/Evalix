@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, asApiError, type EngineStatus } from '../../api'
 import { usePolling } from '../../hooks'
+import { useCanEdit } from '../../auth'
 import { Button, Notice } from '../../ui'
 
 /**
@@ -12,6 +13,7 @@ export function EngineNotice({ onReady }: { onReady: () => void }) {
   const [asked, setAsked] = useState(false)
   const [error, setError] = useState('')
   const engine = usePolling<EngineStatus>(() => api.engine(), [], 5000, (d) => !!d && d.hosted && !d.ready)
+  const { canEdit } = useCanEdit()
   const status = engine.data
   const waiting = !!status && status.hosted && !status.ready
   const wasWaiting = useRef(false)
@@ -53,6 +55,17 @@ export function EngineNotice({ onReady }: { onReady: () => void }) {
   }
 
   const starting = asked || state === 'pending' || state === 'running'
+  if (!canEdit && !starting) {
+    // A guest can't switch it on, so say what happens instead of showing a button that does nothing.
+    return (
+      <div className="rf-engine" aria-live="polite">
+        <Notice tone="info">
+          The run engine is asleep while nobody is using it, so the agents below show as asleep. Sign in to start a
+          run: the engine switches on by itself and takes about a minute.
+        </Notice>
+      </div>
+    )
+  }
   return (
     <div className="rf-engine" aria-live="polite">
       <Notice tone={starting ? 'info' : 'warn'}>

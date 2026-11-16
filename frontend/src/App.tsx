@@ -7,6 +7,7 @@ import Guide from './pages/Guide'
 import Login from './pages/Login'
 import Results from './pages/Results'
 import Run from './pages/Run'
+import Shared from './pages/Shared'
 import RunDetails from './pages/RunDetails'
 import Studio from './pages/Studio'
 import Shell from './shell/Shell'
@@ -34,6 +35,15 @@ function Gate() {
   return (
     <Routes>
       <Route path="/signin" element={<Login />} />
+      {/* A shared benchmark needs no sign-in. */}
+      <Route
+        path="/share/:token/*"
+        element={
+          <ShellProvider>
+            <Shared />
+          </ShellProvider>
+        }
+      />
       <Route
         path="*"
         element={

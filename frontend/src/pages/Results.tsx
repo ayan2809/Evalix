@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { api, type BenchmarkDetail, type BenchmarkListItem } from '../api'
+import { api, asApiError, currentShareToken, shareUrl, type BenchmarkDetail, type BenchmarkListItem } from '../api'
 import { useCanEdit } from '../auth'
 import { money } from '../format'
 import { useAsync, usePolling, useTitle } from '../hooks'
@@ -18,18 +18,36 @@ import {
   questionProblems,
   type AgentRow,
 } from './results/model'
-import { dollars, duration, fullDay, numberWord, shortDayTime, upperFirst } from './results/words'
+import { duration, fullDay, numberWord, shortDayTime, spentWords, upperFirst } from './results/words'
 import './results/results.css'
 
-/** Newest finished run, else the newest one still going, else just the newest. */
+/** The pinned one, else the newest finished run, else the newest one still going, else just the newest. */
 function defaultPick(list: BenchmarkListItem[]): BenchmarkListItem | undefined {
-  return list.find((b) => b.status === 'done') ?? list.find((b) => b.status === 'running') ?? list[0]
+  const shown = list.filter((b) => !b.archived)
+  return (
+    shown.find((b) => b.featured) ??
+    shown.find((b) => b.status === 'done') ??
+    shown.find((b) => b.status === 'running') ??
+    shown[0] ??
+    list[0]
+  )
+}
+
+/** "Nov 15, 8:12 PM, 12 runs", plus the number and a word when it is pinned, still going or archived. */
+function benchLabel(b: BenchmarkListItem): string {
+  const notes = [
+    b.featured ? 'pinned' : '',
+    b.status === 'running' ? 'still running' : b.status === 'cancelled' ? 'stopped early' : '',
+    b.archived ? 'archived' : '',
+  ].filter(Boolean)
+  return `#${b.id}, ${shortDayTime(b.created_at)}, ${b.total_runs} runs${notes.length ? `, ${notes.join(', ')}` : ''}`
 }
 
 export default function Results() {
   useTitle('Results')
   const [params, setParams] = useSearchParams()
-  const list = useAsync(() => api.listBenchmarks(), [])
+  const [showArchived, setShowArchived] = useState(false)
+  const list = useAsync(() => api.listBenchmarks(showArchived), [showArchived])
 
   if (list.error) {
     return (
@@ -49,11 +67,21 @@ export default function Results() {
 
   const wanted = Number(params.get('b'))
   const chosen = list.data.find((b) => b.id === wanted) ?? defaultPick(list.data)!
-  return <Loaded list={list.data} id={chosen.id} onPick={(id) => setParams(id === defaultPick(list.data!)?.id ? {} : { b: String(id) })} />
+  return (
+    <Loaded
+      list={list.data}
+      id={chosen.id}
+      onPick={(id) => setParams(id === defaultPick(list.data!)?.id ? {} : { b: String(id) })}
+      reloadList={list.reload}
+      showArchived={showArchived}
+      setShowArchived={setShowArchived}
+    />
+  )
 }
 
 function StartRun({ large }: { large?: boolean }) {
   const { canEdit, reason } = useCanEdit()
+  if (currentShareToken()) return null // a shared link only shows results
   // A guest can't start runs. Show the button as off, with the reason on hover, instead of sending them to a dead end.
   if (!canEdit) {
     return (
@@ -69,7 +97,18 @@ function StartRun({ large }: { large?: boolean }) {
   )
 }
 
-function Loaded({ list, id, onPick }: { list: BenchmarkListItem[]; id: number; onPick: (id: number) => void }) {
+interface ListControls {
+  reloadList: () => void
+  showArchived: boolean
+  setShowArchived: (v: boolean) => void
+}
+
+function Loaded({
+  list,
+  id,
+  onPick,
+  ...controls
+}: { list: BenchmarkListItem[]; id: number; onPick: (id: number) => void } & ListControls) {
   const [more, setMore] = useState(false)
   const [showQuestions, setShowQuestions] = useState(false)
   const bench = usePolling(() => api.getBenchmark(id), [id], 3000, (d) => d?.status === 'running')
@@ -98,6 +137,7 @@ function Loaded({ list, id, onPick }: { list: BenchmarkListItem[]; id: number; o
       bench={ready}
       list={list}
       onPick={onPick}
+      controls={controls}
       more={more}
       setMore={setMore}
       showQuestions={showQuestions}
@@ -122,9 +162,11 @@ function Board({
   setMore,
   showQuestions,
   setShowQuestions,
+  controls,
 }: {
   bench: BenchmarkDetail
   list: BenchmarkListItem[]
+  controls: ListControls
   onPick: (id: number) => void
   more: boolean
   setMore: (v: boolean) => void
@@ -150,10 +192,7 @@ function Board({
           small
           value={bench.id}
           onChange={onPick}
-          options={list.map((b) => ({
-            value: b.id,
-            label: `${shortDayTime(b.created_at)}, ${b.total_runs} runs${b.status === 'running' ? ', still running' : b.status === 'cancelled' ? ', stopped early' : ''}`,
-          }))}
+          options={list.map((b) => ({ value: b.id, label: benchLabel(b) }))}
         />
       </span>
     ) : (
@@ -180,13 +219,15 @@ function Board({
           },
           { label: list.length > 1 ? 'Showing' : 'Date', value: dateCell },
           { label: 'Runs', value: runsCell },
-          { label: 'Spent', value: dollars(bench.total_cost) },
+          { label: 'Spent', value: spentWords(bench.total_cost) },
           { label: 'Graded by', value: 'Rule checks' },
         ]}
-        action={<StartRun />}
+        action={currentShareToken() ? undefined : <StartRun />}
       />
 
       <PageHeader title="Which agents hold up when things break?" answer={answer} />
+
+      <BenchActions bench={bench} item={list.find((b) => b.id === bench.id)} controls={controls} />
 
       {running && (
         <Notice>
@@ -364,6 +405,68 @@ function AgentTable({ id, rows, more }: { id: string; rows: AgentRow[]; more: bo
           ))}
         </tbody>
       </Table>
+    </div>
+  )
+}
+
+/** Pin, share and archive this benchmark, and show archived ones. Only for people who can change this workspace. */
+function BenchActions({ bench, item, controls }: { bench: BenchmarkDetail; item?: BenchmarkListItem; controls: ListControls }) {
+  const { canEdit } = useCanEdit()
+  const { toast } = useShell()
+  const [busy, setBusy] = useState(false)
+  if (!canEdit || currentShareToken()) return null
+  const featured = item?.featured ?? false
+  const archived = item?.archived ?? false
+  const token = item?.share_token ?? null
+
+  async function act(work: () => Promise<unknown>, said: string) {
+    setBusy(true)
+    try {
+      await work()
+      toast(said)
+      controls.reloadList()
+    } catch (e) {
+      toast(asApiError(e).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function copyLink() {
+    setBusy(true)
+    try {
+      const made = token ?? (await api.shareBenchmark(bench.id, true)).share_token
+      await navigator.clipboard.writeText(shareUrl(made, '/'))
+      toast('Link copied. Anyone with it can see this benchmark and its runs, read-only.')
+      if (!token) controls.reloadList()
+    } catch (e) {
+      toast(asApiError(e).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="rs-actions" role="group" aria-label="This benchmark">
+      <Button small variant="quiet" disabled={busy || archived} onClick={() => act(() => api.featureBenchmark(bench.id, !featured), featured ? 'Unpinned.' : 'Pinned. Everyone sees this one first, guests too.')}>
+        {featured ? 'Unpin' : 'Pin as the one people see first'}
+      </Button>
+      <Button small variant="quiet" disabled={busy} onClick={copyLink}>
+        {token ? 'Copy share link' : 'Share a read-only link'}
+      </Button>
+      {token && (
+        <Button small variant="quiet" disabled={busy} onClick={() => act(() => api.shareBenchmark(bench.id, false), 'Sharing stopped. The old link no longer works.')}>
+          Stop sharing
+        </Button>
+      )}
+      {bench.status !== 'running' && (
+        <Button small variant="quiet" disabled={busy} onClick={() => act(() => api.archiveBenchmark(bench.id, !archived), archived ? 'Back in the list.' : 'Archived. It is hidden from the list; its runs stay.')}>
+          {archived ? 'Restore' : 'Archive'}
+        </Button>
+      )}
+      <Button small variant="quiet" aria-pressed={controls.showArchived} onClick={() => controls.setShowArchived(!controls.showArchived)}>
+        {controls.showArchived ? 'Hide archived' : 'Show archived'}
+      </Button>
     </div>
   )
 }

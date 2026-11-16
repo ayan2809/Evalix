@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import type { ComparePair, RunDetail, Step } from '../../api'
+import { appPath, type ComparePair, type RunDetail, type Step } from '../../api'
 import { money } from '../../format'
 import { Chip, Mark } from '../../ui'
 import { endingMark } from '../results/ending'
@@ -203,7 +203,7 @@ export function EndTable({ a, b }: { a: RunDetail; b: RunDetail }) {
               <td>{duration(r.seconds)}</td>
               <td>{money(r.cost_usd)}</td>
               <td>
-                <Link to={`/runs/${r.id}`}>Open this run</Link>
+                <Link to={appPath(`/runs/${r.id}`)}>Open this run</Link>
               </td>
             </tr>
           ))}

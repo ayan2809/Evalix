@@ -178,6 +178,15 @@ label.plate {
   background: transparent;
   box-shadow: inset 0 0 0 1.5px var(--ink-3, #80878b);
 }
+/* asleep: the hosted run engine is off. A dashed square, like "setup problem": not the agent's fault. */
+.online.asleep {
+  color: var(--ink-2, #50585d);
+}
+.online.asleep i {
+  background: transparent;
+  outline: 1.5px dashed var(--ink-3, #80878b);
+  outline-offset: -1.5px;
+}
 
 /* ---- action sheet: borders, not shadows ---- */
 .ds-sheet {

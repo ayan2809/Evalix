@@ -10,7 +10,7 @@ from app import config
 _conn: sqlite3.Connection | None = None
 _lock = threading.Lock()
 
-BOOL_COLS = {"live_mode", "looped", "fault_fired"}
+BOOL_COLS = {"live_mode", "looped", "fault_fired", "archived", "featured"}
 JSON_COLS = {"answer_json", "review_json", "input_json", "output_json", "selection_json", "checks_json"}
 
 SCHEMA = """
@@ -64,6 +64,12 @@ NEW_COLUMNS = [
     ("agents", "workspace", "TEXT NOT NULL DEFAULT 'main'"),
     ("benchmarks", "workspace", "TEXT NOT NULL DEFAULT 'main'"),
     ("studio_agents", "workspace", "TEXT NOT NULL DEFAULT 'main'"),
+    # Tidying up (Nov 16, 2026): hide agents and benchmarks without deleting them, pin one benchmark
+    # as the one people see first, and share one benchmark by a secret link.
+    ("agents", "archived", "INTEGER NOT NULL DEFAULT 0"),
+    ("benchmarks", "archived", "INTEGER NOT NULL DEFAULT 0"),
+    ("benchmarks", "featured", "INTEGER NOT NULL DEFAULT 0"),
+    ("benchmarks", "share_token", "TEXT"),
 ]
 MAIN = "main"
 STUDIO_TAG = "Made from one sentence"
@@ -150,8 +156,24 @@ def fill_agent_words(name: str, tag: str, description: str) -> None:
          (tag, description, name))
 
 
-def list_agents(workspace: str = MAIN) -> list[dict]:
-    return _all("SELECT * FROM agents WHERE workspace=? ORDER BY id", (workspace,))
+def rename_sample_agent(old: str, new: str, url: str, tag: str, description: str) -> None:
+    """Rename a sample agent saved under its old name (same address), in every workspace. Its runs keep pointing at it."""
+    _run("UPDATE agents SET name=?, tag=?, description=? WHERE name=? AND url=? AND source='registered'",
+         (new, tag, description, old, url))
+
+
+def list_agents(workspace: str = MAIN, include_archived: bool = False) -> list[dict]:
+    hide = "" if include_archived else " AND archived=0"
+    return _all(f"SELECT * FROM agents WHERE workspace=?{hide} ORDER BY id", (workspace,))
+
+
+def set_agent_archived(agent_id: int, archived: bool) -> None:
+    """Hide an agent from pickers and lists, or bring it back. Its runs stay."""
+    _run("UPDATE agents SET archived=? WHERE id=?", (int(archived), agent_id))
+
+
+def rename_agent(agent_id: int, name: str) -> None:
+    _run("UPDATE agents SET name=? WHERE id=?", (name, agent_id))
 
 
 def get_agent(agent_id: int) -> dict | None:
@@ -180,8 +202,35 @@ def get_benchmark(benchmark_id: int) -> dict | None:
     return _one("SELECT * FROM benchmarks WHERE id=?", (benchmark_id,))
 
 
-def list_benchmarks(workspace: str = MAIN) -> list[dict]:
-    return _all("SELECT * FROM benchmarks WHERE workspace=? ORDER BY id DESC", (workspace,))
+def list_benchmarks(workspace: str = MAIN, include_archived: bool = False) -> list[dict]:
+    hide = "" if include_archived else " AND archived=0"
+    return _all(f"SELECT * FROM benchmarks WHERE workspace=?{hide} ORDER BY id DESC", (workspace,))
+
+
+def set_benchmark_archived(benchmark_id: int, archived: bool) -> None:
+    """Hide a benchmark from the Results list, or bring it back. An archived one is never the pinned one."""
+    _run("UPDATE benchmarks SET archived=?, featured=CASE WHEN ? THEN 0 ELSE featured END WHERE id=?",
+         (int(archived), int(archived), benchmark_id))
+
+
+def set_featured(workspace: str, benchmark_id: int | None) -> None:
+    """Pin one benchmark as the one shown first in this workspace (None unpins). At most one is pinned."""
+    with _lock:
+        _conn.execute("UPDATE benchmarks SET featured=0 WHERE workspace=?", (workspace,))
+        if benchmark_id is not None:
+            _conn.execute("UPDATE benchmarks SET featured=1, archived=0 WHERE id=? AND workspace=?",
+                          (benchmark_id, workspace))
+        _conn.commit()
+
+
+def set_share_token(benchmark_id: int, token: str | None) -> None:
+    _run("UPDATE benchmarks SET share_token=? WHERE id=?", (token, benchmark_id))
+
+
+def benchmark_by_token(token: str) -> dict | None:
+    if not token:
+        return None
+    return _one("SELECT * FROM benchmarks WHERE share_token=?", (token,))
 
 
 def run_workspace(run_id: str) -> str | None:
@@ -324,6 +373,10 @@ def get_studio_agent(studio_id: int) -> dict | None:
 
 def get_studio_agent_by_agent(agent_id: int) -> dict | None:
     return _studio_row(_one("SELECT * FROM studio_agents WHERE agent_id=?", (agent_id,)))
+
+
+def update_studio_setup(studio_id: int, setup: dict) -> None:
+    _run("UPDATE studio_agents SET setup_json=? WHERE id=?", (_dump(setup), studio_id))
 
 
 # ---- settings (the Settings popup) ----

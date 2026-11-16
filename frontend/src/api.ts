@@ -54,6 +54,15 @@ export interface Agent {
   online: boolean
   tag: string
   description: string
+  /** hidden from pickers and lists; shown only with listAgents(true) */
+  archived?: boolean
+}
+
+/** Why an agent does or doesn't answer, from POST /api/agents/{id}/check. */
+export interface AgentCheck {
+  online: boolean
+  problem: 'address' | 'dns' | 'refused' | 'timeout' | 'error' | 'health' | null
+  detail: string
 }
 
 export interface AnswerField {
@@ -105,6 +114,11 @@ export interface BenchmarkListItem {
   done_runs: number
   total_cost: number
   agent_count: number
+  archived: boolean
+  /** the one shown first in this workspace (and to guests, in the main one) */
+  featured: boolean
+  /** secret for a read-only link; null when not shared, or when you can't change this workspace */
+  share_token: string | null
 }
 
 export interface SummaryBlock {
@@ -429,10 +443,33 @@ export class ApiError extends Error {
 /** Fired on window when the backend says 403, so the shell can show the backend's words. */
 export const FORBIDDEN_EVENT = 'evalix:forbidden'
 
+// ---------- Share links ----------
+
+let shareToken: string | null = null
+
+/** While a /share/<token> page is open, every read carries the token (sign-in calls never do). */
+export function setShareToken(token: string | null): void {
+  shareToken = token
+}
+export function currentShareToken(): string | null {
+  return shareToken
+}
+/** An in-app path that stays inside the shared view when one is open. */
+export function appPath(path: string): string {
+  return shareToken ? `/share/${encodeURIComponent(shareToken)}${path === '/' ? '' : path}` : path
+}
+/** The full link someone else can open: a share link when there is a token, else this page's address. */
+export function shareUrl(token: string | null, path: string): string {
+  const origin = window.location.origin
+  return token ? `${origin}/share/${encodeURIComponent(token)}${path === '/' ? '' : path}` : `${origin}${path}`
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response
+  const shared = shareToken && !path.startsWith('/api/auth/')
+  const headers = shared ? { ...(init?.headers as Record<string, string> | undefined), 'X-Evalix-Share': shareToken! } : init?.headers
   try {
-    res = await fetch(API_URL + path, { credentials: 'include', ...init })
+    res = await fetch(API_URL + path, { credentials: 'include', ...init, headers })
   } catch {
     throw new ApiError("Can't reach Evalix. Check that the backend is running.", true)
   }
@@ -446,7 +483,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       /* keep the generic message */
     }
-    if (res.status === 403) window.dispatchEvent(new CustomEvent(FORBIDDEN_EVENT, { detail: msg }))
+    if (res.status === 403 && !shared) window.dispatchEvent(new CustomEvent(FORBIDDEN_EVENT, { detail: msg }))
     throw new ApiError(msg, false, res.status)
   }
   return (await res.json()) as T
@@ -478,7 +515,10 @@ export const api = {
   health: () => request<Health>('/api/health'),
   engine: () => request<EngineStatus>('/api/engine'),
   wakeEngine: () => post<EngineStatus>('/api/engine/wake'),
-  listAgents: () => request<Agent[]>('/api/agents'),
+  /** Your agents. With archived = true, the archived ones too (marked). */
+  listAgents: (archived = false) => request<Agent[]>(`/api/agents${archived ? '?archived=true' : ''}`),
+  archiveAgent: (id: number, archived: boolean) => post<Agent>(`/api/agents/${id}/archive`, { archived }),
+  checkAgent: (id: number) => post<AgentCheck>(`/api/agents/${id}/check`),
   addAgent: (body: { name: string; url: string; tag?: string; description?: string }) =>
     post<Agent>('/api/agents', body),
   /** Adds the four sample agents to your workspace. Returns all your agents. */
@@ -488,7 +528,12 @@ export const api = {
 
   // benchmarks and runs
   startBenchmark: (body: StartBenchmarkBody) => post<{ id: number }>('/api/benchmarks', body),
-  listBenchmarks: () => request<BenchmarkListItem[]>('/api/benchmarks'),
+  listBenchmarks: (archived = false) =>
+    request<BenchmarkListItem[]>(`/api/benchmarks${archived ? '?archived=true' : ''}`),
+  archiveBenchmark: (id: number, archived: boolean) => post<{ ok: boolean }>(`/api/benchmarks/${id}/archive`, { archived }),
+  featureBenchmark: (id: number, featured: boolean) => post<{ ok: boolean }>(`/api/benchmarks/${id}/feature`, { featured }),
+  shareBenchmark: (id: number, shared: boolean) =>
+    post<{ share_token: string | null }>(`/api/benchmarks/${id}/share`, { shared }),
   getBenchmark: (id: number | string) => request<BenchmarkDetail>(`/api/benchmarks/${id}`),
   cancelBenchmark: (id: number | string) => post<{ ok: boolean }>(`/api/benchmarks/${id}/cancel`),
   exportMaxim: (id: number | string) => post<MaximExportResult>(`/api/benchmarks/${id}/export-maxim`),
@@ -506,6 +551,9 @@ export const api = {
     createAgent: (description: string, answers: StudioAnswer[]) =>
       post<StudioResult>('/api/studio/agents', { description, answers }),
     getSetup: (agentId: number) => request<StudioSetup>(`/api/studio/agents/${agentId}`),
+    /** Rename the agent, or change its retries, double-checks or stopping when unsure. */
+    updateSetup: (agentId: number, change: Partial<Pick<StudioSetup, 'name' | 'retries' | 'double_check' | 'stop_when_unsure'>>) =>
+      put<StudioSetup>(`/api/studio/agents/${agentId}`, change),
   },
 
   // Gateway tests

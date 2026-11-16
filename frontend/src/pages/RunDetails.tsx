@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { api, asApiError, type AnswerJson, type Check, type Review, type RunDetail, type Task } from '../api'
+import { api, appPath, asApiError, currentShareToken, type AnswerJson, type Check, type Review, type RunDetail, type Task } from '../api'
 import { money } from '../format'
 import { useAsync, useTitle } from '../hooks'
 import {
@@ -22,6 +22,7 @@ import { buildLane } from './run-details/timing'
 import { endingMark } from './results/ending'
 import { describeStep, waitBetween, waitSentence, type StepTone } from './run-details/steps'
 import { duration, lowerFirst, reasonShort, upperFirst } from './results/words'
+import { CopyLink } from './CopyLink'
 import './run-details/run-details.css'
 
 export default function RunDetails() {
@@ -35,7 +36,7 @@ export default function RunDetails() {
       <div className="wrap sheet">
         <ErrorState error={run.error} onRetry={run.reload} />
         <div>
-          <LinkButton to="/">Back to the results</LinkButton>
+          <LinkButton to={appPath('/')}>Back to the results</LinkButton>
         </div>
       </div>
     )
@@ -105,7 +106,7 @@ function Details({ run, task }: { run: RunDetail; task: Task | undefined }) {
       )}
       {run.task_text && <span className="rd-question">The question it was asked: {run.task_text}</span>}
       <span>
-        <Link to={`/?b=${run.benchmark_id}`}>Back to the results</Link>
+        <Link to={currentShareToken() ? appPath('/') : `/?b=${run.benchmark_id}`}>Back to the results</Link>
       </span>
     </div>
   )
@@ -134,7 +135,12 @@ function Details({ run, task }: { run: RunDetail; task: Task | undefined }) {
           { label: 'Cost', value: money(run.cost_usd) },
           { label: 'Model calls', value: modelCalls },
         ]}
-        action={<LinkButton to={`/compare?a=${encodeURIComponent(run.id)}`}>Compare with another agent</LinkButton>}
+        action={
+          <>
+            <LinkButton to={appPath(`/compare?a=${encodeURIComponent(run.id)}`)}>Compare with another agent</LinkButton>
+            <CopyLink benchmarkId={run.benchmark_id} />
+          </>
+        }
       />
 
       <PageHeader

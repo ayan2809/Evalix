@@ -59,10 +59,13 @@ export function TimingDiagram({
   /** Draws one vertical split line across every lane. */
   splitAtMs?: number
 }) {
-  const total = Math.max(totalMs, 1)
+  // The ruler runs to the next labelled tick past the end, so the longest bar never runs into the edge
+  // without a time under it (a 10.7 s run used to end past the last "8 s" label).
+  const raw = Math.max(totalMs, 1)
+  const step = niceStep(raw)
+  const total = Math.ceil(raw / step) * step
   const clampPct = (ms: number) => Math.min(100, Math.max(0, (ms / total) * 100))
   const pct = (ms: number) => `${clampPct(ms)}%`
-  const step = niceStep(total)
   const ticks: number[] = []
   for (let t = 0; t <= total + 1; t += step) ticks.push(t)
 

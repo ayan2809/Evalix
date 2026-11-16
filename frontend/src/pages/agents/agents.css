@@ -101,3 +101,52 @@
 .agents-start a {
   font-weight: 600;
 }
+
+/* Row actions: quiet text buttons, one line. */
+.agents-tbl td.row-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+.agents-tbl td.row-actions .link-btn + .link-btn {
+  margin-left: 14px;
+}
+.check-note {
+  display: block;
+  margin-top: 4px;
+  max-width: 22em;
+  font-size: 12.5px;
+  line-height: 1.35;
+  white-space: normal;
+}
+.check-note.bad {
+  color: var(--fail, #b3261e);
+}
+.check-note.ok {
+  color: var(--ink-2, #50585d);
+}
+.agents-asleep {
+  margin: 10px 0 0;
+}
+.agents-archived {
+  margin-top: 18px;
+}
+.agents-archived h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-stretch: 70%;
+}
+.agents-archived ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line, #d6d9db);
+}
+.agents-archived li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line, #d6d9db);
+  color: var(--ink-2, #50585d);
+}
