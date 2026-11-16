@@ -1387,6 +1387,17 @@ Timeline of Collaboration
 * **Storage:** tries are runs in one hidden benchmark per workspace (`benchmarks.kind = 'playground'`, never listed, pinned or shared), with the question in `runs.prompt`. They count toward a member's daily allowance. `POST /api/agents/{id}/try` returns at once and the page polls the run, so a slow agent never hits the CDN's request timeout.
 * **Tests:** 2 more (250 in all).
 
+### Phase 77: Follow-Up Questions in the Playground
+
+#### User Prompt 113
+> *"The current UI doesnt let me to ask followup to a previous questions, add that functionality to it."*
+
+* **A conversation, not one-offs:** once the agent answers, the box becomes "Ask Fact Checker a follow-up". Each new question links to the one before it (`runs.follows`), and the screen keeps the whole conversation, each turn with its own steps, answer and sources. "New conversation" starts fresh; changing the agent does too.
+* **Memory without changing agents:** agents keep nothing between calls, so Evalix reminds them. A follow-up's task text starts with the last 5 questions and answers of the conversation, then the new question. Every agent (plain Python, LangChain, ADK, Studio) understands it with no change to `POST /run`; agents that want structure also get a `conversation` list. A turn that broke is passed on as "(you couldn't answer: …)" so the agent knows.
+* **Earlier conversations:** the history lists each conversation once, by its first question, with how many questions it has and a "Continue" button that reads it back and lets you carry on.
+* **Checked for real:** asked Fact Checker "Which bank issues the Venture X credit card?" (Capital One), then "What is its annual fee?": it searched "Capital One Venture X annual fee" and answered $395 with three sources.
+* **Tests:** 2 more (255 in all).
+
 ---
 
 ## Pending Items (as of Nov 15, 2026)

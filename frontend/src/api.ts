@@ -69,6 +69,11 @@ export interface TryItem {
   cost_usd: number
   answer_json: AnswerJson | null
   started_at: string
+  /** The earlier question this one follows up ('' when it started the conversation). */
+  follows: string
+  /** The question that started this conversation, and how many questions it has so far. */
+  first: string
+  turns: number
 }
 
 /** Why an agent does or doesn't answer, from POST /api/agents/{id}/check. */
@@ -237,6 +242,8 @@ export interface Review {
 
 export interface RunDetail {
   id: string
+  /** Playground only: the earlier question this one follows up ('' or absent when it starts a conversation). */
+  follows?: string
   benchmark_id: number
   agent_id: number
   task_id: string
@@ -533,8 +540,8 @@ export const api = {
   archiveAgent: (id: number, archived: boolean) => post<Agent>(`/api/agents/${id}/archive`, { archived }),
   checkAgent: (id: number) => post<AgentCheck>(`/api/agents/${id}/check`),
   /** The playground: ask one agent one question. Watch it with getRun(run_id). */
-  tryAgent: (id: number, question: string, faultId: string | null) =>
-    post<{ run_id: string }>(`/api/agents/${id}/try`, { question, fault_id: faultId }),
+  tryAgent: (id: number, question: string, faultId: string | null, follows: string | null = null) =>
+    post<{ run_id: string }>(`/api/agents/${id}/try`, { question, fault_id: faultId, follows }),
   agentTries: (id: number) => request<TryItem[]>(`/api/agents/${id}/tries`),
   addAgent: (body: { name: string; url: string; tag?: string; description?: string }) =>
     post<Agent>('/api/agents', body),

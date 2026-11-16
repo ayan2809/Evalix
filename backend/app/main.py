@@ -169,7 +169,8 @@ def _run_view(run: dict) -> dict:
     agent = store.get_agent(run["agent_id"])
     task = load_tasks().get(run["task_id"], {})
     if run["task_id"] == "playground":
-        task = {"title": "Playground question", "task": run.get("prompt", "")}
+        task = {"title": "Playground follow-up" if run.get("follows") else "Playground question",
+                "task": run.get("prompt", "")}
     fault = load_faults().get(run["fault_id"], {}) if run["fault_id"] else {}
     return {**run,
             "checks": run.get("checks_json"),
@@ -250,6 +251,19 @@ async def diagnose(url: str) -> dict:
 class TryQuestion(BaseModel):
     question: str
     fault_id: str | None = None
+    follows: str | None = None  # the earlier playground question (run id) this one follows up
+
+
+def _said(run: dict) -> str:
+    """What the agent answered in a playground question, in words, for reminding it in a follow-up."""
+    reply = run.get("answer_json") or {}
+    if run.get("ending") != "passed":
+        return f"(you couldn't answer: {run.get('fail_reason') or 'it broke'})"
+    if reply.get("status") == "blocked":
+        return f"(you stopped and said why: {reply.get('reason') or 'no reason given'})"
+    answer = reply.get("answer")
+    words = " ".join(map(str, answer.values())) if isinstance(answer, dict) else str(answer or "")
+    return words[:1500]
 
 
 @app.post("/api/agents/{agent_id}/try", dependencies=[Depends(require_member)])
@@ -262,21 +276,43 @@ async def try_agent(agent_id: int, body: TryQuestion, me: Who = Depends(who)):
         raise HTTPException(status_code=400, detail="Type a question for the agent first.")
     if body.fault_id and body.fault_id not in runner.PLAYGROUND_FAULTS:
         raise HTTPException(status_code=400, detail="That problem needs a prepared question. Pick another.")
+    earlier: list[dict] = []
+    if body.follows:
+        last = store.get_run(body.follows)
+        if (not last or last["task_id"] != "playground" or last["agent_id"] != agent_id
+                or store.get_benchmark(last["benchmark_id"])["workspace"] != me.workspace):
+            raise HTTPException(status_code=404, detail="That earlier question isn't in this workspace any more.")
+        if last["ending"] is None:
+            raise HTTPException(status_code=409, detail="Wait for the agent to answer before asking a follow-up.")
+        earlier = [{"question": t["prompt"], "answer": _said(t)} for t in store.playground_thread(body.follows)]
     allowance.check_can_start(me.role, me.workspace, live_mode=True)
     key = await allowance.workspace_key(me.workspace, me.role)
     if me.role == "member" and key is None and not config.MOCK:
         raise HTTPException(status_code=502, detail="Bifrost couldn't make your spending key, so the question "
                                                     "can't be asked safely. Check that Bifrost is running.")
-    run_id = await runner.start_try(agent, question[:500], body.fault_id, me.workspace, key and key["value"])
+    run_id = await runner.start_try(agent, question[:500], body.fault_id, me.workspace, key and key["value"],
+                                    earlier=earlier, follows=body.follows or "")
     return {"run_id": run_id}
 
 
 @app.get("/api/agents/{agent_id}/tries")
 async def agent_tries(agent_id: int, me: Who = Depends(who)):
-    """The latest playground questions asked of this agent, newest first (just the summary of each)."""
+    """The latest playground conversations with this agent, newest first. Each item is the conversation's
+    latest question, with `first` (the question that started it) and `turns` (how many questions it has)."""
     _my_agent(agent_id, me)
-    keys = ("id", "prompt", "fault_id", "ending", "fail_reason", "seconds", "cost_usd", "answer_json", "started_at")
-    return [{k: r.get(k) for k in keys} for r in store.list_playground_runs(me.workspace, agent_id)]
+    runs = store.list_playground_runs(me.workspace, agent_id, limit=60)
+    followed = {r["follows"] for r in runs if r.get("follows")}
+    keys = ("id", "prompt", "fault_id", "ending", "fail_reason", "seconds", "cost_usd", "answer_json", "started_at",
+            "follows")
+    out = []
+    for r in runs:
+        if r["id"] in followed:
+            continue  # a later question in the same conversation stands for it
+        thread = store.playground_thread(r["id"]) if r.get("follows") else [r]
+        out.append({**{k: r.get(k) for k in keys}, "first": thread[0]["prompt"], "turns": len(thread)})
+        if len(out) == 10:
+            break
+    return out
 
 
 @app.post("/api/agents/{agent_id}/check", dependencies=[Depends(require_member)])

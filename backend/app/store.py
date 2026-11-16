@@ -73,6 +73,8 @@ NEW_COLUMNS = [
     # The playground (Nov 16, 2026): one hidden benchmark per workspace holds the questions people try by hand.
     ("benchmarks", "kind", "TEXT NOT NULL DEFAULT 'benchmark'"),
     ("runs", "prompt", "TEXT NOT NULL DEFAULT ''"),
+    # Follow-up questions (Nov 16, 2026): a playground question can follow an earlier one, making a conversation.
+    ("runs", "follows", "TEXT NOT NULL DEFAULT ''"),
 ]
 MAIN = "main"
 STUDIO_TAG = "Made from one sentence"
@@ -282,10 +284,22 @@ def benchmark_costs() -> dict[int, float]:
 # ---- runs ----
 
 def create_run(run_id: str, benchmark_id: int, agent_id: int, task_id: str,
-               fault_id: str, trial: int, expect: str, model: str, prompt: str = "") -> None:
-    _run("INSERT INTO runs (id, benchmark_id, agent_id, task_id, fault_id, trial, expect, model, started_at, prompt)"
-         " VALUES (?,?,?,?,?,?,?,?,?,?)",
-         (run_id, benchmark_id, agent_id, task_id, fault_id, trial, expect, model, _now(), prompt))
+               fault_id: str, trial: int, expect: str, model: str, prompt: str = "", follows: str = "") -> None:
+    _run("INSERT INTO runs (id, benchmark_id, agent_id, task_id, fault_id, trial, expect, model, started_at, prompt,"
+         " follows) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+         (run_id, benchmark_id, agent_id, task_id, fault_id, trial, expect, model, _now(), prompt, follows))
+
+
+def playground_thread(run_id: str, limit: int = 20) -> list[dict]:
+    """A playground conversation up to and including this question, oldest first."""
+    turns: list[dict] = []
+    while run_id and len(turns) < limit:
+        run = get_run(run_id)
+        if not run or run["task_id"] != "playground":
+            break
+        turns.append(run)
+        run_id = run.get("follows") or ""
+    return turns[::-1]
 
 
 def list_playground_runs(workspace: str, agent_id: int, limit: int = 10) -> list[dict]:
