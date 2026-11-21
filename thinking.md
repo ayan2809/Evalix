@@ -1400,6 +1400,23 @@ Timeline of Collaboration
 
 ---
 
+### Phase 78: Submission Form Guidance for Geek Room Global AI Hackathon
+
+#### User Prompt 114
+> *"help me fill this form"*
+
+* **Submission Form Field Mapping:**
+  - **Theme:** `AI Agents & Intelligent Systems`
+  - **Problem Statement:** `Build a Benchmarking Platform for AI Agents, Not Just Models`
+  - **Project Title:** `Evalix`
+  - **Github link:** `https://github.com/ayan2809/Evalix`
+  - **Demo Video Link:** `https://youtu.be/BFEi1fcvmKY?si=alWyqTicFZmhbaMo`
+  - **PPT File:** `docs/submission/Evalix-deck.pptx`
+  - **Tavily Integration:** `Stale-Answer Detector`
+  - **Dual Project:** `NA (not applied)` (2nd project fields left blank)
+
+---
+
 ## Pending Items (as of Nov 15, 2026)
 
 **For the author**
