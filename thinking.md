@@ -1370,6 +1370,36 @@ Timeline of Collaboration
 
 ---
 
+### Phase 75: Only the Author as Contributor
+
+#### User Prompt 111
+> *"the repo should show only me as the contributor and not claude."*
+
+* 14 commits on `main` carried a co-author trailer, which is why GitHub listed a second contributor. After the author confirmed, the trailer was stripped from every commit on `main` and the feature branches (authors, dates, messages and file contents unchanged; each branch tip has the same files), and the branches were force-pushed with a lease. A backup bundle was kept outside the repo. New commits carry no trailer.
+
+### Phase 76: A Playground for Studio Agents
+
+#### User Prompt 112
+> *"there should be a playground where the user can interact with the agent that they just created on the ai studio else its like too open ended."*
+
+* **Playground** on the Agent Studio page: pick an agent (the one just made is picked for you; "Try it" picks another), type a question, optionally break one thing, and watch each step as it happens, then the answer and its sources.
+* **Same path as a run:** the question goes to the agent's `POST /run` with Evalix's tools and model door, through Bifrost, with live web search. Only the five problems that fit any question are offered (broken tool, slow tool, empty search, model busy, tool gone); the lying ones need a prepared page.
+* **Storage:** tries are runs in one hidden benchmark per workspace (`benchmarks.kind = 'playground'`, never listed, pinned or shared), with the question in `runs.prompt`. They count toward a member's daily allowance. `POST /api/agents/{id}/try` returns at once and the page polls the run, so a slow agent never hits the CDN's request timeout.
+* **Tests:** 2 more (250 in all).
+
+### Phase 77: Follow-Up Questions in the Playground
+
+#### User Prompt 113
+> *"The current UI doesnt let me to ask followup to a previous questions, add that functionality to it."*
+
+* **A conversation, not one-offs:** once the agent answers, the box becomes "Ask Fact Checker a follow-up". Each new question links to the one before it (`runs.follows`), and the screen keeps the whole conversation, each turn with its own steps, answer and sources. "New conversation" starts fresh; changing the agent does too.
+* **Memory without changing agents:** agents keep nothing between calls, so Evalix reminds them. A follow-up's task text starts with the last 5 questions and answers of the conversation, then the new question. Every agent (plain Python, LangChain, ADK, Studio) understands it with no change to `POST /run`; agents that want structure also get a `conversation` list. A turn that broke is passed on as "(you couldn't answer: …)" so the agent knows.
+* **Earlier conversations:** the history lists each conversation once, by its first question, with how many questions it has and a "Continue" button that reads it back and lets you carry on.
+* **Checked for real:** asked Fact Checker "Which bank issues the Venture X credit card?" (Capital One), then "What is its annual fee?": it searched "Capital One Venture X annual fee" and answered $395 with three sources.
+* **Tests:** 2 more (255 in all).
+
+---
+
 ## Pending Items (as of Nov 15, 2026)
 
 **For the author**

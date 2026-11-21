@@ -113,6 +113,8 @@ async def _call_agent(state: RunState, agent: dict) -> tuple[dict | None, str, i
         "model_name": state.model,
         "limits": state.limits,
     }
+    if task.get("conversation"):
+        payload["conversation"] = task["conversation"]
     seconds = state.limits["seconds"]
     try:
         async with httpx.AsyncClient(timeout=seconds) as client:
@@ -188,3 +190,75 @@ async def _execute(benchmark_id: int, item: dict, live_mode: bool, model: str, v
         "run_id": run_id, "agent_id": agent["id"], "task_id": task_id, "fault_id": fault_id,
         "trial": item["trial"], **{k: v for k, v in numbers.items() if k not in ("answer_json", "checks_json")}})
     return ending
+
+
+# ---- the playground: one question, asked by hand ----
+
+PLAYGROUND_FAULTS = ("broken_tool", "slow_tool", "empty_result", "model_busy", "tool_gone")
+PLAYGROUND_FORMAT = {"answer": {"type": "string", "about": "The answer in one to three sentences."}}
+
+
+PLAYGROUND_MEMORY = 5  # earlier questions and answers an agent is reminded of in a follow-up
+
+
+def playground_task(question: str, earlier: list[dict] | None = None) -> dict:
+    """A one-off task for a question someone typed. Search is live, so there is no saved pool.
+    For a follow-up, `earlier` holds the conversation so far ({question, answer}, oldest first). Agents keep no
+    memory between runs, so the earlier turns go into the task text itself: every agent understands a
+    follow-up without changing how it is called. They are also sent as `conversation` for agents that want them."""
+    earlier = (earlier or [])[-PLAYGROUND_MEMORY:]
+    text = question
+    if earlier:
+        said = "\n".join(f"Question: {t['question']}\nYour answer: {t['answer'] or '(no answer)'}" for t in earlier)
+        text = (f"This continues a conversation. What was asked and answered so far:\n{said}\n\n"
+                f"Now answer this follow-up question, reading it in the light of the conversation: {question}")
+    task = {"id": "playground", "title": "Your question", "area": "Playground", "task": text,
+            "answer_format": PLAYGROUND_FORMAT, "pool": []}
+    if earlier:
+        task["conversation"] = earlier
+    return task
+
+
+async def start_try(agent: dict, question: str, fault_id: str | None, workspace: str, vk: str | None = None,
+                    earlier: list[dict] | None = None, follows: str = "") -> str:
+    """Ask one agent one question, with live web search and, if asked, one problem caused on purpose.
+    `follows` is the earlier question this one follows up, and `earlier` the conversation up to it.
+    Returns the run id at once; the run finishes in the background (watch it with GET /api/runs/{id})."""
+    fault = load_faults().get(fault_id) if fault_id in PLAYGROUND_FAULTS else None
+    task = playground_task(question, earlier)
+    benchmark_id = store.playground_benchmark(workspace)
+    model = prefs.agent_model()
+    run_id = "r_" + uuid.uuid4().hex[:8]
+    state = RunState(run_id=run_id, benchmark_id=benchmark_id, agent_id=agent["id"], task=task, fault=fault,
+                     engine=FaultEngine(fault, task), live_mode=not config.MOCK, limits=dict(config.RUN_LIMITS), model=model, vk=vk)
+    store.create_run(run_id, benchmark_id, agent["id"], "playground", fault["id"] if fault else "", 1,
+                     fault.get("expect", "answer") if fault else "answer", model, prompt=question, follows=follows)
+    ACTIVE[run_id] = state
+    job = asyncio.create_task(_finish_try(state, agent))
+    _background.add(job)
+    job.add_done_callback(_background.discard)
+    return run_id
+
+
+async def _finish_try(state: RunState, agent: dict) -> None:
+    try:
+        reply, crash, http_status = await _call_agent(state, agent)
+    except Exception as exc:
+        reply, crash, http_status = None, "", 0
+        state.setup_problem = f"error inside Evalix ({type(exc).__name__})"
+    state.finished = True
+    ACTIVE.pop(state.run_id, None)
+    record_step(state, "final_answer", "final_answer", None, {"error": crash} if crash else reply,
+                status_code=http_status or 0)
+    # No answer key here: the playground only says whether it answered, stopped, or broke.
+    if state.setup_problem:
+        ending, reason = "setup_problem", state.setup_problem
+    else:
+        crash = crash or ("" if reply is None else check_reply_shape(reply))
+        ending, reason = ("crashed", crash) if crash else ("passed", "")
+    store.update_run(state.run_id, ending=ending, fail_reason=reason, steps=state.model_calls,
+                     tool_calls=state.tool_calls, tokens_in=state.tokens_in, tokens_out=state.tokens_out,
+                     cost_usd=cost_usd(state.model, state.tokens_in, state.tokens_out, load_prices()),
+                     seconds=round(time.monotonic() - state.started, 1), fault_fired=state.engine.fired,
+                     answer_json=reply if isinstance(reply, dict) else None)
+    hosting.after_change()

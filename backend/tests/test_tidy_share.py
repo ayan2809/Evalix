@@ -126,3 +126,87 @@ def test_studio_agent_can_be_renamed_and_retuned(world):
     assert store.get_agent(agent["id"])["name"] == "Travel Planner"
     assert owner.put(f"/api/studio/agents/{agent['id']}", json={"name": "!!"}).status_code == 400
     assert client("ann@example.com", "1").put(f"/api/studio/agents/{agent['id']}", json={"retries": 0}).status_code == 404
+
+
+def test_playground_asks_one_question_and_stays_out_of_results(world):
+    import time
+
+    from app import auth
+    from app.main import app
+
+    _, store, _ = world
+    # One event loop for the whole test, so the background try can finish. (This runs start-up, which opens
+    # the shared throwaway test database from conftest.py, not the in-memory one.)
+    with TestClient(app) as owner:
+        owner.cookies.set("evalix_session", auth.make_cookie({"kind": "google", "sub": "o", "email": "owner@example.com"}))
+        agent = owner.post("/api/agents", json={"name": "Nobody home", "url": "http://127.0.0.1:9"}).json()
+        assert owner.post(f"/api/agents/{agent['id']}/try", json={"question": "  "}).status_code == 400
+        assert owner.post(f"/api/agents/{agent['id']}/try",
+                          json={"question": "x", "fault_id": "lying_result"}).status_code == 400
+        run_id = owner.post(f"/api/agents/{agent['id']}/try",
+                            json={"question": "What is the capital of France?", "fault_id": "model_busy"}).json()["run_id"]
+        for _ in range(50):
+            run = owner.get(f"/api/runs/{run_id}").json()
+            if run["ending"]:
+                break
+            time.sleep(0.1)
+        assert run["ending"] == "crashed" and run["fail_reason"] == "agent is not reachable"
+        assert run["task_title"] == "Playground question" and run["task_text"] == "What is the capital of France?"
+        assert run["fault_id"] == "model_busy"
+        tries = owner.get(f"/api/agents/{agent['id']}/tries").json()
+        assert [t["id"] for t in tries] == [run_id] and tries[0]["prompt"] == "What is the capital of France?"
+        # The hidden playground benchmark never shows in Results, and can't be pinned or shared.
+        hidden = run["benchmark_id"]
+        assert hidden not in [b["id"] for b in owner.get("/api/benchmarks?archived=true").json()]
+        assert owner.post(f"/api/benchmarks/{hidden}/feature", json={}).status_code == 404
+        assert owner.post(f"/api/benchmarks/{hidden}/share", json={}).status_code == 404
+
+
+def test_guests_cannot_use_the_playground(world):
+    client, *_ = world
+    agent = client("owner@example.com").get("/api/agents").json()[0]["id"]
+    assert client(kind="guest").post(f"/api/agents/{agent}/try", json={"question": "hi"}).status_code == 403
+    assert client("ann@example.com", "1").post(f"/api/agents/{agent}/try", json={"question": "hi"}).status_code == 404
+
+
+def test_playground_follow_ups_remember_the_conversation(world):
+    from app import runner, store
+    from app.main import _said
+
+    # The agent keeps no memory, so the earlier turns ride along in the task text (and as `conversation`).
+    first = runner.playground_task("Who makes the Venture X card?")
+    assert first["task"] == "Who makes the Venture X card?" and "conversation" not in first
+    earlier = [{"question": "Who makes the Venture X card?", "answer": "Capital One."}]
+    follow = runner.playground_task("What is its yearly fee?", earlier)
+    assert "Capital One." in follow["task"] and follow["task"].endswith("What is its yearly fee?")
+    assert follow["conversation"] == earlier
+    many = [{"question": f"q{i}", "answer": f"a{i}"} for i in range(9)]
+    assert [t["question"] for t in runner.playground_task("next", many)["conversation"]] == ["q4", "q5", "q6", "q7", "q8"]
+    assert _said({"ending": "passed", "answer_json": {"answer": {"answer": "Capital One."}}}) == "Capital One."
+    assert "couldn't answer" in _said({"ending": "crashed", "fail_reason": "agent is not reachable"})
+
+    # A thread is read back oldest first by walking `follows`.
+    bench = store.playground_benchmark(store.MAIN)
+    store.create_run("r_a", bench, 1, "playground", "", 1, "answer", "m", prompt="one")
+    store.create_run("r_b", bench, 1, "playground", "", 1, "answer", "m", prompt="two", follows="r_a")
+    assert [t["prompt"] for t in store.playground_thread("r_b")] == ["one", "two"]
+
+
+def test_playground_follow_up_rules(world):
+    client, store, _ = world
+    owner = client("owner@example.com")
+    bench = store.playground_benchmark(store.MAIN)
+    store.create_run("r_open", bench, 1, "playground", "", 1, "answer", "m", prompt="still going")
+    store.create_run("r_done", bench, 1, "playground", "", 1, "answer", "m", prompt="first")
+    store.update_run("r_done", ending="passed")
+    store.create_run("r_next", bench, 1, "playground", "", 1, "answer", "m", prompt="second", follows="r_done")
+    store.update_run("r_next", ending="passed")
+    # Wait for the answer first; only this agent's own conversations; a made-up id is 404.
+    assert owner.post("/api/agents/1/try", json={"question": "and?", "follows": "r_open"}).status_code == 409
+    assert owner.post("/api/agents/2/try", json={"question": "and?", "follows": "r_done"}).status_code == 404
+    assert owner.post("/api/agents/1/try", json={"question": "and?", "follows": "r_nope"}).status_code == 404
+    # The history shows each conversation once, by its latest question.
+    tries = {t["id"]: t for t in owner.get("/api/agents/1/tries").json()}
+    assert "r_done" not in tries and tries["r_next"]["first"] == "first" and tries["r_next"]["turns"] == 2
+    assert tries["r_open"]["turns"] == 1
+    assert owner.get("/api/runs/r_next").json()["task_title"] == "Playground follow-up"
